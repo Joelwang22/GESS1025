@@ -1,0 +1,302 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-22T17:58:42.4434048Z",
+  "title": "Design System: OSCP Master Checklist",
+  "extensions": {
+    "colorMeta": {
+      "field-blue-light": {
+        "role": "primary",
+        "displayName": "Field Blue",
+        "canonical": "#1d4ed8",
+        "tonalRamp": ["oklch(15% 0.16 260)", "oklch(25% 0.16 260)", "oklch(35% 0.16 260)", "oklch(45% 0.16 260)", "oklch(55% 0.16 260)", "oklch(65% 0.16 260)", "oklch(80% 0.16 260)", "oklch(95% 0.16 260)"]
+      },
+      "field-blue-hover-light": {
+        "role": "primary",
+        "displayName": "Field Blue Hover",
+        "canonical": "#2563eb",
+        "tonalRamp": ["oklch(15% 0.16 260)", "oklch(25% 0.16 260)", "oklch(35% 0.16 260)", "oklch(45% 0.16 260)", "oklch(55% 0.16 260)", "oklch(65% 0.16 260)", "oklch(80% 0.16 260)", "oklch(95% 0.16 260)"]
+      },
+      "field-blue-solid": {
+        "role": "primary",
+        "displayName": "Field Blue Solid",
+        "canonical": "#3b82f6",
+        "tonalRamp": ["oklch(15% 0.15 255)", "oklch(25% 0.15 255)", "oklch(35% 0.15 255)", "oklch(45% 0.15 255)", "oklch(55% 0.15 255)", "oklch(65% 0.15 255)", "oklch(80% 0.15 255)", "oklch(95% 0.15 255)"]
+      },
+      "field-blue-soft-light": {
+        "role": "primary",
+        "displayName": "Field Blue Wash Light",
+        "canonical": "rgba(37, 99, 235, 0.12)",
+        "tonalRamp": ["oklch(15% 0.04 260)", "oklch(25% 0.04 260)", "oklch(35% 0.04 260)", "oklch(45% 0.04 260)", "oklch(55% 0.04 260)", "oklch(65% 0.04 260)", "oklch(80% 0.04 260)", "oklch(95% 0.04 260)"]
+      },
+      "field-blue-dark": {
+        "role": "primary",
+        "displayName": "Field Blue Dark",
+        "canonical": "#93c5fd",
+        "tonalRamp": ["oklch(15% 0.1 250)", "oklch(25% 0.1 250)", "oklch(35% 0.1 250)", "oklch(45% 0.1 250)", "oklch(55% 0.1 250)", "oklch(65% 0.1 250)", "oklch(80% 0.1 250)", "oklch(95% 0.1 250)"]
+      },
+      "field-blue-hover-dark": {
+        "role": "primary",
+        "displayName": "Field Blue Hover Dark",
+        "canonical": "#60a5fa",
+        "tonalRamp": ["oklch(15% 0.12 250)", "oklch(25% 0.12 250)", "oklch(35% 0.12 250)", "oklch(45% 0.12 250)", "oklch(55% 0.12 250)", "oklch(65% 0.12 250)", "oklch(80% 0.12 250)", "oklch(95% 0.12 250)"]
+      },
+      "field-blue-soft-dark": {
+        "role": "primary",
+        "displayName": "Field Blue Wash Dark",
+        "canonical": "rgba(96, 165, 250, 0.14)",
+        "tonalRamp": ["oklch(15% 0.04 250)", "oklch(25% 0.04 250)", "oklch(35% 0.04 250)", "oklch(45% 0.04 250)", "oklch(55% 0.04 250)", "oklch(65% 0.04 250)", "oklch(80% 0.04 250)", "oklch(95% 0.04 250)"]
+      },
+      "paper-light": {
+        "role": "neutral",
+        "displayName": "Paper Light",
+        "canonical": "#ffffff",
+        "tonalRamp": ["oklch(15% 0 0)", "oklch(25% 0 0)", "oklch(35% 0 0)", "oklch(45% 0 0)", "oklch(55% 0 0)", "oklch(65% 0 0)", "oklch(80% 0 0)", "oklch(95% 0 0)"]
+      },
+      "panel-light": {
+        "role": "neutral",
+        "displayName": "Soft Panel Light",
+        "canonical": "#f6f6f7",
+        "tonalRamp": ["oklch(15% 0.004 280)", "oklch(25% 0.004 280)", "oklch(35% 0.004 280)", "oklch(45% 0.004 280)", "oklch(55% 0.004 280)", "oklch(65% 0.004 280)", "oklch(80% 0.004 280)", "oklch(95% 0.004 280)"]
+      },
+      "ink-light": {
+        "role": "neutral",
+        "displayName": "Graphite Ink Light",
+        "canonical": "#3c3c43",
+        "tonalRamp": ["oklch(15% 0.008 285)", "oklch(25% 0.008 285)", "oklch(35% 0.008 285)", "oklch(45% 0.008 285)", "oklch(55% 0.008 285)", "oklch(65% 0.008 285)", "oklch(80% 0.008 285)", "oklch(95% 0.008 285)"]
+      },
+      "muted-ink-light": {
+        "role": "neutral",
+        "displayName": "Muted Ink Light",
+        "canonical": "#67676c",
+        "tonalRamp": ["oklch(15% 0.006 285)", "oklch(25% 0.006 285)", "oklch(35% 0.006 285)", "oklch(45% 0.006 285)", "oklch(55% 0.006 285)", "oklch(65% 0.006 285)", "oklch(80% 0.006 285)", "oklch(95% 0.006 285)"]
+      },
+      "rule-light": {
+        "role": "neutral",
+        "displayName": "Quiet Rule Light",
+        "canonical": "#e2e2e3",
+        "tonalRamp": ["oklch(15% 0.003 285)", "oklch(25% 0.003 285)", "oklch(35% 0.003 285)", "oklch(45% 0.003 285)", "oklch(55% 0.003 285)", "oklch(65% 0.003 285)", "oklch(80% 0.003 285)", "oklch(95% 0.003 285)"]
+      },
+      "paper-dark": {
+        "role": "neutral",
+        "displayName": "Paper Dark",
+        "canonical": "#1b1b1f",
+        "tonalRamp": ["oklch(15% 0.006 285)", "oklch(25% 0.006 285)", "oklch(35% 0.006 285)", "oklch(45% 0.006 285)", "oklch(55% 0.006 285)", "oklch(65% 0.006 285)", "oklch(80% 0.006 285)", "oklch(95% 0.006 285)"]
+      },
+      "panel-dark": {
+        "role": "neutral",
+        "displayName": "Soft Panel Dark",
+        "canonical": "#202127",
+        "tonalRamp": ["oklch(15% 0.008 275)", "oklch(25% 0.008 275)", "oklch(35% 0.008 275)", "oklch(45% 0.008 275)", "oklch(55% 0.008 275)", "oklch(65% 0.008 275)", "oklch(80% 0.008 275)", "oklch(95% 0.008 275)"]
+      },
+      "ink-dark": {
+        "role": "neutral",
+        "displayName": "Graphite Ink Dark",
+        "canonical": "#dfdfd6",
+        "tonalRamp": ["oklch(15% 0.008 100)", "oklch(25% 0.008 100)", "oklch(35% 0.008 100)", "oklch(45% 0.008 100)", "oklch(55% 0.008 100)", "oklch(65% 0.008 100)", "oklch(80% 0.008 100)", "oklch(95% 0.008 100)"]
+      },
+      "muted-ink-dark": {
+        "role": "neutral",
+        "displayName": "Muted Ink Dark",
+        "canonical": "#98989f",
+        "tonalRamp": ["oklch(15% 0.006 285)", "oklch(25% 0.006 285)", "oklch(35% 0.006 285)", "oklch(45% 0.006 285)", "oklch(55% 0.006 285)", "oklch(65% 0.006 285)", "oklch(80% 0.006 285)", "oklch(95% 0.006 285)"]
+      },
+      "rule-dark": {
+        "role": "neutral",
+        "displayName": "Quiet Rule Dark",
+        "canonical": "#2e2e32",
+        "tonalRamp": ["oklch(15% 0.005 285)", "oklch(25% 0.005 285)", "oklch(35% 0.005 285)", "oklch(45% 0.005 285)", "oklch(55% 0.005 285)", "oklch(65% 0.005 285)", "oklch(80% 0.005 285)", "oklch(95% 0.005 285)"]
+      },
+      "important-soft-light": {
+        "role": "secondary",
+        "displayName": "Important Violet Wash Light",
+        "canonical": "rgba(159, 122, 234, 0.14)",
+        "tonalRamp": ["oklch(15% 0.08 300)", "oklch(25% 0.08 300)", "oklch(35% 0.08 300)", "oklch(45% 0.08 300)", "oklch(55% 0.08 300)", "oklch(65% 0.08 300)", "oklch(80% 0.08 300)", "oklch(95% 0.08 300)"]
+      },
+      "important-soft-dark": {
+        "role": "secondary",
+        "displayName": "Important Violet Wash Dark",
+        "canonical": "rgba(159, 122, 234, 0.16)",
+        "tonalRamp": ["oklch(15% 0.08 300)", "oklch(25% 0.08 300)", "oklch(35% 0.08 300)", "oklch(45% 0.08 300)", "oklch(55% 0.08 300)", "oklch(65% 0.08 300)", "oklch(80% 0.08 300)", "oklch(95% 0.08 300)"]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Page Headline",
+        "purpose": "Task and framing-page titles."
+      },
+      "title": {
+        "displayName": "Section Title",
+        "purpose": "Major sections within long tasks."
+      },
+      "body": {
+        "displayName": "Reading Body",
+        "purpose": "Long-form task instructions and explanations."
+      },
+      "label": {
+        "displayName": "Interface Label",
+        "purpose": "Table headings, navigation, and compact controls."
+      },
+      "mono": {
+        "displayName": "Command Mono",
+        "purpose": "Commands, code, task IDs, hashes, and paths."
+      }
+    },
+    "shadows": [
+      {
+        "name": "transient-overlay",
+        "value": "0 3px 12px rgba(0, 0, 0, 0.07), 0 1px 4px rgba(0, 0, 0, 0.07)",
+        "purpose": "VitePress local search and other temporary floating UI only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "0.25s",
+        "purpose": "Link color, anchor visibility, and compact control feedback."
+      },
+      {
+        "name": "theme-standard",
+        "value": "0.5s",
+        "purpose": "Theme-aware text and background changes supplied by VitePress."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0s",
+        "purpose": "VitePress removes transition duration when reduced motion is requested."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-reading",
+        "value": "640px"
+      },
+      {
+        "name": "desktop-headline",
+        "value": "768px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Navigation Link",
+      "kind": "nav",
+      "refersTo": "link-default",
+      "description": "A top-bar or sidebar destination with theme-aware blue active and focus states.",
+      "html": "<a class=\"ds-nav-link\" href=\"#\">Checklist</a>",
+      "css": ".ds-nav-link { color: var(--vp-c-text-1, #3c3c43); font: 500 14px/1.45 ui-sans-serif, system-ui, sans-serif; text-decoration: none; transition: color 0.25s; } .ds-nav-link:hover, .ds-nav-link[aria-current=\"page\"] { color: var(--vp-c-brand-1, #1d4ed8); } .ds-nav-link:focus-visible { outline: 3px solid var(--vp-c-brand-2, #2563eb); outline-offset: 3px; }"
+    },
+    {
+      "name": "Local Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "The local-search query field used inside VitePress's detailed search view.",
+      "html": "<input class=\"ds-search-field\" type=\"search\" aria-label=\"Search checklist\" placeholder=\"Search the checklist\">",
+      "css": ".ds-search-field { width: 100%; color: var(--vp-c-text-1, #3c3c43); background: var(--vp-input-bg-color, #f6f6f7); border: 1px solid var(--vp-input-border-color, #c2c2c4); border-radius: 4px; padding: 8px 12px; font: 400 16px/1.5 ui-sans-serif, system-ui, sans-serif; transition: border-color 0.2s; } .ds-search-field:hover { border-color: var(--vp-c-brand-1, #1d4ed8); } .ds-search-field:focus-visible { outline: 3px solid var(--vp-c-brand-2, #2563eb); outline-offset: 3px; border-color: var(--vp-c-brand-1, #1d4ed8); }"
+    },
+    {
+      "name": "Document Link",
+      "kind": "custom",
+      "refersTo": "link-default",
+      "description": "An inline task, module, source, or next-step link inside article text.",
+      "html": "<a class=\"ds-doc-link\" href=\"#\">Start at NET-01</a>",
+      "css": ".ds-doc-link { color: var(--vp-c-brand-1, #1d4ed8); font: 500 16px/1.68 ui-sans-serif, system-ui, sans-serif; text-decoration: underline; text-underline-offset: 0.16em; transition: color 0.25s, opacity 0.25s; } .ds-doc-link:hover { color: var(--vp-c-brand-2, #2563eb); } .ds-doc-link:focus-visible { outline: 3px solid var(--vp-c-brand-2, #2563eb); outline-offset: 3px; }"
+    },
+    {
+      "name": "Command Block",
+      "kind": "custom",
+      "refersTo": "code-block",
+      "description": "A wrapped shell or text command with the same readable block treatment used by task pages.",
+      "html": "<pre class=\"ds-code-block\"><code>ping -c 3 '&lt;IP_ADDRESS&gt;'</code></pre>",
+      "css": ".ds-code-block { margin: 16px 0; color: var(--vp-code-block-color, #67676c); background: var(--vp-code-block-bg, #f6f6f7); border-radius: 8px; padding: 20px 24px; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 400 14px/1.7 \"Cascadia Code\", \"SFMono-Regular\", Consolas, \"Liberation Mono\", monospace; transition: background-color 0.5s, color 0.5s; } .ds-code-block:hover { background: var(--vp-c-bg-soft, #f6f6f7); } .ds-code-block:focus-within { outline: 3px solid var(--vp-c-brand-2, #2563eb); outline-offset: 3px; }"
+    },
+    {
+      "name": "Important Callout",
+      "kind": "card",
+      "refersTo": "callout-important",
+      "description": "The semantic warning on the home page that explains the checklist's finding-driven use.",
+      "html": "<aside class=\"ds-important\"><strong>IMPORTANT</strong><p>This is a finding-driven reference, not a required sequence.</p></aside>",
+      "css": ".ds-important { color: var(--vp-custom-block-important-text, #3c3c43); background: var(--vp-custom-block-important-bg, rgba(159, 122, 234, 0.14)); border: 1px solid transparent; border-radius: 8px; padding: 16px; font: 400 14px/1.7142857 ui-sans-serif, system-ui, sans-serif; } .ds-important strong { display: block; margin-bottom: 8px; font-weight: 600; } .ds-important p { margin: 0; } .ds-important:focus-within { outline: 3px solid var(--vp-c-brand-2, #2563eb); outline-offset: 3px; }"
+    },
+    {
+      "name": "Result Table",
+      "kind": "custom",
+      "refersTo": "table-header",
+      "description": "A scrollable observation-to-next-task mapping used throughout task pages.",
+      "html": "<div class=\"ds-table-wrap\"><table class=\"ds-result-table\"><thead><tr><th>Result</th><th>Next</th></tr></thead><tbody><tr><td>reply</td><td>NET-02</td></tr><tr><td>no_reply</td><td>NET-02</td></tr></tbody></table></div>",
+      "css": ".ds-table-wrap { overflow-x: auto; margin: 20px 0; } .ds-result-table { width: 100%; border-collapse: collapse; color: var(--vp-c-text-1, #3c3c43); font: 400 14px/1.5 ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; } .ds-result-table th, .ds-result-table td { border: 1px solid var(--vp-c-divider, #e2e2e3); padding: 8px 16px; text-align: left; } .ds-result-table th { color: var(--vp-c-text-2, #67676c); background: var(--vp-c-bg-soft, #f6f6f7); font-weight: 600; } .ds-result-table tbody tr:nth-child(even) { background: var(--vp-c-bg-soft, #f6f6f7); } .ds-result-table tbody tr:hover { background: var(--vp-c-brand-soft, rgba(37, 99, 235, 0.12)); } .ds-result-table:focus-within { outline: 3px solid var(--vp-c-brand-2, #2563eb); outline-offset: 3px; }"
+    },
+    {
+      "name": "Task Pager Link",
+      "kind": "card",
+      "refersTo": "task-pager",
+      "description": "A previous or next task destination in the VitePress document footer.",
+      "html": "<a class=\"ds-task-pager\" href=\"#\"><span>Next task</span><strong>NET-02. Record scan coverage</strong></a>",
+      "css": ".ds-task-pager { display: block; color: var(--vp-c-brand-1, #1d4ed8); background: var(--vp-c-bg, #ffffff); border: 1px solid var(--vp-c-divider, #e2e2e3); border-radius: 8px; padding: 12px 16px; text-decoration: none; font: 400 14px/1.45 ui-sans-serif, system-ui, sans-serif; transition: color 0.25s, border-color 0.25s; } .ds-task-pager span { display: block; color: var(--vp-c-text-2, #67676c); margin-bottom: 4px; } .ds-task-pager strong { font-weight: 600; } .ds-task-pager:hover { color: var(--vp-c-brand-2, #2563eb); border-color: var(--vp-c-brand-1, #1d4ed8); } .ds-task-pager:focus-visible { outline: 3px solid var(--vp-c-brand-2, #2563eb); outline-offset: 3px; }"
+    },
+    {
+      "name": "Copy Command Button",
+      "kind": "button",
+      "refersTo": "code-block",
+      "description": "The compact VitePress control that copies a command block without becoming a primary action.",
+      "html": "<button class=\"ds-copy-button\" type=\"button\" aria-label=\"Copy command\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\" width=\"16\" height=\"16\"><path fill=\"currentColor\" d=\"M8 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2V7Zm2 0v10h8V7h-8ZM4 5a2 2 0 0 1 2-2h8v2H6v10H4V5Z\"/></svg></button>",
+      "css": ".ds-copy-button { display: inline-grid; place-items: center; width: 32px; height: 32px; color: var(--vp-c-text-2, #67676c); background: var(--vp-code-copy-code-bg, #f6f6f7); border: 1px solid var(--vp-code-copy-code-border-color, #e2e2e3); border-radius: 4px; transition: color 0.25s, background-color 0.25s, border-color 0.25s; } .ds-copy-button:hover { color: var(--vp-c-text-1, #3c3c43); background: var(--vp-code-copy-code-hover-bg, #ffffff); border-color: var(--vp-code-copy-code-hover-border-color, #e2e2e3); } .ds-copy-button:active { color: var(--vp-c-brand-1, #1d4ed8); } .ds-copy-button:focus-visible { outline: 3px solid var(--vp-c-brand-2, #2563eb); outline-offset: 3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Indexed Field Manual",
+    "overview": "The site is a quiet reference built for use beside an active lab or exam workflow. Its visual system stays close to VitePress's familiar documentation shell so readers can search, scan a grouped sidebar, read a task, and follow its recorded route without learning a new interface. The system is compact around navigation and generous around long-form content.\n\nThis first release is intentionally restrained. System sans text, monospace commands, one blue interaction color, and thin rules carry the interface. Content structure does the rest. The design avoids dashboard widgets, progress signals, and visual claims that a task has been completed.",
+    "keyCharacteristics": [
+      "Documentation-first hierarchy with no decorative hero treatment.",
+      "One theme-aware blue family for links, focus, selection, and active navigation.",
+      "Flat surfaces separated by tone and thin rules.",
+      "A narrow reading column inside a wide shell with a persistent grouped sidebar.",
+      "Native Markdown patterns for commands, result tables, callouts, and task routing."
+    ],
+    "rules": [
+      {
+        "name": "The One Blue Voice Rule",
+        "body": "Use the field-blue family for interaction. Do not add unrelated accent colors to ordinary navigation or document controls.",
+        "section": "colors"
+      },
+      {
+        "name": "The Semantic Exception Rule",
+        "body": "Violet belongs only to the important callout already present on the home page. It does not become a decorative palette.",
+        "section": "colors"
+      },
+      {
+        "name": "The Commands Stay Mono Rule",
+        "body": "Use monospace for literal input and output, not for general emphasis or decorative headings.",
+        "section": "typography"
+      },
+      {
+        "name": "The Reading Measure Rule",
+        "body": "Keep article content at or below `74ch`. The sidebar and outline may widen the shell, but not the text column.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Reading Rule",
+        "body": "Document content stays flat at rest. Use tone and rules for structure; reserve shadow for a temporary layer above the document.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Two Radius Rule",
+        "body": "Use `4px` for inline or compact controls and `8px` for block-level reading aids. Do not introduce pill shapes into the baseline.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do keep the article column at `74ch` or narrower.",
+      "Do use Field Blue for links, focus, active navigation, and soft selection.",
+      "Do render commands and literal paths in the established monospace stack.",
+      "Do keep result tables, command blocks, callouts, and previous or next links inside normal document flow.",
+      "Do preserve light and dark theme behavior through the existing VitePress variables."
+    ],
+    "donts": [
+      "Don't add dashboards, progress meters, completion badges, or operator state to this reading interface.",
+      "Don't turn modules or tasks into floating cards with persistent shadows.",
+      "Don't use the important-callout violet as a general accent.",
+      "Don't add decorative typefaces, illustration, or pill controls to the lightweight baseline.",
+      "Don't style a command result as proof that access or completion occurred."
+    ]
+  }
+}

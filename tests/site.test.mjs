@@ -124,3 +124,33 @@ test("builds base-aware task, asset, search, and navigation links", async () => 
   assert.doesNotMatch(home, /(?:href|src)="\/assets\//);
   assert.doesNotMatch(net01, /href="\/generated\//);
 });
+
+test("deploys the verified build with the official GitHub Pages actions", async () => {
+  const workflow = await text(".github/workflows/pages.yml");
+
+  assert.match(workflow, /contents:\s*read/);
+  assert.match(workflow, /pages:\s*write/);
+  assert.match(workflow, /id-token:\s*write/);
+  assert.match(workflow, /actions\/configure-pages@v6/);
+  assert.match(workflow, /actions\/upload-pages-artifact@v5/);
+  assert.match(workflow, /actions\/deploy-pages@v5/);
+  assert.match(workflow, /pnpm install --frozen-lockfile/);
+  assert.ok(workflow.indexOf("pnpm test") < workflow.indexOf("pnpm build"));
+  assert.match(workflow, /site\/\.vitepress\/dist/);
+});
+
+test("documents local use, provenance, generation ownership, and Pages setup", async () => {
+  const [readme, nodeVersion] = await Promise.all([
+    text("README.md"),
+    text(".node-version"),
+  ]);
+
+  assert.equal(nodeVersion.trim(), "22");
+  assert.match(readme, /pnpm dev/);
+  assert.match(readme, /pnpm test/);
+  assert.match(readme, /pnpm build/);
+  assert.match(readme, /2026-11-21\.working\.132/);
+  assert.match(readme, /generated-file ownership/i);
+  assert.match(readme, /refreshing the checklist/i);
+  assert.match(readme, /GitHub Actions/i);
+});

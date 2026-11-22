@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   mkdir,
@@ -11,6 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { promisify } from "node:util";
 
 import {
   escapeVuePlaceholders,
@@ -20,6 +22,7 @@ import {
 } from "../scripts/checklist.mjs";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
+const execFileAsync = promisify(execFile);
 const sourcePath = path.join(
   repositoryRoot,
   "content/master-working-2026-11-21.working.132.md",
@@ -128,6 +131,23 @@ test("the provenance manifest pins every imported supporting reference", async (
     assert.equal(
       reference.snapshotSha256,
       await sha256(path.join(repositoryRoot, reference.snapshotPath)),
+    );
+  }
+});
+
+test("the Git index preserves the exact supporting reference bytes", async () => {
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+
+  for (const reference of manifest.references) {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["show", `:${reference.snapshotPath}`],
+      { cwd: repositoryRoot, encoding: "buffer" },
+    );
+    assert.equal(
+      createHash("sha256").update(stdout).digest("hex"),
+      reference.snapshotSha256,
+      `${reference.snapshotPath} was normalized before Git stored it`,
     );
   }
 });

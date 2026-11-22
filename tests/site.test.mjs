@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import test, { before } from "node:test";
 import { promisify } from "node:util";
@@ -15,9 +15,54 @@ const sourcePath = path.join(
   "content/master-working-2026-11-21.working.132.md",
 );
 const manifestPath = path.join(repositoryRoot, "content/source.json");
+let buildPromise;
 
 async function text(relativePath) {
   return readFile(path.join(repositoryRoot, relativePath), "utf8");
+}
+
+async function buildSite() {
+  if (!buildPromise) {
+    const vitepressBin = path.join(
+      repositoryRoot,
+      "node_modules/vitepress/bin/vitepress.js",
+    );
+    buildPromise = execFileAsync(
+      process.execPath,
+      [vitepressBin, "build", siteRoot],
+      { cwd: repositoryRoot, windowsHide: true },
+    );
+  }
+  return buildPromise;
+}
+
+async function filesBelow(root, suffix = "") {
+  const files = [];
+  async function walk(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) await walk(absolute);
+      else if (!suffix || entry.name.endsWith(suffix)) files.push(absolute);
+    }
+  }
+  await walk(root);
+  return files;
+}
+
+async function resolveBuiltTarget(distRoot, pathname) {
+  let relative = decodeURIComponent(pathname.slice("/checklist/".length));
+  if (!relative || relative.endsWith("/")) relative += "index.html";
+  const direct = path.join(distRoot, relative);
+  try {
+    if ((await stat(direct)).isFile()) return direct;
+  } catch {}
+  if (!path.extname(relative)) {
+    const html = `${direct}.html`;
+    try {
+      if ((await stat(html)).isFile()) return html;
+    } catch {}
+  }
+  return null;
 }
 
 before(async () => {
@@ -81,9 +126,11 @@ test("preserves module and task order in the sidebar", async () => {
 });
 
 test("ports supporting local references and rewrites their task links", async () => {
-  const [references, db02, wupload02] = await Promise.all([
+  const [references, db02, exp03, rdp02, wupload02] = await Promise.all([
     readdir(path.join(siteRoot, "generated/references")),
     text("site/generated/tasks/db-02.md"),
+    text("site/generated/tasks/exp-03.md"),
+    text("site/generated/tasks/rdp-02.md"),
     text("site/generated/tasks/wupload-02.md"),
   ]);
 
@@ -93,6 +140,8 @@ test("ports supporting local references and rewrites their task links", async ()
     "make-lab-upload-proof.md",
   ]);
   assert.match(db02, /\]\(\.\.\/references\/checklist\.md\)/);
+  assert.match(exp03, /\]\(\.\/win-01\.md\)/);
+  assert.match(rdp02, /\]\(\.\/win-01\.md\)/);
   assert.match(wupload02, /\]\(\.\.\/references\/make-lab-upload-proof\.md\)/);
 });
 
@@ -106,14 +155,7 @@ test("configures VitePress for GitHub Pages and local search", async () => {
 });
 
 test("builds base-aware task, asset, search, and navigation links", async () => {
-  const vitepressBin = path.join(
-    repositoryRoot,
-    "node_modules/vitepress/bin/vitepress.js",
-  );
-  await execFileAsync(process.execPath, [vitepressBin, "build", siteRoot], {
-    cwd: repositoryRoot,
-    windowsHide: true,
-  });
+  await buildSite();
 
   const [home, net01] = await Promise.all([
     text("site/.vitepress/dist/index.html"),
@@ -125,12 +167,74 @@ test("builds base-aware task, asset, search, and navigation links", async () => 
   assert.doesNotMatch(net01, /href="\/generated\//);
 });
 
+test("every built local link and search result resolves inside the Pages base", async () => {
+  await buildSite();
+  const distRoot = path.join(siteRoot, ".vitepress/dist");
+  const htmlFiles = await filesBelow(distRoot, ".html");
+  const failures = [];
+  let checked = 0;
+
+  for (const htmlFile of htmlFiles) {
+    const html = await readFile(htmlFile, "utf8");
+    const pageRelative = path.relative(distRoot, htmlFile).replaceAll("\\", "/");
+    const base = new URL(`https://example.test/checklist/${pageRelative}`);
+    for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
+      const value = match[1];
+      if (/^(?:https?:|mailto:|data:|#)/.test(value)) continue;
+      const resolved = new URL(value, base);
+      if (!resolved.pathname.startsWith("/checklist/")) {
+        failures.push(`${pageRelative}: outside base ${value}`);
+        continue;
+      }
+      const target = await resolveBuiltTarget(distRoot, resolved.pathname);
+      checked += 1;
+      if (!target) failures.push(`${pageRelative}: missing ${value}`);
+      else if (resolved.hash) {
+        const targetHtml = await readFile(target, "utf8");
+        const id = decodeURIComponent(resolved.hash.slice(1));
+        if (!targetHtml.includes(`id="${id}"`)) {
+          failures.push(`${pageRelative}: missing anchor ${value}`);
+        }
+      }
+    }
+  }
+
+  const searchFiles = (await filesBelow(path.join(distRoot, "assets"), ".js")).filter(
+    (file) => path.basename(file).includes("localSearchIndex"),
+  );
+  assert.equal(searchFiles.length, 1);
+  const searchSource = await readFile(searchFiles[0], "utf8");
+  for (const match of searchSource.matchAll(/\/checklist\/[^"'\\]+/g)) {
+    const resolved = new URL(match[0], "https://example.test");
+    const target = await resolveBuiltTarget(distRoot, resolved.pathname);
+    checked += 1;
+    if (!target) failures.push(`search index: missing ${match[0]}`);
+  }
+
+  assert.ok(checked > 1_000, `expected a broad link audit, checked ${checked}`);
+  assert.deepEqual(failures, []);
+});
+
+test("uses a Vite release patched for the Windows launch-editor advisory", async () => {
+  const lockfile = await text("pnpm-lock.yaml");
+
+  assert.doesNotMatch(lockfile, /vite@5\.4\.21/);
+  assert.match(lockfile, /vite@(?:[7-9]|[1-9]\d)\./);
+});
+
 test("deploys the verified build with the official GitHub Pages actions", async () => {
   const workflow = await text(".github/workflows/pages.yml");
+  const globalPermissions = workflow.slice(
+    workflow.indexOf("permissions:"),
+    workflow.indexOf("jobs:"),
+  );
+  const deployJob = workflow.slice(workflow.indexOf("  deploy:"));
 
   assert.match(workflow, /contents:\s*read/);
-  assert.match(workflow, /pages:\s*write/);
-  assert.match(workflow, /id-token:\s*write/);
+  assert.doesNotMatch(globalPermissions, /pages:\s*write/);
+  assert.doesNotMatch(globalPermissions, /id-token:\s*write/);
+  assert.match(deployJob, /pages:\s*write/);
+  assert.match(deployJob, /id-token:\s*write/);
   assert.match(workflow, /actions\/configure-pages@v6/);
   assert.match(workflow, /actions\/upload-pages-artifact@v5/);
   assert.match(workflow, /actions\/deploy-pages@v5/);
@@ -153,4 +257,5 @@ test("documents local use, provenance, generation ownership, and Pages setup", a
   assert.match(readme, /generated-file ownership/i);
   assert.match(readme, /refreshing the checklist/i);
   assert.match(readme, /GitHub Actions/i);
+  assert.match(readme, /\/checklist\/about\/source\.html/);
 });

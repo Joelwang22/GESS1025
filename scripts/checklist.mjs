@@ -19,27 +19,53 @@ function normalizeLines(markdown) {
   return markdown.replaceAll("\r\n", "\n").replaceAll("\r", "\n").split("\n");
 }
 
-function structuralLines(lines) {
+function classifyStructuralLines(lines) {
   const structural = [];
   let fence = null;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
-    const marker = line.match(/^\s*(`{3,}|~{3,})/);
-    if (marker) {
-      const kind = marker[1][0];
-      if (fence === null) {
-        fence = kind;
-      } else if (fence === kind) {
-        fence = null;
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (fence === null) {
+      if (marker) {
+        fence = { kind: marker[1][0], length: marker[1].length };
+        structural.push(false);
+      } else {
+        structural.push(true);
       }
       continue;
     }
-    if (fence === null) structural.push({ index, line });
+
+    structural.push(false);
+    if (
+      marker &&
+      marker[1][0] === fence.kind &&
+      marker[1].length >= fence.length &&
+      marker[2].trim() === ""
+    ) {
+      fence = null;
+    }
   }
 
   if (fence !== null) throw new Error("Unclosed Markdown fence in checklist source");
   return structural;
+}
+
+function structuralLines(lines) {
+  const classifications = classifyStructuralLines(lines);
+  const structural = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (classifications[index]) structural.push({ index, line: lines[index] });
+  }
+  return structural;
+}
+
+function transformOutsideFences(markdown, transform) {
+  const lines = normalizeLines(markdown);
+  const classifications = classifyStructuralLines(lines);
+  return lines
+    .map((line, index) => (classifications[index] ? transform(line) : line))
+    .join("\n");
 }
 
 function section(lines, start, end) {
@@ -137,6 +163,7 @@ export function parseChecklist(markdown) {
     if (!task) throw new Error(`Explanation has no working task: ${id}`);
     const end = explanationEntries[index + 1]?.index ?? lines.length;
     task.explanation = section(lines, entry.index + 1, end);
+    if (!task.explanation) throw new Error(`Missing explanation for ${id}`);
     explanationIds.add(id);
   }
 
@@ -159,35 +186,25 @@ export function parseChecklist(markdown) {
 }
 
 export function linkTaskRoutes(markdown, taskIds, terminalStates) {
-  return markdown.replace(ROUTE_DESTINATION, (match, destination) => {
-    if (taskIds.has(destination)) {
-      return `Next: [${destination}](./${destination.toLowerCase()})`;
-    }
-    if (terminalStates.has(destination)) return match;
-    throw new Error(`Unknown route destination ${destination}`);
-  });
+  return transformOutsideFences(markdown, (line) =>
+    line.replace(ROUTE_DESTINATION, (match, destination) => {
+      if (taskIds.has(destination)) {
+        return `Next: [${destination}](./${destination.toLowerCase()})`;
+      }
+      if (terminalStates.has(destination)) return match;
+      throw new Error(`Unknown route destination ${destination}`);
+    }),
+  );
 }
 
 export function escapeVuePlaceholders(markdown) {
-  const lines = normalizeLines(markdown);
-  let fence = null;
-
-  return lines
-    .map((line) => {
-      const marker = line.match(/^\s*(`{3,}|~{3,})/);
-      if (marker) {
-        const kind = marker[1][0];
-        if (fence === null) fence = kind;
-        else if (fence === kind) fence = null;
-        return line;
-      }
-      if (fence !== null) return line;
-      return line.replaceAll(
-        /<([A-Z][A-Z0-9_-]+)>/g,
-        (_match, placeholder) => `&lt;${placeholder}&gt;`,
-      );
-    })
-    .join("\n");
+  return transformOutsideFences(markdown, (line) =>
+    line
+      .replaceAll("{{", "&#123;&#123;")
+      .replaceAll("}}", "&#125;&#125;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;"),
+  );
 }
 
 function linkSupportingReferences(markdown) {
@@ -204,7 +221,47 @@ function linkSupportingReferences(markdown) {
     .replaceAll(
       "(../../../scripts/make-lab-upload-proof.py)",
       "(../references/make-lab-upload-proof.md)",
+    )
+    .replaceAll(
+      /\(windows-ad-practical\.json(?:#[^)]+)?\)/g,
+      "(./win-01.md)",
     );
+}
+
+function validateReferences(manifest, sourceRoot) {
+  if (!Array.isArray(manifest.references)) {
+    throw new Error("Provenance manifest references must be an array");
+  }
+  const referenceRoot = path.resolve(sourceRoot, "content/references");
+  const outputs = new Set();
+  return manifest.references.map((reference) => {
+    if (
+      reference === null ||
+      typeof reference !== "object" ||
+      typeof reference.title !== "string" ||
+      !reference.title.trim() ||
+      typeof reference.snapshotPath !== "string" ||
+      !/^[a-f0-9]{64}$/.test(reference.snapshotSha256) ||
+      !["markdown", "python"].includes(reference.kind) ||
+      typeof reference.output !== "string" ||
+      !/^[a-z0-9][a-z0-9-]*\.md$/.test(reference.output)
+    ) {
+      throw new Error("Invalid reference output or manifest entry");
+    }
+    if (outputs.has(reference.output)) {
+      throw new Error(`Duplicate reference output: ${reference.output}`);
+    }
+    outputs.add(reference.output);
+
+    const snapshot = path.resolve(sourceRoot, reference.snapshotPath);
+    const relative = path.relative(referenceRoot, snapshot);
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+      throw new Error(
+        `Reference path outside content/references: ${reference.snapshotPath}`,
+      );
+    }
+    return { ...reference, snapshot };
+  });
 }
 
 function sha256(bytes) {
@@ -284,10 +341,10 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
     );
   }
 
+  const references = validateReferences(manifest, sourceRoot);
   const referencePages = [];
-  for (const reference of manifest.references ?? []) {
-    const referencePath = path.join(sourceRoot, reference.snapshotPath);
-    const bytes = await readFile(referencePath);
+  for (const reference of references) {
+    const bytes = await readFile(reference.snapshot);
     if (sha256(bytes) !== reference.snapshotSha256) {
       throw new Error(`Reference SHA-256 mismatch: ${reference.snapshotPath}`);
     }

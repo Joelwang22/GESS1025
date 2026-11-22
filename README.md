@@ -49,7 +49,7 @@ three local supporting references used by the snapshot.
 
 The generator rejects source drift, duplicate task IDs, missing explanations,
 unknown route destinations, hash mismatches, and task-count changes. The source
-and provenance details are also published at `/about/source.html`.
+and provenance details are also published at `/checklist/about/source.html`.
 
 ## Generated-file ownership
 

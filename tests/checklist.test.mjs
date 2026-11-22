@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -135,6 +142,18 @@ test("ignores task-like headings inside fenced command blocks", () => {
   assert.match(checklist.tasks[0].working, /FAKE-99/);
 });
 
+test("keeps shorter fence markers inside a four-backtick command fence", () => {
+  const nestedFence = fixture.replace(
+    "```text\n## FAKE-99. This heading is command output\n```",
+    "````text\n```bash\n## FAKE-99. This heading is command output\n```\n````",
+  );
+
+  assert.deepEqual(
+    parseChecklist(nestedFence).tasks.map(({ id }) => id),
+    ["NET-01", "NET-02"],
+  );
+});
+
 test("rejects a working task without a matching explanation", () => {
   const withoutExplanation = fixture.replace(
     /\n## NET-02\. Scan services\n\nWhy the second check matters\.\n$/,
@@ -143,6 +162,18 @@ test("rejects a working task without a matching explanation", () => {
 
   assert.throws(
     () => parseChecklist(withoutExplanation),
+    /Missing explanation for NET-02/,
+  );
+});
+
+test("rejects an explanation heading with an empty body", () => {
+  const emptyExplanation = fixture.replace(
+    "Why the second check matters.",
+    "",
+  );
+
+  assert.throws(
+    () => parseChecklist(emptyExplanation),
     /Missing explanation for NET-02/,
   );
 });
@@ -169,6 +200,19 @@ test("links task routes and leaves terminal states as plain text", () => {
   );
 });
 
+test("does not rewrite route-like text inside command fences", () => {
+  const markdown = "Next: NET-02.\n\n```text\nNext: NET-02.\n```";
+
+  assert.equal(
+    linkTaskRoutes(
+      markdown,
+      new Set(["NET-01", "NET-02"]),
+      new Set(),
+    ),
+    "Next: [NET-02](./net-02).\n\n```text\nNext: NET-02.\n```",
+  );
+});
+
 test("rejects an unknown task-like route destination", () => {
   assert.throws(
     () =>
@@ -188,6 +232,66 @@ test("escapes angle-bracket placeholders in prose but not command fences", () =>
     escapeVuePlaceholders(markdown),
     "Use &lt;DOMAIN&gt; here.\n\n```bash\necho '<DOMAIN>'\n```",
   );
+});
+
+test("makes Vue interpolation and raw HTML inert outside command fences", () => {
+  const markdown =
+    "{{ dangerous() }}\n<div @click=\"dangerous()\">text</div>\n\n```html\n<div>example</div>\n```";
+
+  assert.equal(
+    escapeVuePlaceholders(markdown),
+    "&#123;&#123; dangerous() &#125;&#125;\n&lt;div @click=\"dangerous()\"&gt;text&lt;/div&gt;\n\n```html\n<div>example</div>\n```",
+  );
+});
+
+test("rejects manifest reference reads and writes outside owned paths", async () => {
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const temporaryRoot = await mkdtemp(path.join(tmpdir(), "checklist-manifest-"));
+  const temporaryContent = path.join(temporaryRoot, "content");
+  const maliciousManifest = path.join(temporaryContent, "source.json");
+  await mkdir(temporaryContent, { recursive: true });
+  await writeFile(
+    maliciousManifest,
+    JSON.stringify({
+      ...manifest,
+      references: [
+        { ...manifest.references[0], snapshotPath: "../outside.md" },
+      ],
+    }),
+    { encoding: "utf8", flush: true },
+  );
+
+  try {
+    await assert.rejects(
+      generateSite({
+        sourcePath,
+        manifestPath: maliciousManifest,
+        outputRoot: temporaryRoot,
+      }),
+      /Reference path outside content\/references/,
+    );
+
+    await writeFile(
+      maliciousManifest,
+      JSON.stringify({
+        ...manifest,
+        references: [
+          { ...manifest.references[0], output: "../../index.md" },
+        ],
+      }),
+      { encoding: "utf8", flush: true },
+    );
+    await assert.rejects(
+      generateSite({
+        sourcePath,
+        manifestPath: maliciousManifest,
+        outputRoot: temporaryRoot,
+      }),
+      /Invalid reference output/,
+    );
+  } finally {
+    await rm(temporaryRoot, { recursive: true, force: true });
+  }
 });
 
 test("generation is deterministic for identical input", async () => {

@@ -9,6 +9,11 @@
   },
   "scripts": {
     "generate": "node scripts/checklist.mjs",
-    "test": "node --test tests/*.test.mjs"
+    "dev": "pnpm generate && vitepress dev site",
+    "test": "node --test tests/*.test.mjs",
+    "build": "pnpm generate && vitepress build site"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
   }
 }

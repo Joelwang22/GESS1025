@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  escapeVuePlaceholders,
   generateSite,
   linkTaskRoutes,
   parseChecklist,
@@ -112,6 +113,18 @@ test("the provenance manifest pins the exact imported bytes", async () => {
   assert.equal(manifest.snapshotSha256, await sha256(sourcePath));
 });
 
+test("the provenance manifest pins every imported supporting reference", async () => {
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+
+  assert.equal(manifest.references.length, 3);
+  for (const reference of manifest.references) {
+    assert.equal(
+      reference.snapshotSha256,
+      await sha256(path.join(repositoryRoot, reference.snapshotPath)),
+    );
+  }
+});
+
 test("ignores task-like headings inside fenced command blocks", () => {
   const checklist = parseChecklist(fixture);
 
@@ -165,6 +178,15 @@ test("rejects an unknown task-like route destination", () => {
         new Set(["PAUSE-COVERAGE"]),
       ),
     /Unknown route destination WEB-99/,
+  );
+});
+
+test("escapes angle-bracket placeholders in prose but not command fences", () => {
+  const markdown = "Use <DOMAIN> here.\n\n```bash\necho '<DOMAIN>'\n```";
+
+  assert.equal(
+    escapeVuePlaceholders(markdown),
+    "Use &lt;DOMAIN&gt; here.\n\n```bash\necho '<DOMAIN>'\n```",
   );
 });
 

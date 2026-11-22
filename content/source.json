@@ -6,6 +6,29 @@
   "sourceRepository": "C:/Users/joelw/Documents/workbench",
   "sourcePath": "docs/checklists/oscp/master-working-2026-11-21.working.132.md",
   "importedAt": "2026-11-23",
+  "references": [
+    {
+      "title": "OSCP practical observation checklist",
+      "snapshotPath": "content/references/checklist.md",
+      "snapshotSha256": "9ca58c9a9acb7324d99a0db7b9543741b08bc770c80924a5f5a1e1f3f3dc2dd7",
+      "output": "checklist.md",
+      "kind": "markdown"
+    },
+    {
+      "title": "Checklist review against completed labs",
+      "snapshotPath": "content/references/lab-retrospective.md",
+      "snapshotSha256": "a7eeccd260c3a00504f4d58c2568ee5c617caba4297c83f3e0ea4fab716526ae",
+      "output": "lab-retrospective.md",
+      "kind": "markdown"
+    },
+    {
+      "title": "Local artifact generator",
+      "snapshotPath": "content/references/make-lab-upload-proof.py",
+      "snapshotSha256": "9575fe07470893959cf9897598d6743a44c0403bef6f09b9d9cdfb4eb8577a08",
+      "output": "make-lab-upload-proof.md",
+      "kind": "python"
+    }
+  ],
   "terminalStates": [
     "PAUSE-ROUTE",
     "PAUSE-COVERAGE",

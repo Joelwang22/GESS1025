@@ -168,6 +168,45 @@ export function linkTaskRoutes(markdown, taskIds, terminalStates) {
   });
 }
 
+export function escapeVuePlaceholders(markdown) {
+  const lines = normalizeLines(markdown);
+  let fence = null;
+
+  return lines
+    .map((line) => {
+      const marker = line.match(/^\s*(`{3,}|~{3,})/);
+      if (marker) {
+        const kind = marker[1][0];
+        if (fence === null) fence = kind;
+        else if (fence === kind) fence = null;
+        return line;
+      }
+      if (fence !== null) return line;
+      return line.replaceAll(
+        /<([A-Z][A-Z0-9_-]+)>/g,
+        (_match, placeholder) => `&lt;${placeholder}&gt;`,
+      );
+    })
+    .join("\n");
+}
+
+function linkSupportingReferences(markdown) {
+  return markdown
+    .replaceAll(
+      /\((?:\.\/)?checklist\.md(#[^)]+)?\)/g,
+      (_match, fragment = "") => `(../references/checklist.md${fragment})`,
+    )
+    .replaceAll(
+      /\((?:\.\/)?lab-retrospective\.md(#[^)]+)?\)/g,
+      (_match, fragment = "") =>
+        `(../references/lab-retrospective.md${fragment})`,
+    )
+    .replaceAll(
+      "(../../../scripts/make-lab-upload-proof.py)",
+      "(../references/make-lab-upload-proof.md)",
+    );
+}
+
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
@@ -192,8 +231,15 @@ function frontmatter(title, description) {
 
 function taskPage(task, taskIds, terminalStates) {
   const title = `${task.id}. ${task.title}`;
-  const working = linkTaskRoutes(task.working, taskIds, terminalStates);
-  return `${frontmatter(title, `OSCP master checklist task ${task.id}`)}# ${title}\n\n${working}\n\n## Explanations and troubleshooting\n\n${task.explanation}\n`;
+  const working = escapeVuePlaceholders(
+    linkSupportingReferences(
+      linkTaskRoutes(task.working, taskIds, terminalStates),
+    ),
+  );
+  const explanation = escapeVuePlaceholders(
+    linkSupportingReferences(task.explanation),
+  );
+  return `${frontmatter(title, `OSCP master checklist task ${task.id}`)}# ${title}\n\n${working}\n\n## Explanations and troubleshooting\n\n${explanation}\n`;
 }
 
 function modulePage(module) {
@@ -201,7 +247,9 @@ function modulePage(module) {
   const taskList = module.tasks
     .map(({ id, title }) => `- [${id}. ${title}](../tasks/${id.toLowerCase()})`)
     .join("\n");
-  const context = module.context ? `${module.context}\n\n` : "";
+  const context = module.context
+    ? `${escapeVuePlaceholders(module.context)}\n\n`
+    : "";
   return `${frontmatter(name, `${name} module in the OSCP master checklist`)}# ${name}\n\n${context}## Tasks\n\n${taskList}\n`;
 }
 
@@ -218,6 +266,8 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
   const manifest = JSON.parse(manifestText);
   const checklist = parseChecklist(sourceBytes.toString("utf8"));
   const snapshotSha256 = sha256(sourceBytes);
+  const root = path.resolve(outputRoot);
+  const sourceRoot = path.resolve(path.dirname(manifestPath), "..");
 
   if (manifest.edition !== checklist.edition) {
     throw new Error(`Edition mismatch: ${manifest.edition} != ${checklist.edition}`);
@@ -234,7 +284,21 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
     );
   }
 
-  const root = path.resolve(outputRoot);
+  const referencePages = [];
+  for (const reference of manifest.references ?? []) {
+    const referencePath = path.join(sourceRoot, reference.snapshotPath);
+    const bytes = await readFile(referencePath);
+    if (sha256(bytes) !== reference.snapshotSha256) {
+      throw new Error(`Reference SHA-256 mismatch: ${reference.snapshotPath}`);
+    }
+    const source = bytes.toString("utf8");
+    const page =
+      reference.kind === "python"
+        ? `${frontmatter(reference.title, reference.title)}# ${reference.title}\n\nThis is the exact helper referenced by the imported checklist. Review it locally before use.\n\n\`\`\`\`python\n${source.trimEnd()}\n\`\`\`\`\n`
+        : `${frontmatter(reference.title, reference.title)}${escapeVuePlaceholders(source).trimStart()}`;
+    referencePages.push({ ...reference, page });
+  }
+
   const generatedRoot = path.join(root, "site/generated");
   const configGeneratedRoot = path.join(root, "site/.vitepress/generated");
   await Promise.all([
@@ -256,6 +320,12 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
       modulePage(module),
     );
   }
+  for (const reference of referencePages) {
+    await writeText(
+      path.join(generatedRoot, "references", reference.output),
+      reference.page,
+    );
+  }
 
   const sidebar = checklist.modules.map((module) => ({
     text: displayName(module.id),
@@ -275,6 +345,11 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
       title: displayName(module.id),
       taskCount: module.tasks.length,
       tasks: module.tasks.map(({ id, title }) => ({ id, title })),
+    })),
+    references: referencePages.map(({ title, output, snapshotSha256 }) => ({
+      title,
+      output,
+      snapshotSha256,
     })),
   };
   await Promise.all([

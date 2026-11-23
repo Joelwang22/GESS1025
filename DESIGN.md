@@ -1,110 +1,101 @@
 ---
 name: OSCP Master Checklist
-description: An operations runbook binder for the Operator Workbench master checklist, read beside a live terminal.
+description: A converged operations-runbook reading interface for the Operator Workbench master checklist, read beside a live terminal.
 colors:
-  ink-light: "#16181b"
-  ink-2-light: "#444a51"
-  ink-3-light: "#656b73"
-  paper-light: "#fafaf8"
-  desk-light: "#f0f0ec"
-  panel-light: "#e9e9e4"
-  rule-light: "#dadad3"
-  rule-strong-light: "#bdbdb5"
-  route-light: "#1a4fd0"
-  route-hover-light: "#0f3aa6"
-  ink-dark: "#e7e5df"
-  ink-2-dark: "#babec4"
-  ink-3-dark: "#959ca4"
-  paper-dark: "#111417"
-  desk-dark: "#0c0f12"
-  panel-dark: "#1d2227"
-  rule-dark: "#272c33"
-  rule-strong-dark: "#3a414a"
-  route-dark: "#94b6ff"
-  route-hover-dark: "#b8cfff"
+  paper-light: "#faf9f5"
+  desk-light: "#f1efe9"
+  panel-light: "#eae7df"
+  ink-light: "#181c22"
+  ink-2-light: "#444c58"
+  ink-3-light: "#57606d"
+  rule-light: "#dcd7cb"
+  rule-strong-light: "#c5bfb2"
+  route-light: "#135198"
+  route-hover-light: "#0b3a70"
+  paper-dark: "#151a22"
+  desk-dark: "#10141b"
+  panel-dark: "#1b222c"
+  ink-dark: "#e8e6df"
+  ink-2-dark: "#b4bec9"
+  ink-3-dark: "#8c98a8"
+  rule-dark: "#262f3d"
+  rule-strong-dark: "#333e4f"
+  route-dark: "#78b9fa"
+  route-hover-dark: "#a2d0fc"
   blank-light: "#ffe45c"
   blank-dark: "#f0cf45"
-  blank-ink: "#1b1600"
-  plate-light: "#15181c"
-  plate-dark: "#090b0d"
-  plate-head-light: "#1d2127"
-  plate-head-dark: "#14181c"
-  plate-ink: "#e8e6e1"
-  plate-ink-2: "#a9afb7"
+  blank-ink-light: "#1b1600"
+  blank-ink-dark: "#171200"
   plate-blank: "rgba(255, 214, 64, 0.2)"
   plate-blank-ink: "#ffe37a"
+  plate-light: "#161b22"
+  plate-dark: "#0c1016"
+  plate-head-light: "#1f2630"
+  plate-head-dark: "#161c24"
+  plate-ink: "#e6edf3"
+  plate-ink-2: "#a9b4c2"
 typography:
   display:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontFamily: '"Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
     fontSize: "2.5rem"
     fontWeight: 600
     lineHeight: 1.2
     letterSpacing: "-0.03em"
   headline:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif'
     fontSize: "2rem"
     fontWeight: 600
     lineHeight: 1.2
     letterSpacing: "-0.022em"
   task-title:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif'
     fontSize: "1.75rem"
     fontWeight: 600
     lineHeight: 1.2
   title:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif'
     fontSize: "1.375rem"
     fontWeight: 600
     lineHeight: 1.3
     letterSpacing: "-0.015em"
   section:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif'
     fontSize: "1.15rem"
     fontWeight: 600
     lineHeight: 1.4
   subsection:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif'
     fontSize: "1.05rem"
     fontWeight: 600
     lineHeight: 1.4
-  route-sheet-title:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-    fontSize: "1.125rem"
-    fontWeight: 700
-    lineHeight: 1.35
   body:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif'
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.65
+  context:
+    fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif'
+    fontSize: "14px"
+    fontWeight: 400
+    lineHeight: 1.5
   table:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif'
     fontSize: "15px"
     fontWeight: 400
     lineHeight: 1.55
   label:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontFamily: '"Inter", ui-sans-serif, system-ui, sans-serif'
     fontSize: "13px"
     fontWeight: 700
     lineHeight: 1.4
-  meta:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-    fontSize: "14px"
-    fontWeight: 400
-    lineHeight: 1.5
-  caption:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-    fontSize: "12px"
-    fontWeight: 700
-    lineHeight: 1.4
   mono:
-    fontFamily: '"Cascadia Mono", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'
+    fontFamily: '"Cascadia Mono", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace'
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.65
   call-number:
-    fontFamily: '"Cascadia Mono", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'
-    fontSize: "12.5px"
+    fontFamily: '"Cascadia Mono", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace'
+    fontSize: "13px"
     fontWeight: 700
     lineHeight: 1.4
 rounded:
@@ -119,19 +110,18 @@ components:
     textColor: "{colors.plate-ink}"
     typography: "{typography.mono}"
     rounded: "{rounded.block}"
-    padding: "14px 18px"
   command-plate-head:
     backgroundColor: "{colors.plate-head-light}"
     textColor: "{colors.plate-ink-2}"
     typography: "{typography.label}"
-    padding: "6px 6px 6px 16px"
   blank:
     backgroundColor: "{colors.blank-light}"
-    textColor: "{colors.blank-ink}"
+    textColor: "{colors.blank-ink-light}"
     rounded: "{rounded.mark}"
-  route-mark:
+  route-chip:
     textColor: "{colors.route-light}"
     typography: "{typography.call-number}"
+    rounded: "{rounded.control}"
   stop-mark:
     backgroundColor: "{colors.ink-light}"
     textColor: "{colors.paper-light}"
@@ -144,235 +134,241 @@ components:
   module-context:
     backgroundColor: "{colors.desk-light}"
     textColor: "{colors.ink-light}"
+    typography: "{typography.context}"
     rounded: "{rounded.block}"
-    padding: "14px 18px"
   notes-band:
     backgroundColor: "{colors.desk-light}"
     textColor: "{colors.ink-light}"
     rounded: "{rounded.sheet}"
-    padding: "4px 24px 12px"
-  decision-table-head:
-    backgroundColor: "{colors.desk-light}"
-    textColor: "{colors.ink-light}"
-    typography: "{typography.label}"
-    padding: "10px 14px"
-  route-sheet:
-    backgroundColor: "{colors.paper-light}"
-    textColor: "{colors.ink-light}"
-    rounded: "{rounded.block}"
-    padding: "18px 20px"
-  route-row:
+  route-card:
     textColor: "{colors.ink-light}"
     rounded: "{rounded.row}"
-    padding: "9px 11px"
-  action-primary:
-    backgroundColor: "{colors.ink-light}"
-    textColor: "{colors.paper-light}"
-    rounded: "{rounded.row}"
-    padding: "0 16px"
-  goto-input:
-    backgroundColor: "{colors.paper-light}"
-    textColor: "{colors.ink-light}"
-    typography: "{typography.mono}"
-    rounded: "{rounded.control}"
 ---
 
 # Design System: OSCP Master Checklist
 
 ## Overview
 
-**Creative North Star: "The Runbook Binder"**
+**Creative North Star: "The Runbook Binder, in Slate & Signal"**
 
-Each task is a procedure sheet in an operations binder kept beside the console.
-It has a stamped call number, a tab note that applies to every sheet behind
-its module tab, dark command plates with the blanks highlighted, a ruled result
-matrix, and a route sheet at the foot that lists every place the sheet can send
-you. The sidebar is the binder's tab edge: module tabs with counts, then call
-numbers in a fixed column.
+This is the converged design of two reviewed proposals: the Runbook Binder
+structure (`design/opus`) with the Slate & Signal surfaces and several of its
+interactions (`design/gemini`). Each task is a procedure sheet kept beside the
+console. It has:
 
-The reader is mid-box with a terminal open on the other half of the screen. The
-design optimises the loop the source itself prescribes: read the context, fill
-the blanks, run one command, match the result, follow the route. Nothing on the
+- a header row with its call number and place in the module;
+- the verbatim source title;
+- a module tab note that always stays expanded;
+- dark command plates with marked blanks;
+- ruled result tables or outcome rows;
+- an explanations band;
+- a route sheet at the foot.
+
+The reader is mid-box with a terminal open on the other half of the screen.
+The design serves the loop the source prescribes: read the context, fill the
+blanks, run one command, match the result, follow the route. Nothing on the
 page tracks progress or suggests that a result means success.
 
-**Key characteristics**
-
-- Commands look like commands: dark plates in both themes, echoing the terminal
-  beside the browser, with a persistent language label and Copy control.
-- Three marks carry meaning by shape as well as colour: route (arrow and
-  underline), blank (highlighter fill and dashed underline), and stop (solid
-  inverted slab with a square).
-- Flat sheets separated by heavy ink rules and tonal bands; no floating cards.
-- One interaction blue, reserved for routes, links and focus.
+Source text is never changed, hidden or collapsed. Everything the site adds is
+derived navigation, and it sits outside `<main>` wherever it can.
 
 ## Colors
 
-Restrained palette: neutrals, one interaction blue, one signal yellow.
+Warm paper in light mode, instrument slate in dark mode, and one meaning per
+colour. Every meaning is also carried by shape. Every text pair below meets
+WCAG AA (4.5:1) in both themes; a test computes them from `tokens.css`.
 
-- **Ink** (`#16181b` light, `#e7e5df` dark): text, heavy rules, stamps, stop
-  slabs, primary buttons.
-- **Paper** (`#fafaf8` / `#111417`): the reading sheet.
-- **Desk** (`#f0f0ec` / `#0c0f12`): sidebar, module context, explanation band,
-  table heads, cue rows.
-- **Route blue** (`#1a4fd0` / `#94b6ff`): every task link, the Next column wash,
-  route sheet and rail IDs, focus rings. Nothing decorative uses it.
-- **Blank yellow**: only operator blanks such as `<IP_ADDRESS>`. On paper it is
-  a solid highlighter (`#ffe45c` / `#f0cf45` with `#1b1600` text). On command
-  plates it is a softer wash (`rgba(255, 214, 64, 0.2)` with `#ffe37a` text), so
-  a block with ten blanks does not glare.
-- **Plate** (`#15181c` / `#090b0d`): command plates in both themes.
+| Role | Light | Dark | Shape cue |
+| --- | --- | --- | --- |
+| Paper / desk / panel | `#faf9f5` / `#f1efe9` / `#eae7df` | `#151a22` / `#10141b` / `#1b222c` | — |
+| Ink / ink-2 / ink-3 | `#181c22` / `#444c58` / `#57606d` | `#e8e6df` / `#b4bec9` / `#8c98a8` | — |
+| **Cobalt**: navigation only (task routes, links, focus ring) | `#135198` | `#78b9fa` | Tinted chip with a drawn arrow |
+| **Blank yellow and amber**: a value to replace | Highlighter `#ffe45c` with `#1b1600` text | `#f0cf45` with `#171200` | Dashed underline |
+| Blank on a command plate | 20% amber wash with `#ffe37a` text | Same | Dashed underline |
+| **Stop slab**: a stop state, never a link | Ink slab, paper text | Inverted | Filled square glyph |
+| Command plate / header bar | `#161b22` / `#1f2630` | `#0c1016` / `#161c24` | — |
 
-### Named rules
+**Neutral bands** (desk tone with an ink rule) hold module context, IMPORTANT,
+and the Enter when and Question cues. Pressed controls (Wrap lines, the
+directory layout toggle) use neutral ink, never cobalt. In light mode the
+blank's fill differs little from paper (1.21:1), so the dashed underline is
+its required non-colour cue.
 
-**The One Meaning Per Colour Rule.** Blue means "go somewhere". Yellow means
-"replace this before running". Ink slabs mean "the checklist stops here". No
-colour is reused for another meaning, and no success or failure colour exists.
-
-**The Shape Carries It Rule.** Each mark keeps its meaning in greyscale and in
-forced-colours mode: the arrow, the dashed underline and the square glyph stay
-visible without colour.
+Syntax colours use **github-dark-dimmed**, with comments lifted from `#768390`
+to `#8b96a3` (5.76:1 on the light plate, 6.35:1 on the dark plate) and the
+near-background markup colour replaced. A test checks every syntax colour in
+the built site against both plates.
 
 ## Typography
 
-System sans for reading and interface; Cascadia Mono (with ui-monospace,
-SF Mono, Menlo, Consolas and Liberation Mono fallbacks) for commands, code and
-call numbers. Ligatures are disabled in all code so `->`, `!=` and `==` stay
-literal. No web fonts are loaded; the site stays offline-first.
+**Inter**, which VitePress's default theme ships as local font files (no
+remote request), with `cv05` so l, I and 1 stay distinct. Commands, code and
+call numbers use Cascadia Mono, ui-monospace, SF Mono, Menlo, Consolas, DejaVu
+Sans Mono (Kali's default) and Liberation Mono. Ligatures are off in all code.
 
-### Hierarchy
-
-- **Display** 2.5rem / 600: home title only (2rem below 640px).
-- **Headline** 2rem / 600: framing page titles (1.65rem below 640px).
-- **Task title** 1.75rem / 600, under a mono call-number stamp.
-- **Title** 1.375rem / 600: level-two sections, each opened by a 2px ink rule.
-- **Section** 1.15rem and **subsection** 1.05rem for nested source headings.
+- **Display** 2.5rem: home title only.
+- **Headline** 2rem: framing pages.
+- **Task title** 1.75rem: the verbatim source heading.
+- **Title** 1.375rem: level-two sections under a 2px ink rule.
+- **Section** 1.15rem and **subsection** 1.05rem.
 - **Body** 16px / 1.65 at every width, prose capped at 74ch.
-- **Module context** 14px / 1.5, the one deliberately compact prose block.
-- **Table** 15px / 1.55; **meta** 14px; **label** 13px / 700; **caption** 12px / 700.
-- **Mono** 14px in plates (13.5px below 640px); **call number** 12.5px / 700.
+- **Module context** 14px / 1.5. This is the floor: context carries rules
+  that change how commands run.
+- **Table** 15px; **label** 13px / 700; **mono** 14px in plates; **call
+  number** 12.5–13px / 700.
 
 ## Layout
 
-VitePress's shell, re-materialised: a 304px binder-tab sidebar, an 820px reading
-column (prose 74ch, plates and tables full column width), and a 224px aside from
-1280px holding the page outline, then the task rail. The layout maximum stays at
-1440px: VitePress derives the sidebar width from it, and a larger maximum makes
-the sidebar narrower than its groups, which clips titles.
+The VitePress shell is kept:
 
-Task page order is the source's order: stamp and title, meta line with jumps,
-module context, working section, explanation band. Derived navigation sits
-outside `<main>`: the aside rail and the route sheet above the source-order
-pager. Module and box-route pages have no pager.
+- a 304px sidebar;
+- an 820px reading column (prose 74ch; plates and tables full width);
+- a 224px aside from 1280px, holding "On this page" and then the task rail;
+- a 1440px layout maximum, because VitePress sizes the sidebar from it and a
+  larger value clips sidebar titles.
 
-Below 640px every table stacks into bordered rows with column labels, the
-header row stays visible as a legend, cue rows stack their label above the
-text, command plates extend 12px into the gutters, and the explanation band runs
-edge to edge.
+Task pages reduce VitePress's top padding to 1.5rem, and the aside moves up to
+match. That keeps WSQL-01's first command line above the fold at 1440×900.
 
-## Elevation and depth
+A task page, top to bottom:
 
-Flat. Structure comes from 1-3px ink rules, tonal bands and plate darkness.
-Shadows belong only to VitePress's transient overlays (search, mobile menu).
+1. The header row (outside `<main>`).
+2. The verbatim H1.
+3. Module context. From 1100px wide, contexts of 600 characters or more flow
+   into two columns.
+4. The working section.
+5. The explanations band.
+6. The route sheet (outside `<main>`).
+7. The source-order pager.
 
-## Shapes
+Below 640px:
 
-3px marks, 4px controls, 6px rows and buttons, 8px blocks (plates, module
-context, route sheet). The explanation band is square: it is a sheet section
-under a 3px datum rule, not a card.
+- tables stack into labelled rows, with the header row kept as a visible
+  legend;
+- cue rows stack;
+- command plates extend 12px into the gutters;
+- the explanations band runs edge to edge.
+
+CSS lives in three files: `tokens.css` (colours, type and layout tokens for
+both themes), `components.css` (plates, marks, header row, route sheet and
+rail, Find task, directory, home sheet and jump, cues, outcome rows) and
+`custom.css` (VitePress overrides, document typography, narrow-screen,
+forced-colours and reduced-motion blocks). No stylesheet hides content.
 
 ## Components
 
-### Call-number stamp and meta line
+### Header row
 
-The heading's call number sits in a 2px ink box; the source's period follows
-the box in muted ink, and the title starts on the next line. The meta line
-below names the module and the task's position, then offers jump chips that
-exist only when the page has their target: **First command** (`#cmd-1`),
-**Result table** (`#results`), **Explanations**, and **Routes**.
+On task pages:
+
+- **Left:** Checklist / *Module* / `[ID]` task *n* of *N*. The stamp and its
+  position never wrap apart.
+- **Right:** jump chips for **First command** (the working section's first
+  plate), **Result table** or **Outcomes** (the first decision table before
+  the explanations, otherwise the first outcome list), **Explanations**, and
+  **Routes (n)**.
+
+The generator writes each jump's target into frontmatter, using the same rules
+the renderer uses (`isDecisionHeaders`, `isOutcomeList`), so a jump never lacks
+a target.
+
+Module pages: Checklist / *Module* · *N* tasks, **Box route**, and
+**NET-05: Choose a service to investigate**, named by its exact title.
 
 ### Command plate
 
-Row one, which never wraps its controls away: the fence's own language word,
-**Wrap lines** (a toggle with `aria-pressed`; off scrolls long lines sideways
-inside the plate) and an always-visible **Copy** button. Row two, only when the
-block has blanks: **Fill in** and every distinct blank. Body: Shiki github-dark
-colours, `pre-wrap` wrapping, and a two-column hanging indent so a wrapped line
-never reads as a new command. Copy writes each rendered line's text joined by
-newlines, with no trimming or prompt stripping, so the clipboard equals the
-source block byte for byte. The button label changes to "Copied" inside a
-polite live region. Every plate has an anchor, `cmd-1`, `cmd-2` and so on.
+- **Row one:** the fence's own language word, **Wrap lines** (`aria-pressed`;
+  off scrolls long lines inside the plate), and an always-visible **Copy**.
+- **Row two:** **Fill in** with every distinct blank.
+
+Wrapped lines hang two columns in. Copy writes each rendered line's text joined
+by `\n`, with no trimming or prompt stripping, so the clipboard equals the
+source block byte for byte. Every plate has an anchor (`cmd-1`, `cmd-2`, and
+so on).
 
 ### Marks
 
-- **Route**: mono, bold, blue, underlined, with a drawn arrow; the `title`
-  gives the destination task's exact title. Abbreviated parts such as `/08`
-  drop the arrow.
-- **Blank**: highlighter fill, dashed underline, in code and inline code.
-- **Stop**: ink slab with a square, never a link, titled "Stop state named by
-  the checklist".
-- **Call number**: plain task IDs in prose are set in mono.
+- **Route chip:** tinted cobalt pill, mono bold, with a drawn arrow, and the
+  destination's exact title as its tooltip. Abbreviated parts (`/08`) drop the
+  arrow.
+- **Blank:** highlighter on paper, a wash on plates, always with a dashed
+  underline.
+- **Stop:** an inverted slab with a square, never a link.
+- **Plain task ID:** neutral mono, with its exact title as a tooltip.
 
-### Cue rows and outcome rows
+### Cues, outcome rows, decision tables
 
-"Enter when:" and "Question:" paragraphs become ruled desk-tone rows with the
-label in its own column; the question is set semibold. Bullet lists whose every
-item opens with an outcome slug (`http_reported:`) become ruled rows with the
-slug in a mono chip. Words and order are unchanged.
-
-### Decision table
-
-A table is a decision table when its last header starts with "Next" or
-"Revisit", unless it names an expression to type ("Next table expression").
-2px ink rule under a desk-tone head, 1px row rules, a faint blue wash on the
-route column, and a 46% condition column in two-column tables. The first one on
-a page carries the `results` anchor.
+- **"Enter when:" and "Question:"** become neutral labelled rows.
+- **Outcome rows:** bullet lists in which every item opens with a slug become
+  ruled rows with the slug in a chip.
+- **Decision tables:** a table whose last header starts with "Next" or
+  "Revisit", and doesn't end in "expression". They get a heavy head rule and a
+  cobalt wash on the route column.
 
 ### Module context
 
-The binder tab note: desk band, 1px border, label "<Module> module context ·
-Applies to every task in this module". Always expanded, never collapsed, set at
-14px. From 1100px wide it flows into two columns on task pages so long contexts
-take half the height.
+The binder tab note: a desk band with a 1px border, labelled "*Module* module
+context · Applies to every task in this module". Always expanded.
 
-### Task rail
+### Task rail and route sheet
 
-In the aside, under the outline: the call number and module, then the task's
-routes. Up to six routes show their titles; a hub task shows call-number chips
-(titles on hover and focus) and a link to the route sheet, so the outline stays
-in view.
+- **Rail** (in the aside, under the outline): the stamp and module, then the
+  routes. Up to six show their titles; hub tasks show chips plus a link to the
+  sheet.
+- **Route sheet:** "Recorded routes for *ID*" (`h2#task-routes`, listed in the
+  outline). Cards show the ID and any cross-module tag on top and the exact
+  title below. Then the stop states, and the inbound links (folded into
+  native `<details>` above 12).
 
-### Route sheet
+### Find task (sidebar) and the home jump
 
-"Where <ID> can lead" (`#task-routes`): every linked task with its exact title
-and, for cross-module routes, its module, the stop states it names, and the
-tasks that link to it. Inbound lists of more than 12 fold into native
-`<details>` with a Show / Hide cue.
+Find task is pinned at the top of the desktop sidebar.
 
-### Find task
+- An exact or loose ID ("web9") shows "Press Enter to open *ID*: *title*".
+- Other text lists live matches by ID, title word or module.
+- **Clear** and Escape reset the field.
 
-The first control in the sidebar. An exact or loosely typed ID ("web9",
-"lpriv-2") opens that task on Enter. Any other text lists live matches by ID,
-title word or module (the first 12, with the total), and Enter opens the first.
+The home jump box does the same, and adds **Full-text search /**, which opens
+VitePress's local search. `/` opens it from any page.
 
-### Directory filter
+After a route change, the active sidebar item scrolls into view on desktop.
 
-On `/checklist/`, the full directory renders by default in source order, read
-down each column. Typing filters it by ID, title word or module; clearing
-restores every task.
+### Home
+
+1. Title and edition.
+2. IMPORTANT.
+3. Jump box and Full-text search.
+4. Three actions.
+5. **Where to enter**: generated at build time from the source's Default box
+   route. Each row quotes the When and Decision cells verbatim, then lists the
+   named tasks with exact titles.
+6. The **Reading a task** legend: blank, route, stop, plain ID, Copy.
+7. How to use it.
+8. What this site changes.
+
+### Directory
+
+`/checklist/` has a filter by ID, title or module; Escape and Clear reset it.
+It has **By module (28)**, in printed-index columns, and **Flat list (145)**,
+showing ID, exact title and module. The server-rendered default lists all 145
+tasks. Nothing is stored.
 
 ## Do's and don'ts
 
 ### Do
 
-- Keep every source word, command and table in `<main>` and in source order.
-- Use blue only for routes and links, yellow only for blanks.
+- Keep every source word, command and table in `<main>`, in source order.
+- Use cobalt only for navigation, and yellow or amber only for blanks.
 - Keep commands visible and copyable without hover.
+- Derive every title and quote from the parsed source, never by hand.
 - Label derived navigation as derived, and keep it outside `<main>`.
 
 ### Don't
 
-- Don't hide anything with `display: none`, `visibility: hidden`, zero height,
-  clipping or off-screen positioning. The test suite forbids these in the theme.
-- Don't collapse source content. Only derived inbound lists may use `<details>`.
-- Don't add progress, completion, success colours or operator state.
-- Don't load remote fonts or assets.
+- Don't hide anything with `display: none`, `visibility: hidden`, clipping,
+  hidden overflow, zero height or off-screen offsets. Tests forbid these in
+  every theme stylesheet.
+- Don't collapse source content. Only derived inbound lists may use
+  `<details>`.
+- Don't add progress, completion, success colours, stored state or remote
+  assets.

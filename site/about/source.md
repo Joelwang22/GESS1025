@@ -43,15 +43,19 @@ command content remain unchanged. It adds:
   arrow-joined runs such as `**SSH-01 → SSH-02**`. Terminal states such as
   `PAUSE-ROUTE` stay unlinked.
 - The module's context on every task in that module, always expanded.
-- A line under each task title naming its module and position, with jumps to
-  the page's first command, result table, explanations and route sheet.
-- Page metadata, including each task's derived routes: the tasks it links, the
-  stop states it names, and the tasks that link to it.
+- Page metadata for the header row above each task title: the task's module
+  and position, and the targets of its jumps (first command, result table or
+  outcome list, explanations, routes). The title itself is the source heading,
+  unchanged.
+- Each task's derived routes: the tasks it links, the stop states it names,
+  and the tasks that link to it.
+- The home page's "Where to enter" rows, quoted word for word from the
+  Default box route with each named task's exact title.
 
 The site's build step then marks presentation without changing text: command
-blanks such as `<IP_ADDRESS>`, route and stop marks, decision tables, the
-"Enter when" and "Question" cues, and outcome lists. Copy writes each command
-block's text exactly as the snapshot gives it.
+blanks such as `<IP_ADDRESS>`, route and stop marks, plain task IDs, decision
+tables, the "Enter when" and "Question" cues, and outcome lists. Copy writes
+each command block's text exactly as the snapshot gives it.
 
 Generation stops if the edition, source digest, snapshot hash, task count,
 explanation coverage, task IDs, or route destinations drift from the manifest.

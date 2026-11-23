@@ -60,7 +60,17 @@ and provenance details are also published at `/checklist/about/source.html`.
 
 Both are ignored by Git and replaced on every generation. Do not edit them.
 Edit framing pages under `site/`, generator logic under `scripts/`, or imported
-content under `content/` as appropriate.
+content under `content/` as appropriate. The home page's "Where to enter" rows
+come from `site/.vitepress/generated/where-to-enter.md`, which the generator
+writes from the snapshot's Default box route and `site/index.md` includes.
+
+## Design
+
+The interface design (colours, type, components, and the rules that keep
+source text exact and visible) is recorded in `DESIGN.md`. Theme code lives in
+`site/.vitepress/theme/` (`tokens.css`, `components.css`, `custom.css` and the
+Vue components) and build-time Markdown presentation in
+`site/.vitepress/markdown.mjs`.
 
 ## Refreshing the checklist
 

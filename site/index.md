@@ -25,15 +25,16 @@ next-task links recorded in each decision.
 
 These rows quote the **When** column of the source's
 [default box route](./generated/start.md), which gives the full decision and
-next choice for each one. Enter at the row that matches what you have observed.
+next choice for each one, beside each task's exact title. Enter at the row that
+matches what you have observed.
 
-| When | Next task |
-| --- | --- |
-| Assigned target, no access | **[NET-01](./generated/tasks/net-01.md)** |
-| Discovery recorded | **[NET-05](./generated/tasks/net-05.md)** |
-| Permitted SSH account or key for an observed endpoint | **[SSH-01](./generated/tasks/ssh-01.md)** |
-| Verified Linux shell | **[LNX-01](./generated/tasks/lnx-01.md)** |
-| Usable session verified | **[LNX-01](./generated/tasks/lnx-01.md)** or **[WIN-01](./generated/tasks/win-01.md)** according to the actual host; **[AD-01](./generated/tasks/ad-01.md)** when domain context is assigned or observed. |
+| When | Task title | Next task |
+| --- | --- | --- |
+| Assigned target, no access | Check connectivity | **[NET-01](./generated/tasks/net-01.md)** |
+| Discovery recorded | Choose a service to investigate | **[NET-05](./generated/tasks/net-05.md)** |
+| Permitted SSH account or key for an observed endpoint | Check the observed SSH access boundary | **[SSH-01](./generated/tasks/ssh-01.md)** |
+| Verified Linux shell | Which host and effective identity are you using? | **[LNX-01](./generated/tasks/lnx-01.md)** |
+| Usable session verified | LNX-01: Which host and effective identity are you using?<br>WIN-01: Identify this Windows shell<br>AD-01: Identify the domain and controller | **[LNX-01](./generated/tasks/lnx-01.md)** or **[WIN-01](./generated/tasks/win-01.md)** according to the actual host; **[AD-01](./generated/tasks/ad-01.md)** when domain context is assigned or observed. |
 
 ## Reading a task
 

@@ -557,8 +557,28 @@ function tableHeaderRows(markdown) {
   return headers;
 }
 
-function hasFence(markdown) {
-  return normalizeLines(markdown).some((line) => /^ {0,3}(`{3,}|~{3,})/.test(line));
+// Counts fenced blocks, so a plate's page anchor (cmd-1, cmd-2, ...) can be
+// predicted from the sections rendered before it.
+function fenceCount(markdown) {
+  let count = 0;
+  let fence = null;
+  for (const line of normalizeLines(markdown)) {
+    const marker = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (fence === null) {
+      if (marker) {
+        fence = { kind: marker[1][0], length: marker[1].length };
+        count += 1;
+      }
+    } else if (
+      marker &&
+      marker[1][0] === fence.kind &&
+      marker[1].length >= fence.length &&
+      marker[2].trim() === ""
+    ) {
+      fence = null;
+    }
+  }
+  return count;
 }
 
 // Presentation-only line under the task heading: the module, the task's place
@@ -566,10 +586,17 @@ function hasFence(markdown) {
 // page's structure; it adds no instruction and implies no progress.
 function taskMetaLine(task, module) {
   const position = module.tasks.findIndex(({ id }) => id === task.id) + 1;
-  const page = [module.context, task.working, task.explanation].join("\n");
+  // Jumps target the working section, never the explanations: a browser-only
+  // step such as WEB-09 has no command jump at all. Module context renders
+  // first, so its blocks and tables come before the working section's.
+  const beforeExplanations = [module.context, task.working].join("\n");
   const jumps = [
-    hasFence(page) ? "[First command](#cmd-1)" : null,
-    tableHeaderRows(page).some(isDecisionHeaders) ? "[Result table](#results)" : null,
+    fenceCount(task.working) > 0
+      ? `[First command](#cmd-${fenceCount(module.context) + 1})`
+      : null,
+    tableHeaderRows(beforeExplanations).some(isDecisionHeaders)
+      ? "[Result table](#results)"
+      : null,
     "[Explanations](#explanations-and-troubleshooting)",
     "[Routes](#task-routes)",
   ].filter(Boolean);

@@ -843,10 +843,22 @@ test("every task page offers jumps to its own landmarks, and each target exists"
     }
     assert.match(meta, /href="#explanations-and-troubleshooting"/);
     assert.match(meta, /href="#task-routes"/);
-    const hasCommand = /class="cmd-plate/.test(html);
-    assert.equal(/href="#cmd-1"/.test(meta), hasCommand, `${task.id} first-command jump`);
-    assert.equal(/href="#results"/.test(meta), /<table class="decision/.test(html), `${task.id} result jump`);
+    // Jumps go to the working section only. Every target must sit before the
+    // explanations band, and a jump exists exactly when the working section
+    // (or the module context above it) has the landmark.
+    const notes = html.indexOf('<section class="task-notes"');
+    for (const [, anchor] of meta.matchAll(/href="#(cmd-\d+|results)"/g)) {
+      assert.ok(html.indexOf(`id="${anchor}"`) < notes, `${task.id} #${anchor} is above the explanations`);
+    }
+    assert.equal(/href="#cmd-\d+"/.test(meta), fencedBlocks(task.working).length > 0, `${task.id} first-command jump`);
+    const workingHtml = html.slice(html.indexOf("<main"), notes);
+    assert.equal(/href="#results"/.test(meta), /<table class="decision/.test(workingHtml), `${task.id} result jump`);
   }
+  const web09 = (await text("site/.vitepress/dist/generated/tasks/web-09.html")).match(
+    /<p class="task-meta">([\s\S]*?)<\/p>/,
+  )[1];
+  assert.doesNotMatch(web09, /First command/, "WEB-09's working step has no command");
+  assert.match(web09, /href="#results"/);
   const [wsql05, ad03] = await Promise.all([
     text("site/.vitepress/dist/generated/tasks/wsql-05.html"),
     text("site/.vitepress/dist/generated/tasks/ad-03.html"),
@@ -942,4 +954,38 @@ test("both light and dark browser chrome colours ship, and the layout keeps the 
   // the computed sidebar is narrower than its groups and titles clip.
   const css = await text("site/.vitepress/theme/custom.css");
   assert.match(css, /--vp-layout-max-width: 1440px;/);
+});
+
+test("the home entry table shows exact titles and keeps the box route's wording", async () => {
+  const [home, start] = await Promise.all([text("site/index.md"), text("site/generated/start.md")]);
+  const titles = new Map(checklist.tasks.map(({ id, title }) => [id, title]));
+  const section = home.slice(home.indexOf("## Where to enter"), home.indexOf("## Reading a task"));
+  const rows = [...section.matchAll(/^\| (?!When |---)(.+?) \| (.+?) \| (.+) \|$/gm)];
+  assert.equal(rows.length, 5);
+  for (const [, when, titleCell, next] of rows) {
+    // The When cell is quoted from a row of the source's default box route.
+    assert.ok(start.includes(`| ${when}`), `When row "${when}"`);
+    const ids = [...next.matchAll(/\*\*\[([A-Z][A-Z0-9]*-\d{2})\]/g)].map(([, id]) => id);
+    assert.ok(ids.length >= 1);
+    if (ids.length === 1) {
+      assert.equal(titleCell, titles.get(ids[0]), `${when} title`);
+    } else {
+      assert.deepEqual(
+        titleCell.split("<br>"),
+        ids.map((id) => `${id}: ${titles.get(id)}`),
+        `${when} titles`,
+      );
+    }
+  }
+  // Multi-task rows keep the source's conditions, not a flat list of IDs.
+  assert.ok(
+    section.includes(
+      "**[LNX-01](./generated/tasks/lnx-01.md)** or **[WIN-01](./generated/tasks/win-01.md)** according to the actual host; **[AD-01](./generated/tasks/ad-01.md)** when domain context is assigned or observed.",
+    ),
+  );
+  assert.ok(
+    checklist.preface.includes(
+      "**LNX-01** or **WIN-01** according to the actual host; **AD-01** when domain context is assigned or observed.",
+    ),
+  );
 });

@@ -24,6 +24,7 @@ const exact = computed(() => {
   const id = normalizeTaskId(value.value);
   return id && ids.value.has(id) ? id : null;
 });
+const exactTitle = computed(() => tasks.value.find(({ id }) => id === exact.value)?.title ?? "");
 const matches = computed(() => (exact.value ? [] : matchTasks(tasks.value, value.value)));
 
 function open(id) {
@@ -59,7 +60,7 @@ function go() {
     </div>
     <p id="goto-task-help" class="goto-message" role="status" aria-live="polite">
       <template v-if="message">{{ message }}</template>
-      <template v-else-if="exact">Press Enter to open {{ exact }}.</template>
+      <template v-else-if="exact">Press Enter to open {{ exact }}: {{ exactTitle }}</template>
       <template v-else-if="value.trim() && matches.length">
         {{ matches.length }} {{ matches.length === 1 ? "match" : "matches" }}<template v-if="matches.length > RESULT_LIMIT">, first {{ RESULT_LIMIT }} shown. Keep typing to narrow</template>. Enter opens the first.
       </template>

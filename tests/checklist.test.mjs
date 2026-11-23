@@ -14,6 +14,8 @@ import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 
+import { createMarkdownRenderer } from "vitepress";
+
 import {
   escapeVuePlaceholders,
   generateSite,
@@ -69,6 +71,33 @@ Why the first check matters.
 
 Why the second check matters.
 `;
+
+let rendererPromise;
+
+async function renderMarkdown(markdown) {
+  rendererPromise ??= createMarkdownRenderer(
+    path.join(repositoryRoot, "site"),
+    {},
+    "/checklist/",
+  );
+  return (await rendererPromise).render(markdown);
+}
+
+const routeIds = new Set([
+  "NET-02",
+  "NET-05",
+  "SHELL-01",
+  "EXP-03",
+  "WEB-06",
+  "WEB-08",
+  "LPRIV-01",
+  "LPRIV-15",
+]);
+const routeTerminals = new Set(["PAUSE-COVERAGE", "GAP-SERVICE"]);
+
+function link(markdown) {
+  return linkTaskRoutes(markdown, routeIds, routeTerminals);
+}
 
 async function sha256(file) {
   const bytes = await readFile(file);
@@ -262,6 +291,97 @@ test("makes Vue interpolation and raw HTML inert outside command fences", () => 
     escapeVuePlaceholders(markdown),
     "&#123;&#123; dangerous() &#125;&#125;\n&lt;div @click=\"dangerous()\"&gt;text&lt;/div&gt;\n\n```html\n<div>example</div>\n```",
   );
+});
+
+test("renders inline-code placeholders literally once", async () => {
+  const markdown = escapeVuePlaceholders(
+    "Use `<DOMAIN>` for <DOMAIN>.\n\n| Field | Value |\n| --- | --- |\n| user | `<supplied-domain/user>` |",
+  );
+
+  assert.equal(
+    markdown,
+    "Use `<DOMAIN>` for &lt;DOMAIN&gt;.\n\n| Field | Value |\n| --- | --- |\n| user | `<supplied-domain/user>` |",
+  );
+  const html = await renderMarkdown(markdown);
+  assert.match(html, /<code>&lt;DOMAIN&gt;<\/code> for &lt;DOMAIN&gt;\./);
+  assert.match(html, /<code>&lt;supplied-domain\/user&gt;<\/code>/);
+  assert.doesNotMatch(html, /&amp;lt;|&amp;gt;/);
+});
+
+test("keeps a code span that wraps across lines literal", () => {
+  const markdown =
+    "Preserve the full `Owned user -> MemberOf ->\ngroup -> gMSA` chain > text.";
+
+  assert.equal(
+    escapeVuePlaceholders(markdown),
+    "Preserve the full `Owned user -> MemberOf ->\ngroup -> gMSA` chain &gt; text.",
+  );
+});
+
+test("treats an unmatched backtick as text and still escapes after it", () => {
+  assert.equal(
+    escapeVuePlaceholders("A lone ` tick before <x>."),
+    "A lone ` tick before &lt;x&gt;.",
+  );
+});
+
+test("makes Vue interpolation inside inline code inert and literal", async () => {
+  const markdown = escapeVuePlaceholders("Run `echo {{ x }} <y>` now.");
+
+  assert.equal(markdown, "Run <code v-pre>echo {{ x }} &lt;y&gt;</code> now.");
+  const html = await renderMarkdown(markdown);
+  assert.match(html, /<code v-pre>echo \{\{ x \}\} &lt;y&gt;<\/code>/);
+});
+
+test("links single, compound, abbreviated, and range task references", () => {
+  assert.equal(link("| ok | **NET-02**. Next |"), "| ok | **[NET-02](./net-02)**. Next |");
+  assert.equal(
+    link("Verify through **SHELL-01/EXP-03**."),
+    "Verify through **[SHELL-01](./shell-01)/[EXP-03](./exp-03)**.",
+  );
+  assert.equal(
+    link("Use **WEB-06/08** for one input."),
+    'Use **[WEB-06](./web-06)/[08](./web-08 "WEB-08")** for one input.',
+  );
+  assert.equal(
+    link("Open only **LPRIV-01 through LPRIV-15**."),
+    "Open only **[LPRIV-01](./lpriv-01) through [LPRIV-15](./lpriv-15)**.",
+  );
+  assert.equal(
+    link("Next: NET-02/NET-05."),
+    "Next: [NET-02](./net-02)/[NET-05](./net-05).",
+  );
+});
+
+test("links task parts of a compound but leaves terminal states unlinked", () => {
+  assert.equal(
+    link("**NET-05/PAUSE-COVERAGE**; **PAUSE-COVERAGE**. Next: GAP-SERVICE."),
+    "**[NET-05](./net-05)/PAUSE-COVERAGE**; **PAUSE-COVERAGE**. Next: GAP-SERVICE.",
+  );
+  assert.equal(
+    link("**GAP-SERVICE/PAUSE-COVERAGE**"),
+    "**GAP-SERVICE/PAUSE-COVERAGE**",
+  );
+});
+
+test("leaves fenced commands, inline code, prose, and ordinary bold untouched", () => {
+  const markdown = [
+    "NET-02 already checked services; follow WEB-06/08 later.",
+    "Run in **Kali Bash** with **AS-REP** context and `**NET-02**`.",
+    "",
+    "```text",
+    "Next: NET-02. **WEB-99** **NET-05**",
+    "```",
+  ].join("\n");
+
+  assert.equal(link(markdown), markdown);
+});
+
+test("rejects unknown task-like and terminal-like references", () => {
+  assert.throws(() => link("**WEB-99**"), /Unknown route destination WEB-99/);
+  assert.throws(() => link("**WEB-06/99**"), /Unknown route destination WEB-99/);
+  assert.throws(() => link("**NET-02/PAUSE-NOWHERE**"), /Unknown route destination PAUSE-NOWHERE/);
+  assert.throws(() => link("Return to AD-99 first."), /Unknown route destination AD-99/);
 });
 
 test("rejects manifest reference reads and writes outside owned paths", async () => {

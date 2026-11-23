@@ -20,6 +20,62 @@ html {
   outline-offset: 2px;
 }
 
+/* Desktop navigation can step out of the way without turning the document
+   into a second layout. The control stays in the top bar so it can always
+   restore the sidebar. */
+.sidebar-toggle {
+  min-height: 36px;
+  margin-inline-end: 0.75rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--rb-rule-strong);
+  border-radius: var(--rb-radius-s);
+  background: transparent;
+  color: var(--rb-ink-2);
+  font: 600 13px/1 var(--vp-font-family-base);
+  cursor: pointer;
+}
+
+.sidebar-toggle:hover {
+  border-color: var(--rb-ink-2);
+  color: var(--rb-ink);
+}
+
+@media (min-width: 960px) {
+  html.sidebar-collapsed .Layout .VPSidebar {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(calc(-100% * var(--vp-direction-multiplier)));
+  }
+
+  html.sidebar-collapsed .Layout .VPContent.has-sidebar {
+    margin-inline: auto;
+    padding-inline: 0;
+  }
+
+  html.sidebar-collapsed .Layout .VPNavBar.has-sidebar {
+    --vp-nav-col-offset: 0px;
+  }
+
+  html.sidebar-collapsed .Layout .VPNavBar.has-sidebar .title,
+  html.sidebar-collapsed .Layout .VPNavBarTitle.has-sidebar {
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+@media (min-width: 1280px) {
+  /* The right outline used to pull the document left once the sidebar was
+     removed. An equal flex spacer keeps the reading column on the viewport
+     centreline while preserving the outline. */
+  html.sidebar-collapsed .Layout .VPDoc.has-aside .container::before {
+    content: "";
+    flex: 0 0 16rem;
+    order: 0;
+    width: 100%;
+    max-width: 16rem;
+  }
+}
+
 /* Inter's alternate lowercase l (cv05) keeps l, I and 1 distinct in prose. */
 html {
   font-feature-settings: "cv05" 1;
@@ -402,17 +458,6 @@ samp {
   grid-column: 1 / -1;
 }
 
-.VPSidebar .sb-reference-label {
-  display: block;
-  width: 100%;
-  margin-top: 0.5rem;
-  padding-top: 0.75rem;
-  border-top: 2px solid var(--rb-ink-3);
-  color: var(--rb-ink-2);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
 /* Outline text wraps rather than losing its distinguishing words. */
 .Layout .VPDocOutlineItem .outline-link {
   padding-block: 0.25rem;
@@ -559,7 +604,7 @@ samp {
 }
 
 .home-page .vp-doc .home-actions .action-primary {
-  grid-column: 1 / -1;
+  border-color: var(--rb-ink);
 }
 
 .home-page .vp-doc h1 {

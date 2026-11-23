@@ -16,12 +16,14 @@ const modules = computed(() =>
     .map((group) => ({
       title: group.moduleTitle,
       link: withBase(`${group.moduleLink}.html`),
-      tasks: group.items.map((item) => ({
-        id: item.taskId,
-        title: item.taskTitle,
-        module: group.moduleTitle,
-        link: withBase(`${item.link}.html`),
-      })),
+      tasks: group.items
+        .filter((item) => item.taskId)
+        .map((item) => ({
+          id: item.taskId,
+          title: item.taskTitle,
+          module: group.moduleTitle,
+          link: withBase(`${item.link}.html`),
+        })),
     })),
 );
 

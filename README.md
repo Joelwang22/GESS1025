@@ -1,8 +1,8 @@
-# OSCP field checklist
+# OSCP checklist
 
-A command-first website for use beside a terminal. The default field checklists
-keep routine enumeration compact, while the full Operator Workbench master
-checklist remains searchable as the detailed reference.
+A command-first website for use beside a terminal. The practical Linux page
+keeps routine enumeration compact, while the complete Operator Workbench tasks
+remain searchable in the same checklist.
 
 The first field guide covers Linux privilege escalation. The retained reference
 contains edition `2026-11-21.working.132`: 145 tasks across 28 modules. It keeps
@@ -34,7 +34,7 @@ pnpm build
 
 ## Scope
 
-This repository is a field and reference interface. It does not track box
+This repository is a checklist interface. It does not track box
 progress, store targets or credentials, execute commands, provide accounts, or
 reproduce Operator Workbench workflows.
 
@@ -60,10 +60,10 @@ and provenance details are also published at `/checklist/about/source.html`.
 - `site/.vitepress/generated/`
 
 Both are ignored by Git and replaced on every generation. Do not edit them.
-Edit field checklists and framing pages under `site/`, generator logic under
-`scripts/`, or imported content under `content/` as appropriate. Field copy is
-maintained separately from the imported snapshot so a practical edit cannot
-silently change the retained reference.
+Edit practical checklists and framing pages under `site/`, generator logic under
+`scripts/`, or imported content under `content/` as appropriate. Practical copy
+is maintained separately from the imported snapshot so an edit cannot silently
+change the retained source.
 
 ## Design
 

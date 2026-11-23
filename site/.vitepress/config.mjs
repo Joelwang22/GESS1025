@@ -39,23 +39,21 @@ const referenceSidebar = generatedSidebar.map((group, index) => ({
   }),
 }));
 
-const sidebar = [
-  {
-    text: '<span class="sb-module">Field checklists</span><span class="sb-count">1</span>',
-    collapsed: false,
-    items: [
-      {
-        text: '<span class="sb-title">Linux privilege escalation</span>',
-        link: "/field/linux-privilege",
-      },
-    ],
-  },
-  {
-    text: '<span class="sb-reference-label">Detailed reference · 28 modules</span>',
-    items: [],
-  },
-  ...referenceSidebar,
-];
+const sidebar = referenceSidebar.map((group) => {
+  if (group.moduleTitle !== "Linux privilege") return group;
+  const items = [
+    {
+      text: '<span class="sb-title">Privilege escalation checklist</span>',
+      link: "/field/linux-privilege",
+    },
+    ...group.items,
+  ];
+  return {
+    ...group,
+    text: `<span class="sb-module">${escapeHtml(group.moduleTitle)}</span><span class="sb-count">${items.length}</span>`,
+    items,
+  };
+});
 
 const markdown = checklistMarkdown({
   terminalStates: new Set(source.terminalStates),
@@ -63,9 +61,9 @@ const markdown = checklistMarkdown({
 });
 
 export default defineConfig({
-  title: "OSCP Field Checklist",
+  title: "OSCP Checklist",
   description:
-    "Command-first field checklists with the full Operator Workbench runbook as reference.",
+    "A command-first OSCP checklist with practical pages and complete task detail.",
   lang: "en-US",
   base: "/checklist/",
   cleanUrls: false,
@@ -88,13 +86,8 @@ export default defineConfig({
   },
   themeConfig: {
     logo: false,
-    siteTitle: "OSCP Field Checklist",
-    nav: [
-      { text: "Linux checklist", link: "/field/linux-privilege" },
-      { text: "Detailed reference", link: "/checklist/" },
-      { text: "Box route", link: "/generated/start" },
-      { text: "Source", link: "/about/source" },
-    ],
+    siteTitle: "OSCP Checklist",
+    nav: [],
     sidebar,
     search: {
       provider: "local",

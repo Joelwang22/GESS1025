@@ -18,38 +18,38 @@ consult the master checklist while working through a box.
 
 ## Product purpose
 
-Give an operator a compact, command-first field checklist beside a live
-terminal, with the complete imported runbook available when a finding needs
-more context. Success means the common enumeration pass stays on one scannable
-page and a deeper procedure is one link away.
+Give an operator one command-first checklist beside a live terminal. Success
+means the common enumeration pass stays on one scannable page and a deeper
+procedure is one link away in the same navigation tree.
 
 ## Positioning
 
-This repository has two layers. Hand-authored field checklists optimize the
-common operator workflow for speed. A faithful reading interface retains the
-Operator Workbench master checklist as the detailed reference.
+The practical Linux privilege page and the imported Operator Workbench tasks
+belong to one checklist. The concise page optimizes the common workflow for
+speed; the task pages retain the source detail without becoming a separate
+product category.
 
 ## Operating context
 
-Readers use the site alongside an authorized lab or exam workflow. A field
-checklist groups the commands an operator normally scans together. Detailed
-tasks remain finding-driven rather than a required linear sequence. The
+Readers use the site alongside an authorized lab or exam workflow. The Linux
+privilege checklist groups commands an operator normally scans together. Task
+pages remain finding-driven rather than a required linear sequence. The
 retained reference source is `2026-11-21.working.132`, with 145 working task
 bodies and matching explanations.
 
 ## Capabilities and constraints
 
 - Static GitHub Pages output with local search and grouped navigation.
-- A concise Linux privilege escalation field checklist with scoped-first
+- A concise Linux privilege escalation checklist with scoped-first
   commands, short signals, and direct links into detailed procedures.
 - Stable task URLs, route links, previous and next navigation, and code copying.
-- Exact reference-source wording, task IDs, commands, routes, version, and
-  provenance. Field-checklist copy is maintained separately.
+- Exact imported-source wording, task IDs, commands, routes, version, and
+  provenance. Practical checklist copy is maintained separately.
 - No progress state, notes, targets, credentials, accounts, analytics, backend,
   or command execution.
 - Presentation follows the field binder direction recorded in DESIGN.md:
-  compact command plates in field pages and the full runbook treatment in
-  reference pages.
+  compact command plates on the practical page and the full runbook treatment
+  on task pages.
 
 ## Evidence on hand
 
@@ -62,8 +62,8 @@ be invented.
 
 ## Product principles
 
-- Put the field workflow before the source archive.
-- Keep quick enumeration and deep procedures visibly distinct.
+- Put the practical workflow before the source archive.
+- Keep quick enumeration and deep procedures in one navigation tree.
 - Preserve the imported reference before styling it.
 - Make finding-driven navigation obvious once a lead exists.
 - Keep reading controls familiar and keyboard accessible.

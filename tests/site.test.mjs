@@ -127,7 +127,7 @@ test("provides home, checklist index, and provenance pages", async () => {
     text("site/about/source.md"),
   ]);
 
-  assert.match(home, /OSCP field checklist/);
+  assert.match(home, /OSCP checklist/);
   assert.match(home, /field\/linux-privilege/);
   assert.match(home, /generated\/tasks\/net-01/);
   assert.match(index, /28 modules/);
@@ -135,12 +135,14 @@ test("provides home, checklist index, and provenance pages", async () => {
   assert.match(source, /8d6eff26e2b383b832399636b356009e68ae68e7918217a1a837ee8799cccad5/);
 });
 
-test("makes the practical Linux field checklist the primary operator path", async () => {
-  const [home, field, config, css] = await Promise.all([
+test("makes the practical Linux checklist the primary operator path", async () => {
+  const [home, field, config, css, toggle, theme] = await Promise.all([
     text("site/index.md"),
     text("site/field/linux-privilege.md"),
     text("site/.vitepress/config.mjs"),
     text("site/.vitepress/theme/custom.css"),
+    text("site/.vitepress/theme/components/SidebarToggle.vue"),
+    text("site/.vitepress/theme/index.js"),
   ]);
 
   assert.match(home, /Open the Linux privilege escalation checklist/);
@@ -148,8 +150,20 @@ test("makes the practical Linux field checklist the primary operator path", asyn
     home.indexOf("field/linux-privilege") < home.indexOf("generated/tasks/net-01"),
     "the field checklist is the first home action",
   );
-  assert.match(config, /Linux checklist.*field\/linux-privilege/);
-  assert.match(config, /Field checklists/);
+  assert.match(config, /moduleTitle !== "Linux privilege"/);
+  assert.match(config, /Privilege escalation checklist/);
+  assert.match(config, /nav: \[\]/);
+  assert.doesNotMatch(config, /Field checklists|Detailed reference · 28 modules/);
+  for (const label of ["Linux checklist", "Detailed reference", "Box route", "Source"]) {
+    assert.doesNotMatch(config, new RegExp(`text: "${label}"`));
+  }
+  assert.match(theme, /nav-bar-content-before.*SidebarToggle/);
+  assert.match(toggle, /aria-controls="VPSidebarNav"/);
+  assert.match(toggle, /aria-expanded="String\(!collapsed\)"/);
+  assert.match(toggle, /toggleAttribute\("inert", collapsed\.value\)/);
+  assert.match(css, /html\.sidebar-collapsed \.Layout \.VPSidebar/);
+  assert.match(css, /html\.sidebar-collapsed \.Layout \.VPContent\.has-sidebar/);
+  assert.match(css, /\.VPDoc\.has-aside \.container::before/);
 
   const sections = [...field.matchAll(/^## /gm)].length;
   const words = [...field.matchAll(/\S+/g)].length;
@@ -204,8 +218,9 @@ test("renders every field command with copy controls and keeps reference links l
   assert.match(html, /href="\/checklist\/generated\/tasks\/lnx-05\.html"/);
   assert.match(html, /href="\/checklist\/generated\/tasks\/lpriv-02\.html"/);
   assert.match(html, /class="Layout field-page"/);
-  assert.match(html, /class="sb-reference-label">Detailed reference · 28 modules/);
-  assert.ok(html.indexOf('class="sb-reference-label"') > html.indexOf('class="sb-module">Field checklists'));
+  assert.match(html, /class="sb-module">Linux privilege/);
+  assert.match(html, /href="\/checklist\/field\/linux-privilege\.html"[\s\S]{0,300}<span class="sb-title">Privilege escalation checklist/);
+  assert.doesNotMatch(html, /Field checklists|Detailed reference · 28 modules|sb-reference-label/);
 });
 
 test("generates one readable page per task and module", async () => {
@@ -1072,14 +1087,14 @@ test("the compact home keeps the full generated box route available as reference
   );
 });
 
-test("the home page offers task lookup inside the detailed-reference section", async () => {
+test("the home page offers task lookup inside the task section", async () => {
   await buildSite();
   const home = await text("site/.vitepress/dist/index.html");
   const jump = home.indexOf('<form class="home-jump"');
   assert.ok(
-    jump > home.indexOf('id="search-the-detailed-reference"') &&
-      jump < home.indexOf('id="how-the-two-layers-work"'),
-    "the jump box stays inside the detailed-reference section",
+    jump > home.indexOf('id="find-a-task"') &&
+      jump < home.indexOf('id="how-to-use-it"'),
+    "the jump box stays inside the task section",
   );
   assert.match(home, /<button class="home-jump-search" type="button">\s*Full-text search <kbd>\/<\/kbd><\/button>/);
   assert.match(home, /<input id="home-jump-input"/);

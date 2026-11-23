@@ -4,6 +4,7 @@ import DefaultTheme from "vitepress/theme";
 
 import GoToTask from "./components/GoToTask.vue";
 import HomeJump from "./components/HomeJump.vue";
+import SidebarToggle from "./components/SidebarToggle.vue";
 import TaskDirectory from "./components/TaskDirectory.vue";
 import TaskHeader from "./components/TaskHeader.vue";
 import TaskRail from "./components/TaskRail.vue";
@@ -19,6 +20,7 @@ export default {
   extends: DefaultTheme,
   Layout() {
     return h(DefaultTheme.Layout, null, {
+      "nav-bar-content-before": () => h(SidebarToggle),
       "sidebar-nav-before": () => h(GoToTask),
       "doc-before": () => h(TaskHeader),
       "aside-outline-after": () => h(TaskRail),

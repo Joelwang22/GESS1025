@@ -1,6 +1,6 @@
 ---
 name: OSCP Master Checklist
-description: A command-first field checklist backed by the complete Operator Workbench runbook reference.
+description: A command-first checklist with practical pages and complete Operator Workbench tasks.
 colors:
   paper-light: "#faf9f5"
   desk-light: "#f1efe9"
@@ -151,10 +151,11 @@ components:
 
 **Creative North Star: "The Field Binder, in Slate & Signal"**
 
-The site has two deliberate reading speeds. The field layer is the sheet kept
-beside the console: compact command groups, a short signal to recognize, and a
-link for the next investigation. The retained runbook layer keeps the original
-procedure sheets and their full decision record. A detailed task has:
+The checklist has two deliberate reading speeds in one navigation tree. The
+practical Linux page is the sheet kept beside the console: compact command
+groups, a short signal to recognize, and a link for the next investigation.
+The imported task pages keep the original procedure sheets and their full
+decision record. A detailed task has:
 
 - a header row with its call number and place in the module;
 - the verbatim source title;
@@ -167,12 +168,12 @@ procedure sheets and their full decision record. A detailed task has:
 The reader is mid-box with a terminal open on the other half of the screen.
 The default loop is: scan one recognizable category, copy its commands, notice
 a signal, then open the exact detailed procedure only if needed. Detailed
-reference pages retain the slower source loop of context, command, result, and
-route. Nothing on the page tracks progress or suggests that a result means
+task pages retain the slower source loop of context, command, result, and route.
+Nothing on the page tracks progress or suggests that a result means
 success.
 
-Imported reference text is never changed, hidden or collapsed. Field-checklist
-copy is a separate maintained layer, not a rewrite of the imported snapshot.
+Imported text is never changed, hidden or collapsed. Practical checklist copy
+is separately maintained, not a rewrite of the imported snapshot.
 
 ## Colors
 
@@ -232,10 +233,11 @@ The VitePress shell is kept:
 Task pages reduce VitePress's top padding to 1.5rem, and the aside moves up to
 match. That keeps WSQL-01's first command line above the fold at 1440×900.
 
-The field column has a 900px maximum and the task column an 820px maximum.
-Both shrink to fit beside the sidebar and aside. Field guidance uses a label
-column and a hanging body column. The sidebar separates the field sheet from
-the 28 reference modules with a labelled ink rule, without storing state.
+The practical column has a 900px maximum and the task column an 820px maximum.
+Both shrink to fit beside the sidebar and aside. Guidance uses a label column
+and a hanging body column. The practical Linux page is the first item in the
+existing Linux privilege module. The desktop sidebar can collapse without
+storing state, and the reading column recentres when it does.
 
 A field page is one linear document: brief operating rule, immediately visible
 command groups, **Look for** signals, and **If found** reference links. The
@@ -355,10 +357,10 @@ After a route change, the active sidebar item scrolls into view on desktop.
 
 1. Title and command-first promise.
 2. Authorization and scoped-first rule.
-3. Primary field-checklist action, new-box route, and detailed reference.
+3. Primary Linux checklist action and new-box route.
 4. Three situation-based entry choices.
-5. Detailed-reference search.
-6. The two-layer workflow and link to the retained box route.
+5. Task search.
+6. The checklist workflow and link to the retained box route.
 
 ### Directory
 

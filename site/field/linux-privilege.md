@@ -1,5 +1,5 @@
 ---
-title: Linux privilege escalation field checklist
+title: Linux privilege escalation checklist
 description: A fast, command-first Linux privilege escalation checklist for authorized labs and OSCP boxes.
 outline: [2, 3]
 pageClass: field-page
@@ -9,8 +9,8 @@ next: false
 
 # Linux privilege escalation
 
-Use this beside the target Bash shell. Stop when you find a credible lead and open a
-linked reference only when it needs a deeper procedure.
+Use this beside the target Bash shell. Stop when you find a credible lead and open the
+linked task only when it needs a deeper procedure.
 
 > [!IMPORTANT]
 > Authorized labs only. Start with scoped checks; widen only when needed.

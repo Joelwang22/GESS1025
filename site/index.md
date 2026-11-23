@@ -1,56 +1,56 @@
 ---
-title: OSCP field checklist
-description: Fast field checklists backed by the complete Operator Workbench reference.
+title: OSCP checklist
+description: A practical OSCP checklist for live boxes and deeper troubleshooting.
 outline: false
 aside: false
 pageClass: home-page
+prev: false
+next: false
 ---
 
-# OSCP field checklist
+# OSCP checklist
 
-**Commands first. Detailed procedures when a finding needs them.** {.edition-line}
+**Commands first. Follow a lead when you find one.** {.edition-line}
 
-Use the field checklist beside your terminal. It keeps the common commands and
-signals on one page, then links into the full Operator Workbench reference when
-a finding needs a careful procedure.
+Use the checklist beside your terminal. Start with the page that matches your
+current position, then follow the linked task when a finding needs more work.
 
 > [!IMPORTANT]
 > Use this site only for an assigned lab or another authorized target. Start
 > with the smallest check that answers the current question and stop sweeping
 > when you have a credible lead.
 
-[Open the Linux privilege escalation checklist](./field/linux-privilege.md){.action .action-primary} [Start a new box](./generated/tasks/net-01.md){.action} [Browse detailed reference](./checklist/){.action} {.home-actions}
+[Open the Linux privilege escalation checklist](./field/linux-privilege.md){.action .action-primary} [Start a new box](./generated/tasks/net-01.md){.action} {.home-actions}
 
 ## Choose your situation
 
 | You have | Start here |
 | --- | --- |
-| A Linux shell | [Run the field privilege escalation checklist](./field/linux-privilege.md). |
+| A Linux shell | [Run the Linux privilege escalation checklist](./field/linux-privilege.md). |
 | A new target with no foothold | [Begin with connectivity and service discovery](./generated/tasks/net-01.md). |
-| A specific service, task ID, or finding | Search the detailed reference below. |
+| A specific service, task ID, or finding | Search the checklist below. |
 
-## Search the detailed reference
+## Find a task
 
-The reference retains all 145 imported tasks, their explanations, and their
-recorded routes. Search it when the field checklist points to a deeper procedure.
+Search all 145 tasks by ID or title.
 
 <HomeJump />
 
-## How the two layers work
+## How to use it
 
-1. Use a field checklist for the quick enumeration pass.
+1. Use the Linux privilege checklist for the quick enumeration pass.
 2. Read the short **Look for** note under each command group.
-3. When you find something, follow **If found** into the exact reference task.
-4. Return to the field checklist after the lead is resolved.
+3. When you find something, follow **If found** into the exact task.
+4. Return to the checklist after the lead is resolved.
 
 Every command block has an always-visible **Copy** control. Highlighted values
 such as `<IP_ADDRESS>` are blanks to replace before running the command.
 
-## Detailed box route
+## Box route
 
-The original finding-driven entry table and all source wording remain available
-in the [default box route](./generated/start.md) and the
-[complete module directory](./checklist/).
+The original finding-driven entry table remains available in the
+[default box route](./generated/start.md). You can also browse the
+[module directory](./checklist/).
 
 The site does not execute commands, store targets or credentials, or replace
 your notes.

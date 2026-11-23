@@ -989,3 +989,136 @@ test("the home entry table shows exact titles and keeps the box route's wording"
     ),
   );
 });
+
+// Ported from design/gemini (Slate & Signal), selectors adapted to this theme.
+
+test("placeholders are marked without altering text or matching literals", async () => {
+  await buildSite();
+  const [net01, mail02, wupload02, uploadProof] = await Promise.all([
+    text("site/.vitepress/dist/generated/tasks/net-01.html"),
+    text("site/.vitepress/dist/generated/tasks/mail-02.html"),
+    text("site/.vitepress/dist/generated/tasks/wupload-02.html"),
+    text("site/.vitepress/dist/generated/references/make-lab-upload-proof.html"),
+  ]);
+  assert.match(net01, /class="blank">&lt;IP_ADDRESS&gt;<\/span>/);
+  assert.doesNotMatch(mail02, /class="blank">&lt;0\.4096&gt;/);
+  assert.doesNotMatch(wupload02, /class="blank">&lt;\?php/);
+  // The Fill in strip is exposed to assistive technology, and Python source
+  // (the local helper reference) never gets blank marks.
+  assert.match(net01, /<p class="cmd-fill"><span class="cmd-fill-label">Fill in<\/span> <code class="blank">&lt;IP_ADDRESS&gt;<\/code><\/p>/);
+  assert.doesNotMatch(net01, /cmd-fill[^>]*aria-hidden/);
+  assert.doesNotMatch(uploadProof, /class="blank"/);
+});
+
+test("task pages separate outcome rows, stop marks, inbound folds and the explanation band", async () => {
+  await buildSite();
+  const [net01, net05, ad03] = await Promise.all([
+    text("site/.vitepress/dist/generated/tasks/net-01.html"),
+    text("site/.vitepress/dist/generated/tasks/net-05.html"),
+    text("site/.vitepress/dist/generated/tasks/ad-03.html"),
+  ]);
+  assert.match(net01, /<section class="task-notes" aria-labelledby="explanations-and-troubleshooting">/);
+  assert.match(net05, /<p class="cue cue-enter">/);
+  assert.match(net05, /<p class="cue cue-question">/);
+  assert.match(net05, /<ul class="outcomes"[^>]*>/);
+  assert.match(net05, /<span class="outcome-slug">http_reported<\/span>/);
+  assert.match(net05, /<span class="stop"[^>]*>GAP-SERVICE<\/span>/);
+  assert.match(net05, /<span class="stop"[^>]*>PAUSE-COVERAGE<\/span>/);
+  assert.match(net05, /<details class="route-inbound-more">/);
+  assert.match(ad03, /data-label="Revisit"/);
+  // Plain task IDs in prose are marked as IDs, never as routes.
+  assert.match(net05, /<span class="task-id"[^>]*>NET-03<\/span>/);
+  assert.match(net05, /<span class="task-id"[^>]*>EXP-01<\/span>/);
+});
+
+test("every task page keeps module context expanded with no <details> wrapper", async () => {
+  await buildSite();
+  const failures = [];
+  for (const module of checklist.modules) {
+    if (!module.context) continue;
+    for (const task of module.tasks) {
+      const html = await text(`site/.vitepress/dist/generated/tasks/${task.id.toLowerCase()}.html`);
+      const section = html.match(/<section class="ledger-module-context"[\s\S]*?<\/section>/);
+      if (!section) failures.push(`${task.id}: missing module context`);
+      else if (/<details\b/i.test(section[0])) failures.push(`${task.id}: module context uses <details>`);
+      const main = html.slice(html.indexOf("<main"), html.lastIndexOf("</main>"));
+      if (/<details\b/i.test(main)) failures.push(`${task.id}: <details> inside <main>`);
+    }
+  }
+  assert.deepEqual(failures, []);
+});
+
+test("built pages load no remote assets, and body text stays 16px on mobile", async () => {
+  await buildSite();
+  const distRoot = path.join(siteRoot, ".vitepress/dist");
+  for (const htmlFile of await filesBelow(distRoot, ".html")) {
+    const html = await readFile(htmlFile, "utf8");
+    assert.doesNotMatch(
+      html,
+      /(?:src|href)="https?:\/\/[^"]*\.(?:css|js|mjs|woff2?|ttf|otf|png|jpe?g|gif|svg|webp)(?:[?#][^"]*)?"/i,
+      `remote asset in ${path.relative(distRoot, htmlFile)}`,
+    );
+  }
+  // Prose rules (.vp-doc, its paragraphs and list items) never set a size
+  // below 16px. The module context band is the one deliberate 14px block.
+  for (const file of await themeStylesheets()) {
+    const css = (await readFile(file, "utf8")).replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const [, selector, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selectors = selector.split(",").map((part) => part.trim());
+      if (!selectors.some((part) => /^\.vp-doc(?: (?:p|li))?$/.test(part))) continue;
+      const size = body.match(/font-size:\s*(\d+(?:\.\d+)?)px/);
+      if (size) assert.ok(Number(size[1]) >= 16, `${path.basename(file)}: ${selector.trim()} sets ${size[1]}px`);
+    }
+  }
+});
+
+async function themeStylesheets() {
+  const themeDir = path.join(siteRoot, ".vitepress/theme");
+  return (await readdir(themeDir)).filter((name) => name.endsWith(".css")).map((name) => path.join(themeDir, name));
+}
+
+test("every theme stylesheet avoids CSS hiding techniques", async () => {
+  const files = await themeStylesheets();
+  assert.ok(files.length >= 1);
+  const forbidden = [
+    /\bdisplay\s*:\s*none\b/i,
+    /\bvisibility\s*:\s*hidden\b/i,
+    /\bclip\s*:/i,
+    /\bclip-path\s*:/i,
+    /\boverflow(?:-[xy])?\s*:\s*(?:hidden|clip)\b/i,
+    /-9999px/i,
+    /content-visibility/i,
+    /(?:^|[\s;{])(?:max-)?height:\s*0(?:px)?\s*[;}]/m,
+  ];
+  for (const file of files) {
+    const css = (await readFile(file, "utf8")).replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const pattern of forbidden) assert.doesNotMatch(css, pattern, `${path.basename(file)}: ${pattern}`);
+  }
+});
+
+test("the Question cue stays neutral and theme code imports no generated data", async () => {
+  for (const file of await themeStylesheets()) {
+    const css = await readFile(file, "utf8");
+    for (const [rule] of css.matchAll(/[^{}]*p\.cue-question[^{}]*\{[^}]*\}/g)) {
+      assert.doesNotMatch(rule, /--vp-c-brand|--rb-route|--route/, `${path.basename(file)}: Question cue uses route colour`);
+    }
+  }
+  const themeDir = path.join(siteRoot, ".vitepress/theme");
+  const sources = [
+    ...(await readdir(themeDir)).filter((name) => /\.(?:js|mjs|vue)$/.test(name)).map((name) => path.join(themeDir, name)),
+    ...(await readdir(path.join(themeDir, "components"))).map((name) => path.join(themeDir, "components", name)),
+  ];
+  for (const file of sources) {
+    assert.doesNotMatch(await readFile(file, "utf8"), /generated\/(?:catalog|routes|sidebar)\.json/, path.basename(file));
+  }
+});
+
+test("module pages and the box route page have no source-order pager", async () => {
+  await buildSite();
+  const [http, start] = await Promise.all([
+    text("site/.vitepress/dist/generated/modules/http.html"),
+    text("site/.vitepress/dist/generated/start.html"),
+  ]);
+  assert.doesNotMatch(http, /pager-link/);
+  assert.doesNotMatch(start, /pager-link/);
+});

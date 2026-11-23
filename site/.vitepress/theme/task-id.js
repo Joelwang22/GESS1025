@@ -15,7 +15,10 @@ export function matchTasks(tasks, query) {
     .split(/\s+/)
     .filter(Boolean);
   if (!words.length) return [];
+  // A loosely typed ID ("web9", "lpriv 2") also matches its task exactly.
+  const looseId = normalizeTaskId(query);
   return tasks.filter(({ id, title, module }) => {
+    if (looseId && id === looseId) return true;
     const haystack = `${id} ${title} ${module ?? ""}`.toLowerCase();
     return words.every((word) => haystack.includes(word));
   });

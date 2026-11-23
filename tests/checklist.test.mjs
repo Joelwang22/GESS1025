@@ -22,6 +22,8 @@ import {
   linkTaskRoutes,
   parseChecklist,
 } from "../scripts/checklist.mjs";
+import { codeText } from "../site/.vitepress/theme/copy.js";
+import { matchTasks, normalizeTaskId } from "../site/.vitepress/theme/task-id.js";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
 const execFileAsync = promisify(execFile);
@@ -456,4 +458,48 @@ test("generation is deterministic for identical input", async () => {
   } finally {
     await rm(outputRoot, { recursive: true, force: true });
   }
+});
+
+// Ported from design/gemini (Slate & Signal): unit-level regression checks.
+
+test("links arrow-joined task sequences in both directions", () => {
+  const ids = new Set(["SSH-01", "SSH-02", "LNX-01", "LNX-03"]);
+  assert.equal(
+    linkTaskRoutes("Run **SSH-01 → SSH-02** then **LNX-01 → LNX-03**.", ids, new Set()),
+    "Run **[SSH-01](./ssh-01) → [SSH-02](./ssh-02)** then **[LNX-01](./lnx-01) → [LNX-03](./lnx-03)**.",
+  );
+});
+
+test("normalizes loose task IDs and matches by ID or keyword", () => {
+  assert.equal(normalizeTaskId("net1"), "NET-01");
+  assert.equal(normalizeTaskId("web 9"), "WEB-09");
+  assert.equal(normalizeTaskId("lpriv-2"), "LPRIV-02");
+  assert.equal(normalizeTaskId("AD37"), "AD-37");
+  assert.equal(normalizeTaskId("kerberoast"), null);
+
+  const tasks = [
+    { id: "NET-01", title: "Check connectivity", module: "Network" },
+    { id: "WEB-09", title: "Inspect source and cookies", module: "HTTP" },
+    { id: "AD-14", title: "Kerberoast service accounts", module: "Windows and Active Directory" },
+  ];
+  assert.deepEqual(matchTasks(tasks, "web9").map((task) => task.id), ["WEB-09"]);
+  assert.deepEqual(matchTasks(tasks, "kerberoast").map((task) => task.id), ["AD-14"]);
+  assert.deepEqual(matchTasks(tasks, "http").map((task) => task.id), ["WEB-09"]);
+});
+
+test("codeText preserves exact source text without trimming or stripping shell prompts", () => {
+  const fakeCode = (lines) => ({
+    children: lines.map((textContent) => ({
+      classList: { contains: (name) => name === "line" },
+      textContent,
+    })),
+  });
+  assert.equal(
+    codeText(fakeCode(["$ ping -c 2 <IP_ADDRESS>", "> SELECT @@version;", "  indented", ""])),
+    "$ ping -c 2 <IP_ADDRESS>\n> SELECT @@version;\n  indented\n",
+  );
+  assert.equal(
+    codeText({ children: [], textContent: "  $ keep leading space and prompt  \n" }),
+    "  $ keep leading space and prompt  \n",
+  );
 });

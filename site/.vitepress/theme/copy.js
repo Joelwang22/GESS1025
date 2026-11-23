@@ -2,10 +2,10 @@
 // joined with newlines. Nothing is trimmed and no prompt prefix is removed, so
 // the clipboard holds the source command text byte for byte.
 export function codeText(code) {
-  return [...code.children]
-    .filter((element) => element.classList.contains("line"))
-    .map((line) => line.textContent ?? "")
-    .join("\n");
+  const lines = [...code.children].filter((element) => element.classList.contains("line"));
+  // Without Shiki line spans, fall back to the element's own text, untouched.
+  if (lines.length === 0) return code.textContent ?? "";
+  return lines.map((line) => line.textContent ?? "").join("\n");
 }
 
 async function writeClipboard(text) {

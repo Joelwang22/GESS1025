@@ -65,7 +65,7 @@ export default defineConfig({
   transformHtml(code) {
     return code.replace(
       "</head>",
-      '<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111417" media="(prefers-color-scheme: dark)"></head>',
+      '<meta name="theme-color" content="#faf9f5" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#151a22" media="(prefers-color-scheme: dark)"></head>',
     );
   },
   themeConfig: {

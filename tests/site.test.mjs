@@ -951,8 +951,12 @@ test("module pages list exact task titles in an aligned column without an outlin
 test("both light and dark browser chrome colours ship, and the layout keeps the sidebar whole", async () => {
   await buildSite();
   const home = await text("site/.vitepress/dist/index.html");
-  assert.match(home, /<meta name="theme-color" content="#fafaf8" media="\(prefers-color-scheme: light\)">/);
-  assert.match(home, /<meta name="theme-color" content="#111417" media="\(prefers-color-scheme: dark\)">/);
+  // Browser chrome matches the paper colour of each theme (tokens.css).
+  assert.match(home, /<meta name="theme-color" content="#faf9f5" media="\(prefers-color-scheme: light\)">/);
+  assert.match(home, /<meta name="theme-color" content="#151a22" media="\(prefers-color-scheme: dark\)">/);
+  const tokens = await text("site/.vitepress/theme/tokens.css");
+  assert.match(tokens, /:root \{[\s\S]*--rb-paper: #faf9f5;/);
+  assert.match(tokens, /\.dark \{[\s\S]*--rb-paper: #151a22;/);
   // VitePress derives the sidebar width from the layout maximum; above 1440px
   // the computed sidebar is narrower than its groups and titles clip.
   // Every theme stylesheet: tokens.css, components.css and custom.css.
@@ -1127,4 +1131,72 @@ test("module pages and the box route page have no source-order pager", async () 
   ]);
   assert.doesNotMatch(http, /pager-link/);
   assert.doesNotMatch(start, /pager-link/);
+});
+
+function hexRgb(value) {
+  const hex = value.replace("#", "");
+  return [0, 2, 4].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
+}
+
+function luminance([red, green, blue]) {
+  const channel = (value) => {
+    const scaled = value / 255;
+    return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue);
+}
+
+function contrast(first, second) {
+  const [light, dark] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return (light + 0.05) / (dark + 0.05);
+}
+
+function blend(foreground, alpha, background) {
+  return foreground.map((value, index) => Math.round(value * alpha + background[index] * (1 - alpha)));
+}
+
+function tokenBlock(css, selector) {
+  const start = css.indexOf(`${selector} {`);
+  const body = css.slice(start, css.indexOf("\n}", start));
+  const tokens = new Map();
+  for (const [, name, value] of body.matchAll(/--(rb-[a-z0-9-]+):\s*([^;]+);/g)) tokens.set(name, value.trim());
+  return tokens;
+}
+
+function rgbaParts(value) {
+  const [r, g, b, a] = value.match(/[\d.]+/g).map(Number);
+  return { rgb: [r, g, b], alpha: a };
+}
+
+test("every token text pair meets WCAG AA in both themes", async () => {
+  const css = await text("site/.vitepress/theme/tokens.css");
+  const light = tokenBlock(css, ":root");
+  const dark = new Map([...light, ...tokenBlock(css, ".dark")]);
+  const failures = [];
+  for (const [mode, tokens] of [["light", light], ["dark", dark]]) {
+    const colour = (name) => hexRgb(tokens.get(name));
+    const check = (label, foreground, background) => {
+      const ratio = contrast(foreground, background);
+      if (ratio < 4.5) failures.push(`${mode} ${label}: ${ratio.toFixed(2)}`);
+    };
+    for (const ink of ["rb-ink", "rb-ink-2", "rb-ink-3"]) {
+      for (const surface of ["rb-paper", "rb-desk", "rb-panel"]) check(`${ink} on ${surface}`, colour(ink), colour(surface));
+    }
+    const soft = rgbaParts(tokens.get("rb-route-soft"));
+    const wash = rgbaParts(tokens.get("rb-route-wash"));
+    for (const surface of ["rb-paper", "rb-desk"]) {
+      check(`route on ${surface}`, colour("rb-route"), colour(surface));
+      check(`route chip on ${surface}`, colour("rb-route"), blend(soft.rgb, soft.alpha, colour(surface)));
+      check(`route on Next wash over ${surface}`, colour("rb-route"), blend(wash.rgb, wash.alpha, colour(surface)));
+    }
+    check("blank text on blank fill", colour("rb-blank-fg"), colour("rb-blank-bg"));
+    check("stop slab", colour("rb-stop-fg"), colour("rb-stop-bg"));
+    for (const surface of ["rb-plate", "rb-plate-head"]) {
+      check(`plate ink on ${surface}`, colour("rb-plate-ink"), colour(surface));
+      check(`plate ink-2 on ${surface}`, colour("rb-plate-ink-2"), colour(surface));
+      const plateBlank = rgbaParts(tokens.get("rb-plate-blank-bg"));
+      check(`plate blank on ${surface}`, colour("rb-plate-blank-fg"), blend(plateBlank.rgb, plateBlank.alpha, colour(surface)));
+    }
+  }
+  assert.deepEqual(failures, []);
 });

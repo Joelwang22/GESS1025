@@ -100,6 +100,13 @@
   color: var(--rb-plate-ink);
 }
 
+/* Pressed means wrapping is on. The state is neutral plate ink, never cobalt. */
+.vp-doc .cmd-wrap[aria-pressed="true"] {
+  border-color: var(--rb-plate-ink-2);
+  background: color-mix(in srgb, var(--rb-plate-ink) 10%, transparent);
+  color: var(--rb-plate-ink);
+}
+
 .vp-doc .cmd-wrap[aria-pressed="false"] {
   border-style: dashed;
   color: var(--rb-plate-ink);
@@ -195,12 +202,29 @@
 
 /* Route, stop, and call-number marks */
 
+/* Route chip: a tinted cobalt pill with a drawn arrow. Cobalt only ever
+   means "go to another task". */
 .vp-doc a.route {
+  padding: 0.02em 0.4em 0.04em 0.34em;
+  border: 1px solid var(--rb-route-edge);
+  border-radius: var(--rb-radius-s);
+  background: var(--rb-route-soft);
   font-family: var(--vp-font-family-mono);
-  font-size: 0.9em;
+  font-size: 0.88em;
   font-weight: 700;
   white-space: nowrap;
   color: var(--rb-route);
+  text-decoration: none;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.vp-doc a.route:hover {
+  border-color: var(--rb-route);
+  color: var(--rb-route-hover);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
 }
 
 .vp-doc a.route::before {

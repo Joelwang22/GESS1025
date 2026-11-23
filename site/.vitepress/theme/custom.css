@@ -20,6 +20,11 @@ html {
   outline-offset: 2px;
 }
 
+/* Inter's alternate lowercase l (cv05) keeps l, I and 1 distinct in prose. */
+html {
+  font-feature-settings: "cv05" 1;
+}
+
 code,
 kbd,
 pre,

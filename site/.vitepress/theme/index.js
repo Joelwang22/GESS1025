@@ -8,6 +8,8 @@ import TaskRail from "./components/TaskRail.vue";
 import TaskRoutes from "./components/TaskRoutes.vue";
 import { installCopy } from "./copy.js";
 
+import "./tokens.css";
+import "./components.css";
 import "./custom.css";
 
 export default {

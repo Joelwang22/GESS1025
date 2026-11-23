@@ -799,7 +799,10 @@ test("the go-to box accepts loose task ID spellings", () => {
 });
 
 test("the theme never hides content with CSS", async () => {
-  const css = await text("site/.vitepress/theme/custom.css");
+  // Every theme stylesheet: tokens.css, components.css and custom.css.
+  const css = (await Promise.all((await themeStylesheets()).map((file) => readFile(file, "utf8")))).join(
+    "\n",
+  );
   for (const pattern of [
     /display:\s*none/,
     /visibility:\s*hidden/,
@@ -952,7 +955,10 @@ test("both light and dark browser chrome colours ship, and the layout keeps the 
   assert.match(home, /<meta name="theme-color" content="#111417" media="\(prefers-color-scheme: dark\)">/);
   // VitePress derives the sidebar width from the layout maximum; above 1440px
   // the computed sidebar is narrower than its groups and titles clip.
-  const css = await text("site/.vitepress/theme/custom.css");
+  // Every theme stylesheet: tokens.css, components.css and custom.css.
+  const css = (await Promise.all((await themeStylesheets()).map((file) => readFile(file, "utf8")))).join(
+    "\n",
+  );
   assert.match(css, /--vp-layout-max-width: 1440px;/);
 });
 

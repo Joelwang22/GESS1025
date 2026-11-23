@@ -1,0 +1,103 @@
+/*
+ * Runbook binder. Each task is a procedure sheet in an operations binder:
+ * a stamped call number, a module tab note, dark command plates with
+ * highlighted blanks, ruled result tables, and a route sheet at the foot.
+ *
+ * Meaning is carried by shape as well as color:
+ *   route  - blue underlined call number with an arrow
+ *   blank  - highlighter fill with a dashed underline
+ *   stop   - solid inverted slab with a square
+ */
+
+:root {
+  --rb-ink: #16181b;
+  --rb-ink-2: #444a51;
+  --rb-ink-3: #656b73;
+  --rb-paper: #fafaf8;
+  --rb-desk: #f0f0ec;
+  --rb-panel: #e9e9e4;
+  --rb-rule: #dadad3;
+  --rb-rule-strong: #bdbdb5;
+  --rb-route: #1a4fd0;
+  --rb-route-hover: #0f3aa6;
+  --rb-route-soft: rgba(26, 79, 208, 0.09);
+  --rb-route-wash: rgba(26, 79, 208, 0.045);
+  --rb-blank-bg: #ffe45c;
+  --rb-blank-fg: #1b1600;
+  --rb-blank-line: #7a6000;
+  --rb-stop-bg: #16181b;
+  --rb-stop-fg: #fafaf8;
+  --rb-plate: #15181c;
+  --rb-plate-head: #1d2127;
+  --rb-plate-rule: #2b3038;
+  --rb-plate-rule-strong: #4a515b;
+  --rb-plate-ink: #e8e6e1;
+  --rb-plate-ink-2: #a9afb7;
+  --rb-plate-blank-bg: rgba(255, 214, 64, 0.2);
+  --rb-plate-blank-fg: #ffe37a;
+  --rb-radius-s: 4px;
+  --rb-radius: 8px;
+
+  --vp-c-bg: var(--rb-paper);
+  --vp-c-bg-alt: var(--rb-desk);
+  --vp-c-bg-soft: var(--rb-desk);
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-text-1: var(--rb-ink);
+  --vp-c-text-2: var(--rb-ink-2);
+  --vp-c-text-3: var(--rb-ink-3);
+  --vp-c-divider: var(--rb-rule);
+  --vp-c-gutter: var(--rb-rule);
+  --vp-c-border: var(--rb-rule-strong);
+  --vp-c-brand-1: var(--rb-route);
+  --vp-c-brand-2: var(--rb-route-hover);
+  --vp-c-brand-3: var(--rb-route);
+  --vp-c-brand-soft: var(--rb-route-soft);
+  --vp-c-important-1: var(--rb-ink);
+  --vp-c-important-2: var(--rb-ink);
+  --vp-c-important-3: var(--rb-ink);
+  --vp-c-important-soft: var(--rb-desk);
+  --vp-code-color: var(--rb-ink);
+  --vp-code-bg: var(--rb-panel);
+  --vp-code-block-bg: var(--rb-plate);
+  --vp-code-block-color: var(--rb-plate-ink);
+  --vp-code-line-height: 1.65;
+  --vp-code-font-size: 0.875em;
+  --vp-layout-max-width: 1440px;
+  --vp-sidebar-width: 304px;
+  --vp-sidebar-bg-color: var(--rb-desk);
+  --vp-font-family-base:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --vp-font-family-mono:
+    "Cascadia Mono", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+.dark {
+  --rb-ink: #e7e5df;
+  --rb-ink-2: #babec4;
+  --rb-ink-3: #959ca4;
+  --rb-paper: #111417;
+  --rb-desk: #0c0f12;
+  --rb-panel: #1d2227;
+  --rb-rule: #272c33;
+  --rb-rule-strong: #3a414a;
+  --rb-route: #94b6ff;
+  --rb-route-hover: #b8cfff;
+  --rb-route-soft: rgba(148, 182, 255, 0.14);
+  --rb-route-wash: rgba(148, 182, 255, 0.06);
+  --rb-blank-bg: #f0cf45;
+  --rb-blank-fg: #171200;
+  --rb-blank-line: #f0cf45;
+  --rb-stop-bg: #e7e5df;
+  --rb-stop-fg: #111417;
+  --rb-plate: #090b0d;
+  --rb-plate-head: #14181c;
+  --rb-plate-rule: #262b31;
+  --rb-plate-rule-strong: #454c55;
+  --rb-plate-ink: #e7e5df;
+  --rb-plate-ink-2: #a3aab2;
+
+  --vp-c-bg-elv: #171b1f;
+}
+

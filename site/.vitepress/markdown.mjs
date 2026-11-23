@@ -170,8 +170,12 @@ function markReferences(md, terminalStates, taskTitles) {
     "g",
   );
   md.core.ruler.push("checklist_reference_marks", (state) => {
-    for (const block of state.tokens) {
+    for (const [index, block] of state.tokens.entries()) {
       if (block.type !== "inline" || !block.children) continue;
+      // The page title stays the plain source heading; the header row above it
+      // already carries the call-number stamp.
+      const opener = state.tokens[index - 1];
+      if (opener?.type === "heading_open" && opener.tag === "h1") continue;
       const children = [];
       let linkDepth = 0;
       for (const child of block.children) {
@@ -201,7 +205,7 @@ function markReferences(md, terminalStates, taskTitles) {
             "html_inline",
             kind === "stop"
               ? `<span class="stop" title="Stop state named by the checklist">`
-              : `<span class="task-id">`,
+              : `<span class="task-id" title="${escapeHtml(`${value}: ${taskTitles.get(value)}`)}">`,
           );
           push("text", value);
           push("html_inline", "</span>");
@@ -253,26 +257,6 @@ function markTables(md) {
       }
       index = cursor;
     }
-  });
-}
-
-// Splits "NET-01. Check connectivity" into a call-number stamp and a title.
-// Runs after the anchor plugin, so heading IDs are unchanged.
-function markTaskHeading(md) {
-  md.core.ruler.push("checklist_task_heading", (state) => {
-    const tokens = state.tokens;
-    const open = tokens.findIndex(({ type, tag }) => type === "heading_open" && tag === "h1");
-    if (open === -1) return;
-    const inline = tokens[open + 1];
-    const first = inline.children?.[0];
-    const match = first?.type === "text" && /^([A-Z][A-Z0-9]*-\d{2})(\.) /.exec(first.content);
-    if (!match) return;
-    // The source period stays in the heading text, just outside the stamp box.
-    const stamp = new state.Token("html_inline", "", 0);
-    stamp.content = `<span class="h-id">${match[1]}</span><span class="h-dot">${match[2]}</span> `;
-    first.content = first.content.slice(match[0].length);
-    inline.children.unshift(stamp);
-    tokens[open].attrJoin("class", "task-title");
   });
 }
 
@@ -348,7 +332,6 @@ export function checklistMarkdown({ terminalStates, taskTitles }) {
       patchFence(md);
       patchInlineCode(md);
       patchLinks(md, taskTitles);
-      markTaskHeading(md);
       markCues(md);
       markOutcomeLists(md);
       markReferences(md, terminalStates, taskTitles);

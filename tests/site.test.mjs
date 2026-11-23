@@ -714,11 +714,12 @@ test("routes, stop states, and decision tables carry distinct marks", async () =
   assert.match(net01, /<td data-label="Result">/);
   assert.match(net01, /<td data-label="Next">/);
   assert.match(web01, /<a href="\.\/web-08\.html" title="WEB-08: [^"]+" class="route route-short">08<\/a>/);
-  // The stamp holds the call number; the source period stays in the heading.
-  assert.match(
-    net01,
-    /<h1 [^>]*class="task-title"><span class="h-id">NET-01<\/span><span class="h-dot">\.<\/span> Check connectivity/,
-  );
+  // The title is the verbatim source heading; the call-number stamp and the
+  // task's place in its module sit in the header row above it, outside <main>.
+  assert.match(net01, /<h1 id="net-01-check-connectivity" tabindex="-1">NET-01\. Check connectivity <a class="header-anchor"/);
+  const header = net01.indexOf('<div class="task-header">');
+  assert.ok(header >= 0 && header < net01.indexOf("<main"), "header row precedes <main>");
+  assert.match(net01, /<span class="task-id-pair"><span class="task-stamp">NET-01<\/span><span class="task-position">task 1 of 5<\/span><\/span>/);
   assert.match(net01, /<span class="sb-id">NET-01<\/span> <span class="sb-title">Check connectivity<\/span>/);
 
   const terminalStates = new Set(manifest.terminalStates);
@@ -839,13 +840,14 @@ test("every task page offers jumps to its own landmarks, and each target exists"
   await buildSite();
   for (const task of checklist.tasks) {
     const html = await text(`site/.vitepress/dist/generated/tasks/${task.id.toLowerCase()}.html`);
-    const meta = html.match(/<p class="task-meta">([\s\S]*?)<\/p>/)?.[1];
-    assert.ok(meta, `${task.id} has a meta line`);
+    const meta = html.match(/<nav class="task-jumps"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
+    assert.ok(meta, `${task.id} has a jump row`);
     for (const [, anchor] of meta.matchAll(/href="#([^"]+)"/g)) {
       assert.ok(html.includes(`id="${anchor}"`), `${task.id} jump #${anchor}`);
     }
     assert.match(meta, /href="#explanations-and-troubleshooting"/);
-    assert.match(meta, /href="#task-routes"/);
+    const routeCount = JSON.parse(frontmatterOf(await text(`site/generated/tasks/${task.id.toLowerCase()}.md`)).match(/^routesOut: (.*)$/m)[1]).length;
+    assert.match(meta, new RegExp(`href="#task-routes">Routes \\(${routeCount}\\)</a>`), `${task.id} routes count`);
     // Jumps go to the working section only. Every target must sit before the
     // explanations band, and a jump exists exactly when the working section
     // (or the module context above it) has the landmark.
@@ -858,7 +860,7 @@ test("every task page offers jumps to its own landmarks, and each target exists"
     assert.equal(/href="#results"/.test(meta), /<table class="decision/.test(workingHtml), `${task.id} result jump`);
   }
   const web09 = (await text("site/.vitepress/dist/generated/tasks/web-09.html")).match(
-    /<p class="task-meta">([\s\S]*?)<\/p>/,
+    /<nav class="task-jumps"[^>]*>([\s\S]*?)<\/nav>/,
   )[1];
   assert.doesNotMatch(web09, /First command/, "WEB-09's working step has no command");
   assert.match(web09, /href="#results"/);
@@ -1224,4 +1226,18 @@ test("every syntax colour in built command plates meets WCAG AA on both plate ba
   }
   assert.deepEqual(failures, []);
   assert.ok(!colours.has("#768390"), "the sub-AA comment colour is replaced");
+});
+
+test("module pages open with a header strip that names linked tasks by exact title", async () => {
+  await buildSite();
+  const net05 = checklist.tasks.find(({ id }) => id === "NET-05");
+  for (const module of checklist.modules) {
+    const html = await text(`site/.vitepress/dist/generated/modules/${module.id}.html`);
+    const strip = html.match(/<div class="task-header module-header">([\s\S]*?)<\/nav><\/div>/)?.[1];
+    assert.ok(strip, `${module.id} has a header strip`);
+    assert.ok(html.indexOf('<div class="task-header module-header">') < html.indexOf("<main"), module.id);
+    assert.match(strip, new RegExp(`${module.tasks.length} tasks?</span>`), `${module.id} task count`);
+    assert.match(strip, /href="\/checklist\/generated\/start\.html">Box route<\/a>/);
+    assert.ok(strip.includes(`>NET-05: ${escapeVuePlaceholders(net05.title).replaceAll("'", "&#39;")}</a>`), `${module.id} NET-05 title`);
+  }
 });

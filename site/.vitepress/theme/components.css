@@ -316,10 +316,12 @@
   list-style: none;
 }
 
+/* Route card: the call number and, for a cross-module route, its module on
+   the top line; the exact title below. */
 .route-row {
-  display: grid;
-  grid-template-columns: 6.25rem 1fr;
-  gap: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
   height: 100%;
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--rb-rule-strong);
@@ -664,21 +666,98 @@
   scroll-margin-top: calc(var(--vp-nav-height) + 16px);
 }
 
-/* Task meta line: jump links read as a compact row of small controls. */
-.vp-doc .task-meta a[href^="#"] {
-  display: inline-block;
-  margin: 0.1rem 0 0.1rem 0.25rem;
-  padding: 0 0.4rem;
-  border: 1px solid var(--rb-rule-strong);
+/* Header row above the title: breadcrumb with the call-number stamp and the
+   task's place in its module on the left, jumps to this page's landmarks on
+   the right. Derived navigation, outside <main>. */
+.task-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--rb-rule);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.task-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.45rem;
+  min-width: 0;
+  color: var(--rb-ink-2);
+}
+
+.task-crumbs a {
+  color: var(--rb-ink-2);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--rb-rule-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.task-crumbs a:hover {
+  color: var(--rb-route);
+  text-decoration-color: currentColor;
+}
+
+.task-crumbs-sep {
+  color: var(--rb-ink-3);
+}
+
+.task-crumbs-current {
+  font-weight: 600;
+  color: var(--rb-ink);
+}
+
+/* The stamp and its position never separate onto two lines. */
+.task-id-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.task-stamp {
+  padding: 0.05rem 0.45rem;
+  border: 2px solid var(--rb-ink);
   border-radius: var(--rb-radius-s);
   color: var(--rb-ink);
-  font-size: 12.5px;
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.task-position {
+  font-size: 13px;
+  color: var(--rb-ink-2);
+}
+
+.task-jumps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.task-jumps a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 0.55rem;
+  border: 1px solid var(--rb-rule-strong);
+  border-radius: var(--rb-radius-s);
+  background: var(--rb-paper);
+  color: var(--rb-ink);
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.6;
   text-decoration: none;
 }
 
-.vp-doc .task-meta a[href^="#"]:hover {
+.task-jumps a:hover {
   border-color: var(--rb-route);
   color: var(--rb-route);
 }
@@ -791,9 +870,12 @@
 }
 
 /* Route sheet: destination module tag */
-.route-row-body {
-  display: grid;
-  gap: 0.1rem;
+.route-row-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.2rem 0.6rem;
 }
 
 .route-row-module {

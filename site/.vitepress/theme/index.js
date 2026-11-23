@@ -4,6 +4,7 @@ import DefaultTheme from "vitepress/theme";
 
 import GoToTask from "./components/GoToTask.vue";
 import TaskDirectory from "./components/TaskDirectory.vue";
+import TaskHeader from "./components/TaskHeader.vue";
 import TaskRail from "./components/TaskRail.vue";
 import TaskRoutes from "./components/TaskRoutes.vue";
 import { installCopy } from "./copy.js";
@@ -17,6 +18,7 @@ export default {
   Layout() {
     return h(DefaultTheme.Layout, null, {
       "sidebar-nav-before": () => h(GoToTask),
+      "doc-before": () => h(TaskHeader),
       "aside-outline-after": () => h(TaskRail),
       "doc-footer-before": () => h(TaskRoutes),
     });

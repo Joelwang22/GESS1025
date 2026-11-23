@@ -104,43 +104,16 @@ samp {
   color: var(--rb-ink-2);
 }
 
-/* Task heading: a stamped call number above the exact title */
+/* Task title: the verbatim source heading, under the header row */
 
-.vp-doc h1.task-title {
+.task-page .vp-doc h1 {
+  margin-top: 0.75rem;
+  margin-bottom: 1rem;
   font-size: 1.75rem;
-  margin-bottom: 0.5rem;
 }
 
-.vp-doc .h-id {
-  display: inline-block;
-  margin-bottom: 0.45rem;
-  padding: 0.18rem 0.55rem 0.14rem;
-  border: 2px solid var(--rb-ink);
-  border-radius: var(--rb-radius-s);
-  font-family: var(--vp-font-family-mono);
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1.3;
-}
-
-.vp-doc .h-dot {
-  margin-left: 0.15rem;
-  font-family: var(--vp-font-family-mono);
-  font-size: 0.95rem;
-  color: var(--rb-ink-3);
-}
-
-.vp-doc .h-dot::after {
-  content: "\A";
-  white-space: pre;
-}
-
-.vp-doc .task-meta {
-  margin: 0 0 1.1rem;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--rb-ink-2);
+.module-page .vp-doc h1 {
+  margin-top: 0.75rem;
 }
 
 /* Module context: the binder tab note that every task in a module repeats */
@@ -511,9 +484,6 @@ samp {
     padding: 1rem;
   }
 
-  .route-row {
-    grid-template-columns: 5.6rem 1fr;
-  }
 }
 
 @media (forced-colors: active) {

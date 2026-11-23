@@ -581,26 +581,21 @@ function fenceCount(markdown) {
   return count;
 }
 
-// Presentation-only line under the task heading: the module, the task's place
-// in that module, and jumps to the page's own landmarks. Derived from the
-// page's structure; it adds no instruction and implies no progress.
-function taskMetaLine(task, module) {
-  const position = module.tasks.findIndex(({ id }) => id === task.id) + 1;
-  // Jumps target the working section, never the explanations: a browser-only
-  // step such as WEB-09 has no command jump at all. Module context renders
-  // first, so its blocks and tables come before the working section's.
+// Landmarks for the task header's jump chips, derived from the page's
+// structure. Jumps target the working section, never the explanations: a
+// browser-only step such as WEB-09 has no command jump at all. Module context
+// renders first, so its blocks and tables come before the working section's.
+// Returns frontmatter fields; the header renders outside <main>.
+function taskLandmarks(task, module) {
   const beforeExplanations = [module.context, task.working].join("\n");
-  const jumps = [
-    fenceCount(task.working) > 0
-      ? `[First command](#cmd-${fenceCount(module.context) + 1})`
-      : null,
-    tableHeaderRows(beforeExplanations).some(isDecisionHeaders)
-      ? "[Result table](#results)"
-      : null,
-    "[Explanations](#explanations-and-troubleshooting)",
-    "[Routes](#task-routes)",
-  ].filter(Boolean);
-  return `[${displayName(module.id)}](../modules/${module.id}) module · task ${position} of ${module.tasks.length} · ${jumps.join(" ")} {.task-meta}\n\n`;
+  return {
+    modulePosition: {
+      index: module.tasks.findIndex(({ id }) => id === task.id) + 1,
+      total: module.tasks.length,
+    },
+    firstCommand: fenceCount(task.working) > 0 ? `cmd-${fenceCount(module.context) + 1}` : null,
+    resultsKind: tableHeaderRows(beforeExplanations).some(isDecisionHeaders) ? "table" : null,
+  };
 }
 
 function buildTaskBody(task, module, taskIds, terminalStates) {
@@ -609,7 +604,7 @@ function buildTaskBody(task, module, taskIds, terminalStates) {
     renderSection(markdown, taskIds, terminalStates),
   );
   const [context, working, explanation] = sections;
-  const body = `# ${title}\n\n${taskMetaLine(task, module)}${module.context ? moduleContextSection(module, context.markdown) : ""}${working.markdown}\n\n<section class="task-notes" aria-labelledby="explanations-and-troubleshooting">\n\n## Explanations and troubleshooting\n\n${explanation.markdown}\n\n</section>\n`;
+  const body = `# ${title}\n\n${module.context ? moduleContextSection(module, context.markdown) : ""}${working.markdown}\n\n<section class="task-notes" aria-labelledby="explanations-and-troubleshooting">\n\n## Explanations and troubleshooting\n\n${explanation.markdown}\n\n</section>\n`;
   return { title, body, references: sections.flatMap(({ references }) => references) };
 }
 
@@ -625,6 +620,7 @@ function taskPage(task, module, { title, body }, route, position, routes) {
     moduleTitle: displayName(module.id),
     pageClass: "task-page",
     sourcePosition: position,
+    ...taskLandmarks(task, module),
     routesOut: route.outbound.map(brief),
     routeStops: route.terminalStates,
     routesIn: route.inbound.map(brief),
@@ -651,6 +647,8 @@ function modulePage(module, taskIds, terminalStates) {
     prev: false,
     next: false,
     moduleId: module.id,
+    moduleTitle: name,
+    moduleTaskCount: module.tasks.length,
   }).replace("outline: [2, 3]", "outline: false")}# ${name}\n\n${context}## Tasks\n\n${taskList}\n`;
 }
 

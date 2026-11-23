@@ -531,6 +531,49 @@ function moduleContextSection(module, context) {
   ].join("\n");
 }
 
+// An outcome list is a bullet list in which every item (at least two) opens
+// with an outcome slug such as "http_reported:". NET-05 and 17 other tasks
+// route through these lists instead of a result table.
+export const OUTCOME_SLUG = /^([a-z][a-z0-9]*(?:_[a-z0-9]+)+):/;
+
+export function isOutcomeList(firstLines) {
+  return firstLines.length >= 2 && firstLines.every((line) => OUTCOME_SLUG.test(line));
+}
+
+// The first line of each item in each top-level "- " list, outside fences.
+// A blank line followed by an unindented non-item line ends a list; a blank
+// line between items does not (a loose list is still one list).
+function bulletLists(markdown) {
+  const lines = normalizeLines(markdown);
+  const structural = classifyStructuralLines(lines);
+  const lists = [];
+  let current = null;
+  let blank = false;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!structural[index]) {
+      current = null;
+      blank = false;
+      continue;
+    }
+    const item = /^- (.*)$/.exec(line);
+    if (item) {
+      if (!current) {
+        current = [];
+        lists.push(current);
+      }
+      current.push(item[1]);
+      blank = false;
+    } else if (line.trim() === "") {
+      blank = true;
+    } else if (current && blank && !/^\s/.test(line)) {
+      current = null;
+      blank = false;
+    }
+  }
+  return lists;
+}
+
 // A table is a decision table when its last column names where to go next
 // ("Next", "Next choice", "Next action", "Revisit"). Columns that hold syntax
 // to type next ("Next table expression") are reference data, not routes.
@@ -594,7 +637,11 @@ function taskLandmarks(task, module) {
       total: module.tasks.length,
     },
     firstCommand: fenceCount(task.working) > 0 ? `cmd-${fenceCount(module.context) + 1}` : null,
-    resultsKind: tableHeaderRows(beforeExplanations).some(isDecisionHeaders) ? "table" : null,
+    resultsKind: tableHeaderRows(beforeExplanations).some(isDecisionHeaders)
+      ? "table"
+      : bulletLists(beforeExplanations).some(isOutcomeList)
+        ? "outcomes"
+        : null,
   };
 }
 

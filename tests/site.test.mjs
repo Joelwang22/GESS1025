@@ -9,6 +9,7 @@ import {
   escapeVuePlaceholders,
   generateSite,
   isDecisionHeaders,
+  isOutcomeList,
   parseChecklist,
 } from "../scripts/checklist.mjs";
 import { BLANK, blanksIn } from "../site/.vitepress/markdown.mjs";
@@ -857,8 +858,22 @@ test("every task page offers jumps to its own landmarks, and each target exists"
     }
     assert.equal(/href="#cmd-\d+"/.test(meta), fencedBlocks(task.working).length > 0, `${task.id} first-command jump`);
     const workingHtml = html.slice(html.indexOf("<main"), notes);
-    assert.equal(/href="#results"/.test(meta), /<table class="decision/.test(workingHtml), `${task.id} result jump`);
+    // Result jump: the first decision table before the explanations, or
+    // failing that the first outcome list there, labelled for what it is.
+    const hasTable = /<table class="decision/.test(workingHtml);
+    const hasOutcomes = /<ul class="outcomes"/.test(workingHtml);
+    const expectedLabel = hasTable ? "Result table" : hasOutcomes ? "Outcomes" : null;
+    const label = meta.match(/href="#results">([^<]+)<\/a>/)?.[1] ?? null;
+    assert.equal(label, expectedLabel, `${task.id} result jump`);
+    if (expectedLabel) {
+      const target = html.match(/<(table|ul) [^>]*id="results"/)?.[1];
+      assert.equal(target, hasTable ? "table" : "ul", `${task.id} #results target`);
+    }
   }
+  const net05Jumps = (await text("site/.vitepress/dist/generated/tasks/net-05.html")).match(
+    /<nav class="task-jumps"[^>]*>([\s\S]*?)<\/nav>/,
+  )[1];
+  assert.match(net05Jumps, /href="#results">Outcomes<\/a>/, "NET-05 jumps to its outcome list");
   const web09 = (await text("site/.vitepress/dist/generated/tasks/web-09.html")).match(
     /<nav class="task-jumps"[^>]*>([\s\S]*?)<\/nav>/,
   )[1];
@@ -883,7 +898,8 @@ test("Enter when and Question cues and outcome lists keep their exact words", as
     const builtCues = html.match(/<p class="cue cue-(?:enter|question)"><span class="cue-label">(?:Enter when|Question):<\/span>/g) ?? [];
     assert.equal(builtCues.length, expectedCues.length, `${task.id} cues`);
     cues += builtCues.length;
-    for (const list of html.matchAll(/<ul class="outcomes">([\s\S]*?)<\/ul>/g)) {
+    // The first outcome list on a page may also carry id="results".
+    for (const list of html.matchAll(/<ul class="outcomes"[^>]*>([\s\S]*?)<\/ul>/g)) {
       for (const [, slug] of list[1].matchAll(/<li><span class="outcome-slug">([a-z0-9_]+)<\/span>:/g)) {
         assert.ok(source.includes(`- ${slug}: `), `${task.id} ${slug}`);
         outcomes += 1;
@@ -1240,4 +1256,11 @@ test("module pages open with a header strip that names linked tasks by exact tit
     assert.match(strip, /href="\/checklist\/generated\/start\.html">Box route<\/a>/);
     assert.ok(strip.includes(`>NET-05: ${escapeVuePlaceholders(net05.title).replaceAll("'", "&#39;")}</a>`), `${module.id} NET-05 title`);
   }
+});
+
+test("outcome lists are recognised by a slug on every item, shared by generator and renderer", () => {
+  assert.ok(isOutcomeList(["http_reported: Nmap reported HTTP.", "ftp_reported: Nmap reported FTP."]));
+  assert.ok(!isOutcomeList(["http_reported: only one item"]));
+  assert.ok(!isOutcomeList(["http_reported: slugged", "Plain bullet without a slug"]));
+  assert.ok(!isOutcomeList(["reply: a single word is not a slug", "no_reply: two words"]));
 });

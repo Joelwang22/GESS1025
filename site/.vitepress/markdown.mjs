@@ -5,7 +5,7 @@
 // An operator blank inside a command or inline code: `<IP_ADDRESS>`,
 // `<supplied-domain/user>`, `<observed-unit.service>`. A literal such as
 // `<0.4096>` starts with a digit and is not a blank.
-import { isDecisionHeaders } from "../../scripts/checklist.mjs";
+import { isDecisionHeaders, isOutcomeList, OUTCOME_SLUG } from "../../scripts/checklist.mjs";
 
 export const BLANK = /<[A-Za-z][A-Za-z0-9_./-]*>/g;
 
@@ -238,14 +238,7 @@ function markTables(md) {
       for (; tokens[cursor].type !== "thead_close"; cursor += 1) {
         if (tokens[cursor].type === "th_open") headers.push(inlineText(tokens[cursor + 1]));
       }
-      if (isDecisionHeaders(headers)) {
-        tokens[index].attrJoin("class", "decision");
-        // The first decision table on a page is the "Result table" jump target.
-        if (!state.env.checklistResultsMarked) {
-          tokens[index].attrSet("id", "results");
-          state.env.checklistResultsMarked = true;
-        }
-      }
+      if (isDecisionHeaders(headers)) tokens[index].attrJoin("class", "decision");
       tokens[index].attrJoin("class", `cols-${headers.length}`);
       let column = 0;
       for (; tokens[cursor].type !== "table_close"; cursor += 1) {
@@ -293,7 +286,7 @@ function markCues(md) {
 
 // Bullet lists in which every item opens with an outcome slug ("http_reported:")
 // become ruled outcome rows with the slug set as a label.
-const OUTCOME = /^([a-z][a-z0-9]*(?:_[a-z0-9]+)+):/;
+const OUTCOME = OUTCOME_SLUG;
 
 function markOutcomeLists(md) {
   md.core.ruler.push("checklist_outcomes", (state) => {
@@ -310,11 +303,11 @@ function markOutcomeLists(md) {
           items.push(tokens.slice(cursor + 1).find(({ type }) => type === "inline"));
         }
       }
-      const slugged = items.filter((inline) => {
+      const firstLines = items.map((inline) => {
         const first = inline?.children?.[0];
-        return first?.type === "text" && OUTCOME.test(first.content);
+        return first?.type === "text" ? first.content.split("\n")[0] : "";
       });
-      if (items.length >= 2 && slugged.length === items.length) {
+      if (isOutcomeList(firstLines)) {
         tokens[index].attrJoin("class", "outcomes");
         for (const inline of items) {
           splitLeadingText(state, inline, OUTCOME.exec(inline.children[0].content)[1].length, "outcome-slug");
@@ -322,6 +315,26 @@ function markOutcomeLists(md) {
       }
       index = cursor;
     }
+  });
+}
+
+// The "Result table" or "Outcomes" jump target: the first decision table
+// before the explanations band, or failing that the first outcome list there.
+// The generator applies the same rule (isDecisionHeaders, isOutcomeList) to
+// decide which jump the header row offers.
+function markResultsTarget(md) {
+  md.core.ruler.push("checklist_results_target", (state) => {
+    const tokens = state.tokens;
+    let end = tokens.findIndex(
+      ({ type, content }) => type === "html_block" && content.includes('class="task-notes"'),
+    );
+    if (end === -1) end = tokens.length;
+    const before = tokens.slice(0, end);
+    const hasClass = (token, name) => (token.attrGet("class") ?? "").split(" ").includes(name);
+    const target =
+      before.find((token) => token.type === "table_open" && hasClass(token, "decision")) ??
+      before.find((token) => token.type === "bullet_list_open" && hasClass(token, "outcomes"));
+    if (target) target.attrSet("id", "results");
   });
 }
 
@@ -336,6 +349,7 @@ export function checklistMarkdown({ terminalStates, taskTitles }) {
       markOutcomeLists(md);
       markReferences(md, terminalStates, taskTitles);
       markTables(md);
+      markResultsTarget(md);
     },
   };
 }

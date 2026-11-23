@@ -523,3 +523,73 @@ test("documents local use, provenance, generation ownership, and Pages setup", a
   assert.match(readme, /GitHub Actions/i);
   assert.match(readme, /\/checklist\/about\/source\.html/);
 });
+
+function decodeEntities(value) {
+  return value
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)))
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&nbsp;", " ")
+    .replaceAll("&amp;", "&");
+}
+
+function builtMainText(html, label) {
+  const start = html.indexOf("<main");
+  const end = html.lastIndexOf("</main>");
+  assert.ok(start >= 0 && end > start, `${label} has no <main> content region`);
+  return decodeEntities(
+    html
+      .slice(start, end)
+      .replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<\/?span\b[^>]*>/gi, "")
+      .replace(/<[^>]+>/g, " "),
+  );
+}
+
+function tokenCounts(value) {
+  const counts = new Map();
+  for (const token of value.match(/[A-Za-z0-9]+/g) ?? []) {
+    counts.set(token, (counts.get(token) ?? 0) + 1);
+  }
+  return counts;
+}
+
+test("built task pages keep every source word and every command line visible in <main>", async () => {
+  await buildSite();
+  const failures = [];
+  let commandLines = 0;
+  for (const module of checklist.modules) {
+    for (const task of module.tasks) {
+      const label = task.id;
+      const html = await text(
+        `site/.vitepress/dist/generated/tasks/${task.id.toLowerCase()}.html`,
+      );
+      const main = builtMainText(html, label);
+      const source = decodeEntities(
+        [module.context, task.working, task.explanation]
+          .join("\n")
+          .replace(/\]\([^)\s]*\)/g, "]")
+          // Ordered-list numbers render as <ol> markers, not text.
+          .replace(/^[ \t>]*\d+[.)][ \t]/gm, ""),
+      );
+      const built = tokenCounts(main);
+      for (const [token, count] of tokenCounts(source)) {
+        const have = built.get(token) ?? 0;
+        if (have < count) failures.push(`${label}: "${token}" ${have}/${count}`);
+      }
+      for (const block of fencedBlocks(`${task.working}\n${task.explanation}`)) {
+        for (const line of block.split("\n").slice(1, -1)) {
+          if (!line.trim()) continue;
+          commandLines += 1;
+          if (!main.includes(line.trimEnd())) {
+            failures.push(`${label}: command line missing: ${line.slice(0, 80)}`);
+          }
+        }
+      }
+    }
+  }
+  assert.ok(commandLines > 500, `expected a broad command audit, checked ${commandLines}`);
+  assert.deepEqual(failures.slice(0, 40), []);
+});

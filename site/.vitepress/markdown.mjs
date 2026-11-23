@@ -27,7 +27,9 @@ const BLANK_LANGUAGES = new Set([
   "",
 ]);
 
-const TASK_HREF = /^(?:\.\/|\.\.\/tasks\/|\.\.\/generated\/tasks\/|\.\/tasks\/|\.\/generated\/tasks\/|\/generated\/tasks\/)([a-z][a-z0-9]*-\d{2})(?:\.md|\.html)?$/;
+// Task links: "./net-02" within tasks, or any relative or absolute path ending
+// in "tasks/<id>" or "generated/tasks/<id>" (including rebased includes).
+const TASK_HREF = /^(?:\.\/|(?:\.\.\/)*(?:\.\/)?(?:generated\/)?tasks\/|\/generated\/tasks\/)([a-z][a-z0-9]*-\d{2})(?:\.md|\.html)?$/;
 const TASK_TEXT = /^(?:[A-Z][A-Z0-9]*-\d{2}|\d{2})$/;
 
 function escapeHtml(value) {

@@ -19,32 +19,29 @@ next-task links recorded in each decision.
 > branch supported by the assigned target, supplied access, or an observed
 > result. A tool result is not proof of access or completion by itself.
 
+<HomeJump />
+
 [Start at NET-01](./generated/tasks/net-01.md){.action .action-primary} [Default box route](./generated/start.md){.action} [All modules and tasks](./checklist/){.action}
 
 ## Where to enter
 
-These rows quote the **When** column of the source's
-[default box route](./generated/start.md), which gives the full decision and
-next choice for each one, beside each task's exact title. Enter at the row that
-matches what you have observed.
+Each row quotes the **When** and **Decision** cells of the source's
+[default box route](./generated/start.md) word for word, then lists the tasks
+that decision names with their exact titles. Enter at the row that matches what
+you have observed; the box route page also gives each row's next choice.
 
-| When | Task title | Next task |
-| --- | --- | --- |
-| Assigned target, no access | Check connectivity | **[NET-01](./generated/tasks/net-01.md)** |
-| Discovery recorded | Choose a service to investigate | **[NET-05](./generated/tasks/net-05.md)** |
-| Permitted SSH account or key for an observed endpoint | Check the observed SSH access boundary | **[SSH-01](./generated/tasks/ssh-01.md)** |
-| Verified Linux shell | Which host and effective identity are you using? | **[LNX-01](./generated/tasks/lnx-01.md)** |
-| Usable session verified | LNX-01: Which host and effective identity are you using?<br>WIN-01: Identify this Windows shell<br>AD-01: Identify the domain and controller | **[LNX-01](./generated/tasks/lnx-01.md)** or **[WIN-01](./generated/tasks/win-01.md)** according to the actual host; **[AD-01](./generated/tasks/ad-01.md)** when domain context is assigned or observed. |
+<!--@include: ./.vitepress/generated/where-to-enter.md-->
 
 ## Reading a task
 
-Every task page uses the same four marks.
+Every task page uses the same marks and controls.
 
 | Mark | Meaning |
 | --- | --- |
 | `<IP_ADDRESS>` | A blank. Replace it with your own value before you run the command. Each command block lists its blanks above the code. |
 | **[NET-02](./generated/tasks/net-02.md)** | A route to another task. Hover or focus it to see that task's title. |
 | **PAUSE-ROUTE** | A stop state the checklist names. It is not a link and does not mean the attempt succeeded. |
+| NET-03 | A task the text mentions without routing to it. Hover or focus it to see that task's title. |
 | **Copy** | Copies the command block exactly as written, blanks included. |
 
 ## How to use it

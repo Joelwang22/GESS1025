@@ -3,6 +3,7 @@ import { inBrowser } from "vitepress";
 import DefaultTheme from "vitepress/theme";
 
 import GoToTask from "./components/GoToTask.vue";
+import HomeJump from "./components/HomeJump.vue";
 import TaskDirectory from "./components/TaskDirectory.vue";
 import TaskHeader from "./components/TaskHeader.vue";
 import TaskRail from "./components/TaskRail.vue";
@@ -25,6 +26,7 @@ export default {
   },
   enhanceApp({ app }) {
     app.component("TaskDirectory", TaskDirectory);
+    app.component("HomeJump", HomeJump);
     if (inBrowser) installCopy();
   },
 };

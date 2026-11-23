@@ -984,38 +984,51 @@ test("both light and dark browser chrome colours ship, and the layout keeps the 
   assert.match(css, /--vp-layout-max-width: 1440px;/);
 });
 
-test("the home entry table shows exact titles and keeps the box route's wording", async () => {
-  const [home, start] = await Promise.all([text("site/index.md"), text("site/generated/start.md")]);
+test("the home Where to enter sheet quotes the box route verbatim with exact titles", async () => {
+  await buildSite();
+  const home = await text("site/.vitepress/dist/index.html");
+  assert.match(await text("site/index.md"), /<!--@include: \.\/\.vitepress\/generated\/where-to-enter\.md-->/);
   const titles = new Map(checklist.tasks.map(({ id, title }) => [id, title]));
-  const section = home.slice(home.indexOf("## Where to enter"), home.indexOf("## Reading a task"));
-  const rows = [...section.matchAll(/^\| (?!When |---)(.+?) \| (.+?) \| (.+) \|$/gm)];
-  assert.equal(rows.length, 5);
-  for (const [, when, titleCell, next] of rows) {
-    // The When cell is quoted from a row of the source's default box route.
-    assert.ok(start.includes(`| ${when}`), `When row "${when}"`);
-    const ids = [...next.matchAll(/\*\*\[([A-Z][A-Z0-9]*-\d{2})\]/g)].map(([, id]) => id);
-    assert.ok(ids.length >= 1);
-    if (ids.length === 1) {
-      assert.equal(titleCell, titles.get(ids[0]), `${when} title`);
-    } else {
-      assert.deepEqual(
-        titleCell.split("<br>"),
-        ids.map((id) => `${id}: ${titles.get(id)}`),
-        `${when} titles`,
-      );
-    }
+  const plain = (html) => decodeEntities(html.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+  // Expected rows come from the parsed preface: every Default box route row
+  // whose decision opens with a task route.
+  const table = checklist.preface.slice(checklist.preface.indexOf("## Default box route"));
+  const expected = [...table.matchAll(/^\| ([^|]+?) +\| ([^|]+?) +\| [^|]+\|$/gm)]
+    .map(([, when, decision]) => ({ when: when.trim(), decision: decision.trim() }))
+    .filter(({ decision }) => /^\*\*[A-Z][A-Z0-9]*-\d{2}/.test(decision));
+  assert.equal(expected.length, 5);
+  const rows = [...home.matchAll(/<div class="enter-row">([\s\S]*?)<\/ul><\/div>/g)].map(([, row]) => row);
+  assert.equal(rows.length, expected.length);
+  for (const [index, { when, decision }] of expected.entries()) {
+    const row = rows[index];
+    assert.equal(plain(row.match(/<p class="enter-when">([\s\S]*?)<\/p>/)[1]), when, `row ${index + 1} When`);
+    // The decision cell is quoted word for word, conditions included.
+    assert.equal(
+      plain(row.match(/<p class="enter-decision">([\s\S]*?)<\/p>/)[1]),
+      decision.replaceAll("**", ""),
+      `row ${index + 1} decision`,
+    );
+    const ids = [...new Set([...decision.matchAll(/[A-Z][A-Z0-9]*-\d{2}/g)].map(([id]) => id))];
+    const listed = [...row.matchAll(/<span class="enter-id">([^<]+)<\/span> <span class="enter-title">([^<]*)<\/span>/g)];
+    assert.deepEqual(
+      listed.map(([, id, title]) => [id, decodeEntities(title)]),
+      ids.map((id) => [id, titles.get(id)]),
+      `row ${index + 1} titles`,
+    );
   }
-  // Multi-task rows keep the source's conditions, not a flat list of IDs.
-  assert.ok(
-    section.includes(
-      "**[LNX-01](./generated/tasks/lnx-01.md)** or **[WIN-01](./generated/tasks/win-01.md)** according to the actual host; **[AD-01](./generated/tasks/ad-01.md)** when domain context is assigned or observed.",
-    ),
+  assert.match(
+    plain(home),
+    /LNX-01 or WIN-01 according to the actual host; AD-01 when domain context is assigned or observed\./,
   );
-  assert.ok(
-    checklist.preface.includes(
-      "**LNX-01** or **WIN-01** according to the actual host; **AD-01** when domain context is assigned or observed.",
-    ),
-  );
+});
+
+test("the home page offers a quick jump and full-text search in the first section", async () => {
+  await buildSite();
+  const home = await text("site/.vitepress/dist/index.html");
+  const jump = home.indexOf('<form class="home-jump"');
+  assert.ok(jump > 0 && jump < home.indexOf('id="where-to-enter"'), "jump box precedes Where to enter");
+  assert.match(home, /<button class="home-jump-search" type="button">\s*Full-text search <kbd>\/<\/kbd><\/button>/);
+  assert.match(home, /<input id="home-jump-input"/);
 });
 
 // Ported from design/gemini (Slate & Signal), selectors adapted to this theme.

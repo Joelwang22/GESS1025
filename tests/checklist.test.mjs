@@ -353,6 +353,14 @@ test("links single, compound, abbreviated, and range task references", () => {
   );
 });
 
+test("links both ends of an arrow-joined task sequence", () => {
+  assert.equal(
+    link("**NET-02 → NET-05**: verify, then continue."),
+    "**[NET-02](./net-02) → [NET-05](./net-05)**: verify, then continue.",
+  );
+  assert.equal(link("**one matching → branch**"), "**one matching → branch**");
+});
+
 test("links task parts of a compound but leaves terminal states unlinked", () => {
   assert.equal(
     link("**NET-05/PAUSE-COVERAGE**; **PAUSE-COVERAGE**. Next: GAP-SERVICE."),

@@ -18,7 +18,7 @@ const ROUTE_MARK = new RegExp(
   `\\bNext: (${REFERENCE_TOKEN}(?:/(?:${REFERENCE_TOKEN}|\\d{2}))*)(?=[\\s.,;:!?)*|]|$)|\\*\\*([^*\\n]+?)\\*\\*`,
   "g",
 );
-const REFERENCE_SEPARATOR = /(\/|\s+through\s+|,\s+or\s+|,\s+|\s+or\s+|\s+and\s+)/;
+const REFERENCE_SEPARATOR = /(\/|\s+through\s+|\s+→\s+|,\s+or\s+|,\s+|\s+or\s+|\s+and\s+)/;
 const TASK_SHAPE = /^[A-Z][A-Z0-9]*-\d{2}$/;
 const TERMINAL_SHAPE = /^(?:PAUSE|GAP)-[A-Z]+(?:-[A-Z]+)*$/;
 const PLAIN_TASK_TOKEN = /\b[A-Z][A-Z0-9]*-\d{2}\b/g;
@@ -521,7 +521,7 @@ function moduleContextSection(module, context) {
   return [
     '<section class="ledger-module-context" aria-labelledby="module-context">',
     "",
-    `<p id="module-context" class="ledger-module-context-label">${escapeHtml(name)} module context</p>`,
+    `<p id="module-context" class="ledger-module-context-label"><span class="ledger-module-context-name">${escapeHtml(name)} module context</span> <span class="ledger-module-context-scope">Applies to every task in this module</span></p>`,
     "",
     context,
     "",
@@ -531,18 +531,36 @@ function moduleContextSection(module, context) {
   ].join("\n");
 }
 
-function buildTaskPage(task, module, taskIds, terminalStates) {
+// Presentation-only line under the task heading: the module, the task's place
+// in that module, and a jump to the explanation band. Derived from structure;
+// it adds no instruction and implies no progress.
+function taskMetaLine(task, module) {
+  const position = module.tasks.findIndex(({ id }) => id === task.id) + 1;
+  return `[${displayName(module.id)}](../modules/${module.id}) module · task ${position} of ${module.tasks.length} · [Explanations and troubleshooting](#explanations-and-troubleshooting) {.task-meta}\n\n`;
+}
+
+function buildTaskBody(task, module, taskIds, terminalStates) {
   const title = `${task.id}. ${task.title}`;
   const sections = [module.context, task.working, task.explanation].map((markdown) =>
     renderSection(markdown, taskIds, terminalStates),
   );
   const [context, working, explanation] = sections;
-  const page = `${frontmatter(title, `OSCP master checklist task ${task.id}`, {
+  const body = `# ${title}\n\n${taskMetaLine(task, module)}${module.context ? moduleContextSection(module, context.markdown) : ""}${working.markdown}\n\n<section class="task-notes" aria-labelledby="explanations-and-troubleshooting">\n\n## Explanations and troubleshooting\n\n${explanation.markdown}\n\n</section>\n`;
+  return { title, body, references: sections.flatMap(({ references }) => references) };
+}
+
+function taskPage(task, module, { title, body }, route, position) {
+  const brief = ({ id, title: stationTitle }) => ({ id, title: stationTitle });
+  return `${frontmatter(title, `OSCP master checklist task ${task.id}`, {
     taskId: task.id,
     moduleId: module.id,
     moduleTitle: displayName(module.id),
-  })}# ${title}\n\n${module.context ? moduleContextSection(module, context.markdown) : ""}${working.markdown}\n\n## Explanations and troubleshooting\n\n${explanation.markdown}\n`;
-  return { page, references: sections.flatMap(({ references }) => references) };
+    pageClass: "task-page",
+    sourcePosition: position,
+    routesOut: route.outbound.map(brief),
+    routeStops: route.terminalStates,
+    routesIn: route.inbound.map(brief),
+  })}${body}`;
 }
 
 function modulePage(module, taskIds, terminalStates) {
@@ -551,9 +569,28 @@ function modulePage(module, taskIds, terminalStates) {
     .map(({ id, title }) => `- [${id}. ${title}](../tasks/${id.toLowerCase()})`)
     .join("\n");
   const context = module.context
-    ? `${renderSection(module.context, taskIds, terminalStates, { linkPrefix: "../tasks/" }).markdown}\n\n`
+    ? moduleContextSection(
+        module,
+        renderSection(module.context, taskIds, terminalStates, { linkPrefix: "../tasks/" }).markdown,
+      )
     : "";
-  return `${frontmatter(name, `${name} module in the OSCP master checklist`)}# ${name}\n\n${context}## Tasks\n\n${taskList}\n`;
+  return `${frontmatter(name, `${name} module in the OSCP master checklist`, {
+    pageClass: "module-page",
+    moduleId: module.id,
+  })}# ${name}\n\n${context}## Tasks\n\n${taskList}\n`;
+}
+
+// The source opens with "How to use this edition", including the default box
+// route. It is published verbatim, with route marks linked like task pages.
+// A leading export comment is invisible in rendered Markdown and is dropped.
+function startPage(checklist, taskIds, terminalStates) {
+  const preface = checklist.preface.replace(/^<!--[\s\S]*?-->\s*/, "");
+  const { markdown } = renderSection(preface, taskIds, terminalStates, {
+    linkPrefix: "./tasks/",
+  });
+  return `${frontmatter("How to use this edition", "The default box route and reading guidance from the OSCP master checklist", {
+    pageClass: "start-page",
+  })}${markdown}\n`;
 }
 
 function buildRoutes(checklist, moduleById, referencesByTask) {
@@ -671,16 +708,23 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
   const terminalStates = new Set(manifest.terminalStates);
   const moduleById = new Map(checklist.modules.map((module) => [module.id, module]));
   const referencesByTask = new Map();
+  const bodies = new Map();
   for (const task of checklist.tasks) {
-    const { page, references } = buildTaskPage(
-      task,
-      moduleById.get(task.moduleId),
-      taskIds,
-      terminalStates,
-    );
-    referencesByTask.set(task.id, references);
-    await writeText(path.join(generatedRoot, "tasks", `${task.id.toLowerCase()}.md`), page);
+    const built = buildTaskBody(task, moduleById.get(task.moduleId), taskIds, terminalStates);
+    referencesByTask.set(task.id, built.references);
+    bodies.set(task.id, built);
   }
+  const routes = buildRoutes(checklist, moduleById, referencesByTask);
+  for (const [index, task] of checklist.tasks.entries()) {
+    await writeText(
+      path.join(generatedRoot, "tasks", `${task.id.toLowerCase()}.md`),
+      taskPage(task, moduleById.get(task.moduleId), bodies.get(task.id), routes[task.id], {
+        index: index + 1,
+        total: checklist.tasks.length,
+      }),
+    );
+  }
+  await writeText(path.join(generatedRoot, "start.md"), startPage(checklist, taskIds, terminalStates));
   for (const module of checklist.modules) {
     await writeText(
       path.join(generatedRoot, "modules", `${module.id}.md`),
@@ -730,7 +774,7 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
     ),
     writeText(
       path.join(configGeneratedRoot, "routes.json"),
-      `${JSON.stringify(buildRoutes(checklist, moduleById, referencesByTask), null, 2)}\n`,
+      `${JSON.stringify(routes, null, 2)}\n`,
     ),
     writeText(
       path.join(configGeneratedRoot, "catalog.json"),

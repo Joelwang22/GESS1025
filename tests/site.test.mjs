@@ -1200,3 +1200,28 @@ test("every token text pair meets WCAG AA in both themes", async () => {
   }
   assert.deepEqual(failures, []);
 });
+
+test("every syntax colour in built command plates meets WCAG AA on both plate backgrounds", async () => {
+  await buildSite();
+  const css = await text("site/.vitepress/theme/tokens.css");
+  const plates = [
+    ["light plate", tokenBlock(css, ":root").get("rb-plate")],
+    ["dark plate", tokenBlock(css, ".dark").get("rb-plate")],
+  ];
+  assert.deepEqual(plates.map(([, value]) => value), ["#161b22", "#0c1016"]);
+  const colours = new Set();
+  for (const htmlFile of await filesBelow(path.join(siteRoot, ".vitepress/dist"), ".html")) {
+    const html = await readFile(htmlFile, "utf8");
+    for (const [, value] of html.matchAll(/--shiki-(?:light|dark):(#[0-9a-fA-F]{6})\b/g)) colours.add(value.toLowerCase());
+  }
+  assert.ok(colours.size >= 4, `expected several syntax colours, found ${colours.size}`);
+  const failures = [];
+  for (const colour of colours) {
+    for (const [label, plate] of plates) {
+      const ratio = contrast(hexRgb(colour), hexRgb(plate));
+      if (ratio < 4.5) failures.push(`${colour} on ${label}: ${ratio.toFixed(2)}`);
+    }
+  }
+  assert.deepEqual(failures, []);
+  assert.ok(!colours.has("#768390"), "the sub-AA comment colour is replaced");
+});

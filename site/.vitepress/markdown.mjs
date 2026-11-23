@@ -59,6 +59,24 @@ function wrapBlanks(text) {
 }
 
 // Shiki decorations wrap each blank in a span without changing the code text.
+// github-dark-dimmed on the plate colours (#161b22 light, #0c1016 dark): two
+// theme colours fall below WCAG AA. Comments (#768390, 4.46:1) are lifted to
+// #8b96a3 (5.76:1 and 6.35:1); the near-background markup colour (#2d333b) is
+// replaced with plate ink-2. Text is unchanged; only token colours move.
+export const PLATE_COLOUR_REPLACEMENTS = Object.freeze({
+  "#768390": "#8b96a3",
+  "#2d333b": "#a9b4c2",
+});
+
+export function plateColours() {
+  return {
+    name: "checklist:plate-colours",
+    preprocess(_code, options) {
+      options.colorReplacements = { ...(options.colorReplacements ?? {}), ...PLATE_COLOUR_REPLACEMENTS };
+    },
+  };
+}
+
 export function blankDecorations() {
   return {
     name: "checklist:blanks",
@@ -325,7 +343,7 @@ function markOutcomeLists(md) {
 
 export function checklistMarkdown({ terminalStates, taskTitles }) {
   return {
-    codeTransformers: [blankDecorations()],
+    codeTransformers: [plateColours(), blankDecorations()],
     config(md) {
       patchFence(md);
       patchInlineCode(md);

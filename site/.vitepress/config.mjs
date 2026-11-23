@@ -55,7 +55,7 @@ export default defineConfig({
   lastUpdated: false,
   markdown: {
     lineNumbers: false,
-    theme: { light: "github-dark", dark: "github-dark" },
+    theme: { light: "github-dark-dimmed", dark: "github-dark-dimmed" },
     codeTransformers: markdown.codeTransformers,
     config: markdown.config,
   },

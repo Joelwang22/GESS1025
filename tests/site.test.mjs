@@ -127,12 +127,85 @@ test("provides home, checklist index, and provenance pages", async () => {
     text("site/about/source.md"),
   ]);
 
-  assert.match(home, /OSCP master checklist/);
-  assert.match(home, /2026-11-21\.working\.132/);
+  assert.match(home, /OSCP field checklist/);
+  assert.match(home, /field\/linux-privilege/);
   assert.match(home, /generated\/tasks\/net-01/);
   assert.match(index, /28 modules/);
   assert.match(index, /generated\/modules\/network/);
   assert.match(source, /8d6eff26e2b383b832399636b356009e68ae68e7918217a1a837ee8799cccad5/);
+});
+
+test("makes the practical Linux field checklist the primary operator path", async () => {
+  const [home, field, config, css] = await Promise.all([
+    text("site/index.md"),
+    text("site/field/linux-privilege.md"),
+    text("site/.vitepress/config.mjs"),
+    text("site/.vitepress/theme/custom.css"),
+  ]);
+
+  assert.match(home, /Open the Linux privilege escalation checklist/);
+  assert.ok(
+    home.indexOf("field/linux-privilege") < home.indexOf("generated/tasks/net-01"),
+    "the field checklist is the first home action",
+  );
+  assert.match(config, /Linux checklist.*field\/linux-privilege/);
+  assert.match(config, /Field checklists/);
+
+  const sections = [...field.matchAll(/^## /gm)].length;
+  const words = [...field.matchAll(/\S+/g)].length;
+  const commandBlocks = [...field.matchAll(/^```/gm)].length / 2;
+  assert.equal(sections, 23);
+  assert.ok(words <= 2000, `field guide exceeds its 2,000-word scan budget: ${words}`);
+  assert.ok(commandBlocks <= 34, `too many command groups: ${commandBlocks}`);
+  for (const segment of field.split(/^## /m).slice(1)) {
+    assert.equal([...segment.matchAll(/^\*\*Look for:\*\*/gm)].length, 1);
+    assert.equal([...segment.matchAll(/^\*\*If found:\*\*/gm)].length, 1);
+    assert.ok(segment.indexOf("**Look for:**") < segment.indexOf("**If found:**"));
+  }
+  assert.ok(field.indexOf("```bash") < 1200, "the first useful command appears near the top");
+
+  assert.doesNotMatch(field, /2>\/dev\/null2/);
+  assert.match(field, /sudo -n -l/);
+  assert.doesNotMatch(field, /getfacl -R|dpkg -l|rpm -qa|getcap -r \/ 2>\/dev\/null/);
+  assert.match(field, /SYSTEMD_PAGER=cat/);
+  assert.match(field, /\[ -n "\$d" \] \|\| d=\./);
+  assert.match(field, /Commands using `-xdev` stay on the named filesystem/);
+  assert.match(field, /Prepare pspy on\s+Kali, not on the target/);
+  assert.match(field, /--bind '<KALI_IP>'/);
+  assert.match(field, /command -v curl[\s\S]*command -v wget[\s\S]*command -v python3/);
+  assert.match(field, /Ctrl\+C[\s\S]*rm -f -- "\$dst"/);
+  assert.match(field, /exportfs -v/);
+  assert.match(css, /p\.field-look/);
+  assert.match(css, /p\.field-next/);
+  assert.doesNotMatch(css, /:has\(/);
+  assert.ok(
+    field.indexOf("find /etc /opt /usr/local /var/www /srv") <
+      field.indexOf("find / -xdev -type f -writable"),
+    "the scoped writable-file search comes before the filesystem-wide fallback",
+  );
+  assert.match(field, /\.\.\/generated\/tasks\/lnx-05/);
+  assert.match(field, /\.\.\/generated\/tasks\/lpriv-02/);
+});
+
+test("renders every field command with copy controls and keeps reference links live", async () => {
+  await buildSite();
+  const [source, html] = await Promise.all([
+    text("site/field/linux-privilege.md"),
+    text("site/.vitepress/dist/field/linux-privilege.html"),
+  ]);
+  const commandBlocks = [...source.matchAll(/^```/gm)].length / 2;
+
+  assert.equal([...html.matchAll(/class="cmd-copy"/g)].length, commandBlocks);
+  assert.equal([...html.matchAll(/<p class="field-look">/g)].length, 23);
+  assert.equal([...html.matchAll(/<p class="field-next">/g)].length, 23);
+  assert.equal([...html.matchAll(/<strong class="field-label">/g)].length, 46);
+  assert.equal([...html.matchAll(/<span class="field-body">/g)].length, 46);
+  assert.equal(commandBlocks, 34);
+  assert.match(html, /href="\/checklist\/generated\/tasks\/lnx-05\.html"/);
+  assert.match(html, /href="\/checklist\/generated\/tasks\/lpriv-02\.html"/);
+  assert.match(html, /class="Layout field-page"/);
+  assert.match(html, /class="sb-reference-label">Detailed reference · 28 modules/);
+  assert.ok(html.indexOf('class="sb-reference-label"') > html.indexOf('class="sb-module">Field checklists'));
 });
 
 test("generates one readable page per task and module", async () => {
@@ -984,49 +1057,30 @@ test("both light and dark browser chrome colours ship, and the layout keeps the 
   assert.match(css, /--vp-layout-max-width: 1440px;/);
 });
 
-test("the home Where to enter sheet quotes the box route verbatim with exact titles", async () => {
+test("the compact home keeps the full generated box route available as reference", async () => {
   await buildSite();
-  const home = await text("site/.vitepress/dist/index.html");
-  assert.match(await text("site/index.md"), /<!--@include: \.\/\.vitepress\/generated\/where-to-enter\.md-->/);
-  const titles = new Map(checklist.tasks.map(({ id, title }) => [id, title]));
-  const plain = (html) => decodeEntities(html.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
-  // Expected rows come from the parsed preface: every Default box route row
-  // whose decision opens with a task route.
-  const table = checklist.preface.slice(checklist.preface.indexOf("## Default box route"));
-  const expected = [...table.matchAll(/^\| ([^|]+?) +\| ([^|]+?) +\| [^|]+\|$/gm)]
-    .map(([, when, decision]) => ({ when: when.trim(), decision: decision.trim() }))
-    .filter(({ decision }) => /^\*\*[A-Z][A-Z0-9]*-\d{2}/.test(decision));
-  assert.equal(expected.length, 5);
-  const rows = [...home.matchAll(/<div class="enter-row">([\s\S]*?)<\/ul><\/div>/g)].map(([, row]) => row);
-  assert.equal(rows.length, expected.length);
-  for (const [index, { when, decision }] of expected.entries()) {
-    const row = rows[index];
-    assert.equal(plain(row.match(/<p class="enter-when">([\s\S]*?)<\/p>/)[1]), when, `row ${index + 1} When`);
-    // The decision cell is quoted word for word, conditions included.
-    assert.equal(
-      plain(row.match(/<p class="enter-decision">([\s\S]*?)<\/p>/)[1]),
-      decision.replaceAll("**", ""),
-      `row ${index + 1} decision`,
-    );
-    const ids = [...new Set([...decision.matchAll(/[A-Z][A-Z0-9]*-\d{2}/g)].map(([id]) => id))];
-    const listed = [...row.matchAll(/<span class="enter-id">([^<]+)<\/span> <span class="enter-title">([^<]*)<\/span>/g)];
-    assert.deepEqual(
-      listed.map(([, id, title]) => [id, decodeEntities(title)]),
-      ids.map((id) => [id, titles.get(id)]),
-      `row ${index + 1} titles`,
-    );
-  }
+  const [home, route] = await Promise.all([
+    text("site/.vitepress/dist/index.html"),
+    text("site/.vitepress/dist/generated/start.html"),
+  ]);
+  assert.match(home, /Linux privilege escalation checklist/);
+  assert.match(home, /href="\.\/generated\/start\.html">default box route<\/a>/);
+  assert.match(route, /id="default-box-route"/);
   assert.match(
-    plain(home),
+    decodeEntities(route.replace(/<[^>]+>/g, "")).replace(/\s+/g, " "),
     /LNX-01 or WIN-01 according to the actual host; AD-01 when domain context is assigned or observed\./,
   );
 });
 
-test("the home page offers a quick jump and full-text search in the first section", async () => {
+test("the home page offers task lookup inside the detailed-reference section", async () => {
   await buildSite();
   const home = await text("site/.vitepress/dist/index.html");
   const jump = home.indexOf('<form class="home-jump"');
-  assert.ok(jump > 0 && jump < home.indexOf('id="where-to-enter"'), "jump box precedes Where to enter");
+  assert.ok(
+    jump > home.indexOf('id="search-the-detailed-reference"') &&
+      jump < home.indexOf('id="how-the-two-layers-work"'),
+    "the jump box stays inside the detailed-reference section",
+  );
   assert.match(home, /<button class="home-jump-search" type="button">\s*Full-text search <kbd>\/<\/kbd><\/button>/);
   assert.match(home, /<input id="home-jump-input"/);
 });
@@ -1199,6 +1253,23 @@ function rgbaParts(value) {
   return { rgb: [r, g, b], alpha: a };
 }
 
+test("command controls and focus remain distinct on dark plates in either theme", async () => {
+  const css = await text("site/.vitepress/theme/tokens.css");
+  const light = tokenBlock(css, ":root");
+  const dark = new Map([...light, ...tokenBlock(css, ".dark")]);
+  for (const [mode, tokens] of [["light", light], ["dark", dark]]) {
+    const colour = (name) => hexRgb(tokens.get(name));
+    for (const surface of ["rb-plate", "rb-plate-head"]) {
+      for (const token of ["rb-plate-focus", "rb-plate-control-edge", "rb-plate-ink-2"]) {
+        assert.ok(contrast(colour(token), colour(surface)) >= 3, `${mode}: ${token} against ${surface}`);
+      }
+    }
+    for (const fill of ["rb-plate-ink", "rb-plate-ink-2"]) {
+      assert.ok(contrast(colour("rb-plate"), colour(fill)) >= 4.5, `${mode}: Copy text against ${fill}`);
+    }
+  }
+});
+
 test("every token text pair meets WCAG AA in both themes", async () => {
   const css = await text("site/.vitepress/theme/tokens.css");
   const light = tokenBlock(css, ":root");
@@ -1293,4 +1364,100 @@ test("Find task offers Clear and Escape, and the directory flat list keeps every
   assert.match(directoryHtml, /aria-pressed="true">\s*By module \(28\)/);
   assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(145\)/);
   assert.doesNotMatch(directory, /localStorage|sessionStorage/);
+});
+
+// Flat list of style rules with the at-rule prelude that encloses each one.
+function cssRules(css) {
+  const source = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = [];
+  let media = null;
+  let start = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] === "{") {
+      const prelude = source.slice(start, index).trim();
+      start = index + 1;
+      if (prelude.startsWith("@")) {
+        media = prelude;
+        continue;
+      }
+      const end = source.indexOf("}", index);
+      // Split the selector list on top-level commas, not those inside :is().
+      const selectors = prelude.split(/,(?![^()]*\))/).map((part) => part.trim());
+      rules.push({ media, selectors, body: source.slice(index + 1, end) });
+      index = end;
+      start = end + 1;
+    } else if (source[index] === "}") {
+      media = null;
+      start = index + 1;
+    }
+  }
+  return rules;
+}
+
+function declaration(body, property) {
+  return body.match(new RegExp(`(?:^|;|\\s)${property}\\s*:\\s*([^;]+)`))?.[1].trim();
+}
+
+async function allThemeRules() {
+  const rules = [];
+  for (const file of await themeStylesheets()) {
+    for (const rule of cssRules(await readFile(file, "utf8"))) rules.push({ ...rule, file: path.basename(file) });
+  }
+  return rules;
+}
+
+test("narrow command plates inset each row once, so labels line up with the code column", async () => {
+  const narrow = (await allThemeRules()).filter((rule) => /max-width:\s*640px/.test(rule.media ?? ""));
+  const inset = (selector) => {
+    const rule = narrow.find((candidate) => candidate.selectors.includes(selector) && /padding/.test(candidate.body));
+    assert.ok(rule, `${selector} has a narrow-screen inset`);
+    return rule;
+  };
+  const code = declaration(inset(".vp-doc div.cmd-plate code").body, "padding").split(/\s+/)[1];
+  for (const row of [".vp-doc .cmd-bar", ".vp-doc .cmd-fill"]) {
+    assert.equal(declaration(inset(row).body, "padding-left"), code, `${row} starts on the code column`);
+  }
+  for (const rule of narrow.filter((candidate) => candidate.selectors.includes(".vp-doc .cmd-head"))) {
+    assert.doesNotMatch(rule.body, /padding/, `${rule.file}: the head would add a second inset to its rows`);
+  }
+});
+
+test("the route sheet heading shares the heading jump offsets below the sticky bars", async () => {
+  const routes = await text("site/.vitepress/theme/components/TaskRoutes.vue");
+  assert.match(routes, /<h2 id="task-routes" class="route-panel-title">/);
+  const headingRules = (await allThemeRules()).filter(
+    (rule) => rule.selectors.includes(".Layout .vp-doc :is(h1, h2, h3, h4, h5, h6)[id]") && /scroll-margin-top/.test(rule.body),
+  );
+  assert.ok(headingRules.length >= 3, "heading offsets exist for desktop, tablet and phone widths");
+  for (const rule of headingRules) {
+    assert.ok(rule.selectors.includes(".Layout .route-panel-title[id]"), `${rule.media ?? "base"}: #task-routes uses the heading offset`);
+  }
+});
+
+test("task jump chips stay compact on desktop and reach 44px on narrow screens or coarse pointers", async () => {
+  const rules = await allThemeRules();
+  const base = rules.find((rule) => rule.media === null && rule.selectors.includes(".task-jumps a"));
+  assert.equal(declaration(base.body, "min-height"), "28px");
+  const touch = rules.find(
+    (rule) => rule.media === "@media (max-width: 959px), (pointer: coarse)" && rule.selectors.includes(".Layout .task-jumps a"),
+  );
+  assert.ok(touch, "jump chips join the touch-target rule");
+  assert.equal(declaration(touch.body, "min-height"), "44px");
+});
+
+test("the pinned Find task masks the full sidebar width while rows scroll beneath it", async () => {
+  // VitePress pads the sidebar 2rem on each side and lets fixed-width groups
+  // and their carets run into that gutter; the mask covers the same span.
+  const sidebar = await text("node_modules/vitepress/dist/client/theme-default/components/VPSidebar.vue");
+  assert.match(sidebar, /\.VPSidebar \{[^}]*padding: 2rem 2rem 6rem;/);
+  const desktop = (await allThemeRules()).filter((rule) => rule.media === "@media (min-width: 960px)");
+  const form = desktop.find((rule) => rule.selectors.includes(".goto"));
+  assert.equal(declaration(form.body, "position"), "sticky");
+  assert.equal(declaration(form.body, "background"), "var(--rb-desk)");
+  const mask = desktop.find((rule) => rule.selectors.includes(".goto::before"));
+  assert.ok(mask, "the Find task form has a gutter mask");
+  assert.equal(declaration(mask.body, "position"), "absolute");
+  assert.equal(declaration(mask.body, "inset"), "0 -2rem");
+  assert.equal(declaration(mask.body, "z-index"), "-1");
+  assert.equal(declaration(mask.body, "background"), "var(--rb-desk)");
 });

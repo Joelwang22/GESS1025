@@ -23,7 +23,7 @@ function escapeHtml(value) {
 
 // The generated sidebar keeps "ID · Title" labels. The rendered sidebar sets
 // the call number in its own column so long titles hang beside it.
-const sidebar = generatedSidebar.map((group, index) => ({
+const referenceSidebar = generatedSidebar.map((group, index) => ({
   text: `<span class="sb-module">${escapeHtml(group.text)}</span><span class="sb-count">${group.items.length}</span>`,
   collapsed: group.collapsed,
   moduleTitle: group.text,
@@ -39,15 +39,33 @@ const sidebar = generatedSidebar.map((group, index) => ({
   }),
 }));
 
+const sidebar = [
+  {
+    text: '<span class="sb-module">Field checklists</span><span class="sb-count">1</span>',
+    collapsed: false,
+    items: [
+      {
+        text: '<span class="sb-title">Linux privilege escalation</span>',
+        link: "/field/linux-privilege",
+      },
+    ],
+  },
+  {
+    text: '<span class="sb-reference-label">Detailed reference · 28 modules</span>',
+    items: [],
+  },
+  ...referenceSidebar,
+];
+
 const markdown = checklistMarkdown({
   terminalStates: new Set(source.terminalStates),
   taskTitles: new Map(catalog.tasks.map(({ id, title }) => [id, title])),
 });
 
 export default defineConfig({
-  title: "OSCP Master Checklist",
+  title: "OSCP Field Checklist",
   description:
-    "A searchable reading interface for the Operator Workbench OSCP master checklist.",
+    "Command-first field checklists with the full Operator Workbench runbook as reference.",
   lang: "en-US",
   base: "/checklist/",
   cleanUrls: false,
@@ -70,10 +88,11 @@ export default defineConfig({
   },
   themeConfig: {
     logo: false,
-    siteTitle: "OSCP Master Checklist",
+    siteTitle: "OSCP Field Checklist",
     nav: [
+      { text: "Linux checklist", link: "/field/linux-privilege" },
+      { text: "Detailed reference", link: "/checklist/" },
       { text: "Box route", link: "/generated/start" },
-      { text: "Modules", link: "/checklist/" },
       { text: "Source", link: "/about/source" },
     ],
     sidebar,
@@ -92,7 +111,7 @@ export default defineConfig({
       next: "Next in source order",
     },
     returnToTopLabel: "Back to top",
-    sidebarMenuLabel: "Modules and tasks",
+    sidebarMenuLabel: "Browse",
     darkModeSwitchLabel: "Theme",
     lightModeSwitchTitle: "Use light theme",
     darkModeSwitchTitle: "Use dark theme",

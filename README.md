@@ -1,12 +1,13 @@
-# OSCP master checklist
+# OSCP field checklist
 
-A lightweight, searchable website for the Operator Workbench master checklist.
-It turns the long document export into module and task pages without rebuilding
-Workbench or adding operator state.
+A command-first website for use beside a terminal. The default field checklists
+keep routine enumeration compact, while the full Operator Workbench master
+checklist remains searchable as the detailed reference.
 
-The current site contains edition `2026-11-21.working.132`: 145 tasks across 28
-modules. It keeps the source wording, commands, task IDs, routes, explanations,
-version, and provenance.
+The first field guide covers Linux privilege escalation. The retained reference
+contains edition `2026-11-21.working.132`: 145 tasks across 28 modules. It keeps
+the imported wording, commands, task IDs, routes, explanations, version, and
+provenance.
 
 ## Local use
 
@@ -33,9 +34,9 @@ pnpm build
 
 ## Scope
 
-This repository is a reading interface. It does not track box progress, store
-targets or credentials, execute commands, provide accounts, or reproduce
-Operator Workbench workflows.
+This repository is a field and reference interface. It does not track box
+progress, store targets or credentials, execute commands, provide accounts, or
+reproduce Operator Workbench workflows.
 
 The checklist is finding-driven. It is not a required 145-step sequence and
 does not assert that a tool result proves access or completion.
@@ -59,10 +60,10 @@ and provenance details are also published at `/checklist/about/source.html`.
 - `site/.vitepress/generated/`
 
 Both are ignored by Git and replaced on every generation. Do not edit them.
-Edit framing pages under `site/`, generator logic under `scripts/`, or imported
-content under `content/` as appropriate. The home page's "Where to enter" rows
-come from `site/.vitepress/generated/where-to-enter.md`, which the generator
-writes from the snapshot's Default box route and `site/index.md` includes.
+Edit field checklists and framing pages under `site/`, generator logic under
+`scripts/`, or imported content under `content/` as appropriate. Field copy is
+maintained separately from the imported snapshot so a practical edit cannot
+silently change the retained reference.
 
 ## Design
 
@@ -82,8 +83,8 @@ edition it publishes.
 2. Update the snapshot path, edition, printed digest, SHA-256, expected task
    count, and import date in `content/source.json` and `scripts/checklist.mjs`.
 3. Reimport and hash any supporting local files that the snapshot links.
-4. Update the edition and counts on `site/index.md`, `site/checklist/index.md`,
-   and `site/about/source.md`.
+4. Update the edition and counts on `site/checklist/index.md` and
+   `site/about/source.md`.
 5. Run `pnpm test` and `pnpm build`. Commit the new source and lockfile only
    after both commands pass.
 

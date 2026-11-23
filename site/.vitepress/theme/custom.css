@@ -35,8 +35,16 @@ samp {
 
 /* Reading column */
 
-.VPDoc .content-container {
+.Layout .VPDoc .content-container,
+.Layout .VPDoc.has-aside .content-container {
   max-width: 820px;
+}
+
+@media (min-width: 960px) {
+  .Layout:is(.field-page, .task-page) .VPDoc .content {
+    min-width: 0;
+    padding-inline: 0;
+  }
 }
 
 .vp-doc {
@@ -76,8 +84,27 @@ samp {
   margin-bottom: 0.5rem;
 }
 
-.vp-doc :is(h1, h2, h3, h4, h5, h6) {
-  scroll-margin-top: calc(var(--vp-nav-height) + 24px);
+/* The route sheet's heading sits outside .vp-doc, so it is named here to
+   share the heading offsets below the sticky bars. */
+.Layout .vp-doc :is(h1, h2, h3, h4, h5, h6)[id],
+.Layout .route-panel-title[id] {
+  scroll-margin-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 16px);
+}
+
+@media (max-width: 1279px) {
+  .Layout .vp-doc :is(h1, h2, h3, h4, h5, h6)[id],
+  .Layout .route-panel-title[id],
+  .Layout .vp-doc .cmd-plate {
+    scroll-margin-top: calc(var(--vp-layout-top-height, 0px) + 60px);
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1279px) {
+  .Layout .vp-doc :is(h1, h2, h3, h4, h5, h6)[id],
+  .Layout .route-panel-title[id],
+  .Layout .vp-doc .cmd-plate {
+    scroll-margin-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + 60px);
+  }
 }
 
 .vp-doc a {
@@ -128,6 +155,72 @@ samp {
 
 .module-page .vp-doc h1 {
   margin-top: 0.75rem;
+}
+
+/* Field checklists: one quick scan, with detail linked only after a signal. */
+
+.Layout.field-page .VPDoc .content-container,
+.Layout.field-page .VPDoc.has-aside .content-container {
+  max-width: 900px;
+}
+
+.field-page .vp-doc h1 {
+  margin-bottom: 0.65rem;
+  font-size: 2.15rem;
+}
+
+.field-page .vp-doc h2 {
+  margin-top: 2.5rem;
+  padding-top: 0.75rem;
+}
+
+.field-page .vp-doc h3 {
+  margin-top: 2.5rem;
+}
+
+.field-page .vp-doc .cmd-plate {
+  margin-top: 0.8rem;
+  margin-bottom: 0.9rem;
+}
+
+.field-page .vp-doc p.field-look,
+.field-page .vp-doc p.field-next {
+  display: grid;
+  grid-template-columns: 4.9rem minmax(0, 1fr);
+  column-gap: 0.6rem;
+  max-width: none;
+  margin: 1rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border-top: 1px solid var(--rb-rule-strong);
+  background: var(--rb-panel);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.field-page .vp-doc p.field-look + p.field-next {
+  margin-top: 0;
+  border-bottom: 1px solid var(--rb-rule-strong);
+  background: transparent;
+  color: var(--rb-ink-2);
+}
+
+.field-page .vp-doc .field-label {
+  color: var(--rb-ink);
+  font-size: 13px;
+}
+
+.field-page .vp-doc .field-body {
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .Layout.field-page .VPDoc {
+    padding-top: 2rem;
+  }
+
+  .Layout.field-page .VPDoc .aside-container {
+    padding-top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px) + var(--vp-doc-top-height, 0px) + 2rem);
+  }
 }
 
 /* Module context: the binder tab note that every task in a module repeats */
@@ -305,6 +398,64 @@ samp {
   align-items: baseline;
 }
 
+.VPSidebarItem.level-1 .sb-title:only-child {
+  grid-column: 1 / -1;
+}
+
+.VPSidebar .sb-reference-label {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 2px solid var(--rb-ink-3);
+  color: var(--rb-ink-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Outline text wraps rather than losing its distinguishing words. */
+.Layout .VPDocOutlineItem .outline-link {
+  padding-block: 0.25rem;
+  line-height: 1.45;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: unset;
+}
+
+.Layout .VPLocalNavOutlineDropdown .items {
+  top: 100%;
+  max-height: min(32rem, calc(100dvh - var(--vp-nav-height) - 60px));
+}
+
+.Layout .VPLocalNav :is(.menu, .VPLocalNavOutlineDropdown > button) {
+  min-height: 44px;
+  padding-block: 0.6rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 959px), (pointer: coarse) {
+  .Layout .VPDocOutlineItem .outline-link,
+  .Layout .VPLocalNavOutlineDropdown .top-link,
+  .Layout .VPSidebar .link,
+  .Layout .VPSidebar .caret,
+  .Layout .VPSidebar .level-0 > .item,
+  .Layout .VPNavBarSearchButton,
+  .Layout :is(.goto-input, .goto-button, .goto-clear),
+  .Layout .task-jumps a {
+    min-height: 44px;
+  }
+
+  .Layout .VPDocOutlineItem .outline-link {
+    display: flex;
+    align-items: center;
+    padding-block: 0.65rem;
+  }
+
+  .Layout .VPSidebar .caret {
+    min-width: 44px;
+  }
+}
+
 .sb-id {
   font-family: var(--vp-font-family-mono);
   font-size: 12px;
@@ -364,9 +515,9 @@ samp {
 .vp-doc .action {
   display: inline-flex;
   align-items: center;
-  min-height: 42px;
+  min-height: 44px;
   margin: 0 0.5rem 0.6rem 0;
-  padding: 0 1rem;
+  padding: 0.6rem 1rem;
   border: 1px solid var(--rb-ink);
   border-radius: 6px;
   color: var(--rb-ink);
@@ -394,6 +545,23 @@ samp {
 
 /* Home */
 
+.home-page .vp-doc .home-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  max-width: none;
+}
+
+.home-page .vp-doc .home-actions .action {
+  justify-content: center;
+  margin: 0;
+  text-align: center;
+}
+
+.home-page .vp-doc .home-actions .action-primary {
+  grid-column: 1 / -1;
+}
+
 .home-page .vp-doc h1 {
   font-size: 2.5rem;
   letter-spacing: -0.03em;
@@ -413,6 +581,15 @@ samp {
 /* Narrow screens */
 
 @media (max-width: 640px) {
+  .home-page .vp-doc .home-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .field-page .vp-doc :is(p.field-look, p.field-next) {
+    grid-template-columns: 4.3rem minmax(0, 1fr);
+    column-gap: 0.5rem;
+    padding-inline: 0.6rem;
+  }
   .vp-doc h1 {
     font-size: 1.65rem;
   }
@@ -426,9 +603,10 @@ samp {
     border-radius: 6px;
   }
 
+  /* The bar and Fill in rows carry their own 0.75rem inset (components.css),
+     so the head adds none: labels line up with the code column. */
   .vp-doc .cmd-head {
     border-radius: 6px 6px 0 0;
-    padding-left: 0.75rem;
   }
 
   .vp-doc div.cmd-plate code {

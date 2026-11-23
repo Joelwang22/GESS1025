@@ -1,17 +1,19 @@
 ---
-title: Checklist modules
-description: All 28 modules in the OSCP master checklist.
+title: Detailed reference modules
+description: All 28 modules and 145 tasks in the retained Operator Workbench reference.
 outline: false
 aside: false
 pageClass: index-page
 ---
 
-# Checklist modules
+# Detailed reference modules
 
-The 145 tasks are grouped into 28 modules. Use search when you know a task ID or
-keyword. Use this index when you know the service or host context. To jump
-straight to a task from any page, type its ID or a title word into **Find
-task** at the top of the sidebar.
+This is the complete 145-task Operator Workbench runbook, retained as the deep
+reference behind the shorter field checklists. Use it when you know a task ID,
+need a result table, or need the prerequisites and recovery notes for a finding.
+
+For a quick Linux shell pass, use the
+[Linux privilege escalation field checklist](../field/linux-privilege.md).
 
 [Default box route](../generated/start.md){.action} [Module summary](#module-summary){.action}
 

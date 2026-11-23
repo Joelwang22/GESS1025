@@ -1,6 +1,6 @@
 ---
 name: OSCP Master Checklist
-description: A converged operations-runbook reading interface for the Operator Workbench master checklist, read beside a live terminal.
+description: A command-first field checklist backed by the complete Operator Workbench runbook reference.
 colors:
   paper-light: "#faf9f5"
   desk-light: "#f1efe9"
@@ -149,12 +149,12 @@ components:
 
 ## Overview
 
-**Creative North Star: "The Runbook Binder, in Slate & Signal"**
+**Creative North Star: "The Field Binder, in Slate & Signal"**
 
-This is the converged design of two reviewed proposals: the Runbook Binder
-structure (`design/opus`) with the Slate & Signal surfaces and several of its
-interactions (`design/gemini`). Each task is a procedure sheet kept beside the
-console. It has:
+The site has two deliberate reading speeds. The field layer is the sheet kept
+beside the console: compact command groups, a short signal to recognize, and a
+link for the next investigation. The retained runbook layer keeps the original
+procedure sheets and their full decision record. A detailed task has:
 
 - a header row with its call number and place in the module;
 - the verbatim source title;
@@ -165,12 +165,14 @@ console. It has:
 - a route sheet at the foot.
 
 The reader is mid-box with a terminal open on the other half of the screen.
-The design serves the loop the source prescribes: read the context, fill the
-blanks, run one command, match the result, follow the route. Nothing on the
-page tracks progress or suggests that a result means success.
+The default loop is: scan one recognizable category, copy its commands, notice
+a signal, then open the exact detailed procedure only if needed. Detailed
+reference pages retain the slower source loop of context, command, result, and
+route. Nothing on the page tracks progress or suggests that a result means
+success.
 
-Source text is never changed, hidden or collapsed. Everything the site adds is
-derived navigation, and it sits outside `<main>` wherever it can.
+Imported reference text is never changed, hidden or collapsed. Field-checklist
+copy is a separate maintained layer, not a rewrite of the imported snapshot.
 
 ## Colors
 
@@ -230,7 +232,17 @@ The VitePress shell is kept:
 Task pages reduce VitePress's top padding to 1.5rem, and the aside moves up to
 match. That keeps WSQL-01's first command line above the fold at 1440×900.
 
-A task page, top to bottom:
+The field column has a 900px maximum and the task column an 820px maximum.
+Both shrink to fit beside the sidebar and aside. Field guidance uses a label
+column and a hanging body column. The sidebar separates the field sheet from
+the 28 reference modules with a labelled ink rule, without storing state.
+
+A field page is one linear document: brief operating rule, immediately visible
+command groups, **Look for** signals, and **If found** reference links. The
+right-hand outline is its section index; it has no route rail or repeated module
+context.
+
+A detailed task page, top to bottom:
 
 1. The header row (outside `<main>`).
 2. The verbatim H1.
@@ -280,6 +292,12 @@ Module pages: Checklist / *Module* · *N* tasks, **Box route**, and
 - **Row one:** the fence's own language word, **Wrap lines** (`aria-pressed`;
   off scrolls long lines inside the plate), and an always-visible **Copy**.
 - **Row two:** **Fill in** with every distinct blank.
+
+Copy uses a filled neutral control. Wrap stays outlined, with an underline
+when pressed and a dashed edge when off. Plate focus uses pale neutral ink
+against the dark header. Control edges and focus exceed 3:1 in both themes.
+Desktop headers are compact; narrow screens and coarse pointers retain 44px
+controls. Cobalt keeps its navigation meaning elsewhere.
 
 Wrapped lines hang two columns in. Copy writes each rendered line's text joined
 by `\n`, with no trimming or prompt stripping, so the clipboard equals the
@@ -335,16 +353,12 @@ After a route change, the active sidebar item scrolls into view on desktop.
 
 ### Home
 
-1. Title and edition.
-2. IMPORTANT.
-3. Jump box and Full-text search.
-4. Three actions.
-5. **Where to enter**: generated at build time from the source's Default box
-   route. Each row quotes the When and Decision cells verbatim, then lists the
-   named tasks with exact titles.
-6. The **Reading a task** legend: blank, route, stop, plain ID, Copy.
-7. How to use it.
-8. What this site changes.
+1. Title and command-first promise.
+2. Authorization and scoped-first rule.
+3. Primary field-checklist action, new-box route, and detailed reference.
+4. Three situation-based entry choices.
+5. Detailed-reference search.
+6. The two-layer workflow and link to the retained box route.
 
 ### Directory
 
@@ -358,6 +372,7 @@ tasks. Nothing is stored.
 ### Do
 
 - Keep every source word, command and table in `<main>`, in source order.
+- Keep field sections in the operator's scan order: command, signal, next move.
 - Use cobalt only for navigation, and yellow or amber only for blanks.
 - Keep commands visible and copyable without hover.
 - Derive every title and quote from the parsed source, never by hand.
@@ -370,5 +385,6 @@ tasks. Nothing is stored.
   every theme stylesheet.
 - Don't collapse source content. Only derived inbound lists may use
   `<details>`.
+- Don't repeat detailed prerequisites or failure taxonomies on field pages.
 - Don't add progress, completion, success colours, stored state or remote
   assets.

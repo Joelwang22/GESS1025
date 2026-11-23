@@ -286,6 +286,42 @@ function markCues(md) {
   });
 }
 
+// Field pages use a repeated command -> signal -> next-move rhythm. Mark the
+// two guidance rows from their visible labels so CSS and accessibility do not
+// depend on relational selectors such as :has(). The words remain unchanged.
+const FIELD_GUIDANCE = new Map([
+  ["Look for:", "field-look"],
+  ["If found:", "field-next"],
+]);
+
+function patchFieldGuidance(md) {
+  const paragraphOpen =
+    md.renderer.rules.paragraph_open ??
+    ((tokens, index, options, _env, self) => self.renderToken(tokens, index, options));
+  md.renderer.rules.paragraph_open = (tokens, index, options, env, self) => {
+    const children = tokens[index + 1]?.children ?? [];
+    const start = children.findIndex(
+      ({ type, content }) => type !== "text" || content !== "",
+    );
+    if (
+      children[start]?.type === "strong_open" &&
+      children[start + 1]?.type === "text" &&
+      children[start + 2]?.type === "strong_close"
+    ) {
+      const className = FIELD_GUIDANCE.get(children[start + 1].content);
+      if (className) {
+        tokens[index].attrJoin("class", className);
+        children[start].attrJoin("class", "field-label");
+        // Keep the complete guidance body in one grid cell, including links
+        // and inline code, so wrapped lines hang beside the label.
+        children.splice(start + 3, 0, { type: "html_inline", content: '<span class="field-body">' });
+        children.push({ type: "html_inline", content: "</span>" });
+      }
+    }
+    return paragraphOpen(tokens, index, options, env, self);
+  };
+}
+
 // Bullet lists in which every item opens with an outcome slug ("http_reported:")
 // become ruled outcome rows with the slug set as a label.
 const OUTCOME = OUTCOME_SLUG;
@@ -347,6 +383,7 @@ export function checklistMarkdown({ terminalStates, taskTitles }) {
       patchFence(md);
       patchInlineCode(md);
       patchLinks(md, taskTitles);
+      patchFieldGuidance(md);
       markCues(md);
       markOutcomeLists(md);
       markReferences(md, terminalStates, taskTitles);

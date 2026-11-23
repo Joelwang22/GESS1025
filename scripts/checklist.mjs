@@ -516,10 +516,14 @@ function renderSection(markdown, taskIds, terminalStates, options) {
   };
 }
 
+const LONG_CONTEXT = 600;
+
 function moduleContextSection(module, context) {
   const name = displayName(module.id);
   return [
-    '<section class="ledger-module-context" aria-labelledby="module-context">',
+    // Long contexts (the four web modules, up to 1,467 characters) may flow
+    // into two columns on wide screens; short ones stay a single column.
+    `<section class="ledger-module-context"${module.context.length >= LONG_CONTEXT ? ' data-context-size="long"' : ""} aria-labelledby="module-context">`,
     "",
     `<p id="module-context" class="ledger-module-context-label"><span class="ledger-module-context-name">${escapeHtml(name)} module context</span> <span class="ledger-module-context-scope">Applies to every task in this module</span></p>`,
     "",

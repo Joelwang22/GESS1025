@@ -492,10 +492,28 @@
 
 /* Go to task ID */
 
+/* Find task stays pinned at the top of the desktop sidebar, so it remains
+   in reach after the sidebar scrolls to the active task. */
 .goto {
   margin: 1rem 0 0.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--rb-rule);
+}
+
+@media (min-width: 960px) {
+  .goto {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin-top: 0;
+    padding-top: 1rem;
+    background: var(--rb-desk);
+  }
+
+  .VPSidebar .VPSidebarItem .item {
+    scroll-margin-top: 9rem;
+    scroll-margin-bottom: 1rem;
+  }
 }
 
 .goto-label {
@@ -674,8 +692,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem 1rem;
-  padding-bottom: 0.7rem;
+  gap: 0.4rem 1rem;
+  padding-bottom: 0.55rem;
   border-bottom: 1px solid var(--rb-rule);
   font-size: 14px;
   line-height: 1.5;
@@ -746,8 +764,8 @@
 .task-jumps a {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  padding: 0 0.55rem;
+  min-height: 28px;
+  padding: 0 0.5rem;
   border: 1px solid var(--rb-rule-strong);
   border-radius: var(--rb-radius-s);
   background: var(--rb-paper);

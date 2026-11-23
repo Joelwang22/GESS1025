@@ -13,12 +13,12 @@ checkout.
 | Field | Value |
 | --- | --- |
 | Edition | `2026-11-21.working.132` |
-| Imported snapshot tasks | 146 |
+| Imported snapshot tasks | 144 |
 | Imported snapshot modules | 28 |
-| Published pages | 136 |
+| Published pages | 134 |
 | Published modules | 27 |
 | Imported | 2026-11-23 |
-| Snapshot SHA-256 | `a7afdbc3b4ff12bfb2fa102a0b807ab89e1a10c1d8849d93c8f19b25763c185c` |
+| Snapshot SHA-256 | `008eb8fcc6959533a0547ccfeac122480724cf43ff1ed25c2b4d2c14e52366ef` |
 | Printed source digest | `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731` |
 
 The snapshot's edition heading carries this note, reproduced exactly:

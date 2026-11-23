@@ -195,7 +195,7 @@ The selected service opens its matching checklist. A product-bearing non-web ser
 - redis_reported: Nmap reported Redis for this endpoint. REDIS-01 must verify it with one read-only check; port 6379 alone is not service identity. Next: REDIS-01.
 - dns_reported: Nmap reported DNS for this endpoint. DNS-01 must verify it with one exact permitted lookup. Next: DNS-01.
 - rpc_nfs_reported: Nmap reported RPC/NFS for this endpoint. NFS-01 must verify it; a port alone does not prove export access. Next: NFS-01.
-- snmp_reported: Nmap reported SNMP. SNMP-01 must verify it; use only a supplied or permitted read context and never guess communities. Next: SNMP-01.
+- snmp_reported: Nmap reported SNMP. SNMP-01 must verify it with one community test; a response goes to SNMP-02. Next: SNMP-01.
 - database_reported: Nmap reported PostgreSQL or MariaDB/MySQL. DB-01 must verify the engine before using any permitted account. Next: DB-01.
 - mail_reported: Nmap reported a mail protocol. MAIL-01 must verify protocol, TLS and capabilities before any account or message read. Next: MAIL-01.
 - rdp_reported: Nmap reported RDP. RDP-01 must verify it; trust, permitted account and desktop prerequisites remain separate checks. Next: RDP-01.
@@ -3636,224 +3636,82 @@ trial; ordinary-user ownership is not enough.
 
 # snmp
 
-Run Bash commands in Kali. Replace `<...>` values. Use the observed version,
-transport and account/community; do not cycle versions or guess communities to
-fill this checklist. Private configuration and output belong in adventure data.
+Run this in Kali against one authorized target. Community strings go straight on
+the command line; that is normal on a lab box. A `199/tcp smux` listener is the
+usual clue that an agent exists, and 161 is UDP, so only a UDP scan sees the
+agent's own port. Reads only, no `snmpset`.
 
-## SNMP-01. Does this exact read context return an SNMP response?
+## SNMP-01. Does 161 answer, and which community works?
 
-Check tools. Choose a fresh private configuration directory name and repeat it
-in every SNMP command and cleanup step:
-
-```bash
-command -v snmpget snmpwalk
-mkdir -m 700 -- '/tmp/owb-snmp-<unique-run-id>'
-install -m 0600 /dev/null '/tmp/owb-snmp-<same-run-id>/snmp.conf'
-nano '/tmp/owb-snmp-<same-run-id>/snmp.conf'
-```
-
-If a tool is absent, install the approved Kali `snmp` package through your normal
-lab setup before continuing. In the editor, enter only the configuration matching
-the supplied read context. Save and close. Do not paste secrets into the command
-line or reusable source document.
-
-For supplied SNMPv2c, use this **configuration text**, not shell commands. For
-explicitly supplied SNMPv1, change `2c` to `1`:
-
-```text
-defVersion 2c
-defCommunity <supplied-community>
-```
-
-For supplied SNMPv3 `authPriv`, use the actual supplied algorithms and values:
-
-```text
-defVersion 3
-defSecurityName <supplied-user>
-defSecurityLevel authPriv
-defAuthType <supplied-auth-algorithm>
-defAuthPassphrase <supplied-auth-passphrase>
-defPrivType <supplied-privacy-algorithm>
-defPrivPassphrase <supplied-privacy-passphrase>
-```
-
-For an explicitly assigned `authNoPriv` context, change the level and omit the two
-`defPriv*` lines. An assigned `noAuthNoPriv` context needs only version, name and
-level. Do not downgrade a required authenticated/encrypted context. Keep any
-supplied context name as `defContext <context-name>`; omit it if none is supplied.
-
-Query one scalar, `sysDescr.0`, with numeric OIDs:
+Scan the one port:
 
 ```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' snmpget -m '' -On -t 3 -r 0 \
-  'udp:<authorized-target-ipv4>:<observed-snmp-port>' .1.3.6.1.2.1.1.1.0
+sudo nmap -sU -p 161 -sV <TARGET>
+```
+
+Test the two common communities against one scalar:
+
+```bash
+snmpget -v1 -c public -t 3 -r 0 -On <TARGET> 1.3.6.1.2.1.1.1.0
+snmpget -v1 -c private -t 3 -r 0 -On <TARGET> 1.3.6.1.2.1.1.1.0
+```
+
+Or let a list try them:
+
+```bash
+onesixtyone -c /usr/share/seclists/Discovery/SNMP/common-snmp-community-strings.txt <TARGET>
+```
+
+If a v3 user was supplied, use it instead:
+
+```bash
+snmpget -v3 -l authPriv -u <USER> -a SHA -A '<AUTH_PASS>' -x AES -X '<PRIV_PASS>' <TARGET> 1.3.6.1.2.1.1.1.0
 ```
 
 | Result | Next action |
 | --- | --- |
-| OID and typed value returned | Record endpoint, version, context and observed value; **SNMP-02**. A product string is not an applicable exploit. |
-| `No Such Object` or `No Such Instance` | A protocol response exists, but that object is unavailable. Try the `sysName.0` query below once; a returned name goes to **SNMP-02**, another missing-object result to **NET-05** with restricted coverage. |
-| Authorization/no-access response | Record this context's denied operation; clean up, then **NET-05**. |
-| Authentication failure, unknown user, unsupported security level | Check supplied configuration and endpoint once. Correct an actual transcription mismatch; otherwise preserve the failure, clean up and use **NET-05**. |
-| Timeout | Run the route check below. Correct local route: retain UDP silence and use **NET-04**. Missing/wrong lab route: **PAUSE-ROUTE**. Clean up either way. |
-| Unknown token, unsupported algorithm or local parsing error | Check installed `snmpget --version` and `snmpget -H`; fix the supplied configuration using supported help. No target result is established. |
-| No permitted read context | Do not query; **NET-05**, retaining the missing prerequisite. |
+| Scalar returned | Record the community, version and `sysDescr`; **SNMP-02**. |
+| Every attempt times out | Retry each once. Still silent is unresolved, not closed; **NET-04**, then stop chasing 161. |
+| `open\|filtered` | Treat it as a timeout: one retry, then **NET-04**. |
+| One community rejected, another returns data | Use the working one. A rejection does not make the service dead. |
+| Only 199/tcp was seen and 161 stays silent | Keep 199 as a lead only; **NET-05** for another service. |
+| SNMPv3 authentication fails | Recheck the supplied user, algorithm and passphrase once; otherwise **NET-05**. |
 
-Fallback for the unavailable scalar:
+## SNMP-02. What do the returned rows give you?
 
-```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' snmpget -m '' -On -t 3 -r 0 \
-  'udp:<authorized-target-ipv4>:<observed-snmp-port>' .1.3.6.1.2.1.1.5.0
-```
-
-Route check after timeout:
+Dump the tree once and work from the file:
 
 ```bash
-ip route get '<authorized-target-ipv4>'
+snmpwalk -v1 -c <COMMUNITY> -On <TARGET> > snmp.txt
+wc -l snmp.txt
 ```
 
-## SNMP-02. Which returned detail changes your next check?
+For a v3 context, use the same `-v3 -l authPriv -u ...` flags from SNMP-01 in place of `-v1 -c`.
 
-Enter with an attributable response from SNMP-01. Keep the same configuration and
-endpoint. If the description already gives a useful lead, record it, clean up
-below and use **NET-05**. Otherwise read the system name:
+Grep for the parts that lead somewhere:
 
 ```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' snmpget -m '' -On -t 3 -r 0 'udp:<authorized-target-ipv4>:<observed-snmp-port>' \
-  .1.3.6.1.2.1.1.5.0
+grep -E '1\.3\.6\.1\.2\.1\.1\.(1|5)\.' snmp.txt            # sysDescr, sysName
+grep -E '1\.3\.6\.1\.2\.1\.25\.4\.2\.1\.(4|5)\.' snmp.txt  # process path and arguments
+grep '1\.3\.6\.1\.2\.1\.25\.6\.3\.1\.2\.' snmp.txt          # installed software
+grep -Ei 'user|home|/opt|/srv|config|pass|key' snmp.txt
 ```
 
-Stop when the result gives the next useful lead. Interface details are optional
-reference commands in the later SNMP-02 explanation. Use **SNMP-03** only for an
-unanswered vendor, device or route question and **SNMP-04** only for an
-unanswered process or package question, not because SNMP-02 finished.
-
-| Result | Next action, after cleanup |
+| Result | Next action |
 | --- | --- |
-| In-scope hostname needs resolution | **DNS-01**, using that exact observed name and assigned resolver. A label need not be a resolvable DNS name. |
-| A detail answers an existing service question | Record source OID and time; **NET-05** for that observed endpoint. |
-| The remaining question is which process or package implements a service | Record the service and source OID; **SNMP-04** with that exact question. |
-| Interface name suggests internal networking | Record a qualified clue; **GAP-ACCESS** until scope and reachability are established. Interface status does not justify pivoting. |
-| No useful clue in these objects | **NET-05**. Record exactly what was read, not “SNMP enumerated completely.” |
-| Walk exit 124 or interrupted/partial output | Preserve returned rows and incomplete extent. Use **NET-05** for another lead or **PAUSE-COVERAGE** with the exact unfinished subtree. |
-| Objects denied/missing | Record object-specific limitations; **NET-05**. One denied subtree does not invalidate previously read objects. |
-| Endpoint or security context changed | **SNMP-01**. Do not compare different contexts as equivalent access. |
+| Process arguments show a config path, socket, port or account | Open the service task it belongs to (**MAIL-01** for SMTP, otherwise **NET-05**) and verify the value in the file or service, not from the SNMP copy. |
+| Package name and version match an observed service | **EXP-01** with the exact version; a version match alone proves nothing. |
+| A username or home path appears | Try it for the matching service; SSH goes to **SSH-01**. |
+| A route or second interface appears | Record it; **GAP-ACCESS** until you can reach it. |
+| Walk partial, or only MIB-II answered | Keep the rows you have; **PAUSE-COVERAGE** for the missing subtrees. A `sysDescr`-only agent is common and not a dead end. |
+| Nothing useful | **NET-05**. Do not keep walking the same tree. |
 
-Cleanup when finished or leaving either decision. Remove **only this temporary
-configuration**, after retaining needed non-secret observations in adventure data:
+Delete the dump when done if you no longer need it:
 
 ```bash
-ls -l -- '/tmp/owb-snmp-<same-run-id>/snmp.conf'
-rm -i -- '/tmp/owb-snmp-<same-run-id>/snmp.conf'
-rmdir -- '/tmp/owb-snmp-<same-run-id>'
+rm -i snmp.txt
 ```
 
-If removal fails, preserve the exact path and go to **PAUSE-RECOVERY**. Do not use
-recursive deletion. Deleting the file is not a guarantee of forensic erasure.
-
-## SNMP-03. Does one vendor, device or route read answer a concrete lead?
-
-Enter with the same endpoint and protected configuration after SNMP-02 returned
-an attributable response, and name the question this read will answer. With no
-such question, clean up below and use **NET-05**. Choose one of the following
-alternatives; these are not a three-query sequence.
-
-Unresolved vendor/system identity:
-
-```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' snmpget -m '' -On -t 3 -r 0 'udp:<authorized-target-ipv4>:<observed-snmp-port>' \
-  .1.3.6.1.2.1.1.2.0
-```
-
-A specific device-description question:
-
-```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' timeout 20s snmpwalk -m '' -On -t 3 -r 0 \
-  'udp:<authorized-target-ipv4>:<observed-snmp-port>' .1.3.6.1.2.1.25.3.2.1.3
-printf 'Device walk exit status: %s\n' "$?"
-```
-
-A specific IPv4 routing question within the assigned scope:
-
-```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' timeout 20s snmpwalk -m '' -On -t 3 -r 0 \
-  'udp:<authorized-target-ipv4>:<observed-snmp-port>' .1.3.6.1.2.1.4.21.1.1
-printf 'IPv4 route walk exit status: %s\n' "$?"
-```
-
-Keep only rows relevant to the assigned question. Do not collect credentials,
-community strings, full process command lines or an unbounded routing table.
-
-| Result | Next action, after cleanup |
-| --- | --- |
-| Selected vendor identity or relevant device row returns | Record numeric OID, value, endpoint and extent; **NET-05** for the matching service question. A device label is not a running process, shell or vulnerability. |
-| Route row reveals an internal address or interface | Record the clue and scope uncertainty; **GAP-ACCESS** until the address is independently authorized and reachable. Do not pivot from SNMP output alone. |
-| A walk is partial, denied or times out | Preserve returned rows and exit status; **PAUSE-COVERAGE** or **NET-04** for UDP uncertainty. Do not call the table empty. |
-| Vendor/device value conflicts with another context | Re-enter **SNMP-01** with the exact endpoint/security context; do not merge observations. |
-
-After retaining needed observations, remove only this temporary configuration:
-
-```bash
-ls -l -- '/tmp/owb-snmp-<same-run-id>/snmp.conf'
-rm -i -- '/tmp/owb-snmp-<same-run-id>/snmp.conf'
-rmdir -- '/tmp/owb-snmp-<same-run-id>'
-```
-
-If removal fails, preserve the exact path and use **PAUSE-RECOVERY**.
-
-## SNMP-04. Do running-process or installed-package rows answer an existing service question?
-
-Enter with the same endpoint and protected configuration after SNMP-02 returned
-an attributable response. Name the question this read will answer, for example
-which binary serves the observed SMTP port or which package version implements
-it. Use this task only when SNMP-03's bounded reads did not answer that question.
-
-List process names first, bounded by a timeout:
-
-```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' timeout 20s snmpwalk -m '' -On -t 3 -r 0 \
-  'udp:<authorized-target-ipv4>:<observed-snmp-port>' .1.3.6.1.2.1.25.4.2.1.2
-printf 'Process-name walk exit status: %s\n' "$?"
-```
-
-The final OID component is the process index. For one relevant index, read its
-path and arguments:
-
-```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' snmpget -m '' -On -t 3 -r 0 'udp:<authorized-target-ipv4>:<observed-snmp-port>' \
-  '.1.3.6.1.2.1.25.4.2.1.4.<observed-process-index>' \
-  '.1.3.6.1.2.1.25.4.2.1.5.<observed-process-index>'
-```
-
-For an unanswered package or version question, walk installed software instead:
-
-```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' timeout 20s snmpwalk -m '' -On -t 3 -r 0 \
-  'udp:<authorized-target-ipv4>:<observed-snmp-port>' .1.3.6.1.2.1.25.6.3.1.2
-printf 'Installed-software walk exit status: %s\n' "$?"
-```
-
-Keep only rows that answer the named question. Do not collect every management
-object.
-
-| Result | Next action, after cleanup |
-| --- | --- |
-| Process row names a service binary or path | Record numeric OID, value, endpoint and extent; open that service's task (**MAIL-01** for the observed SMTP endpoint, otherwise **NET-05**). A reported row does not prove the process still runs. |
-| Path or arguments reveal a configuration file, socket, port or account | Record the exact value as a lead; verify it in the service or file, not from SNMP alone. |
-| Package name and version match the observed service and one candidate | Record package, version, OID and extent; review the candidate at **EXP-01**. A version match alone does not prove applicability. |
-| Relevant process returned with empty path and arguments | Record the name and the missing fields; **NET-05**, or **PAUSE-COVERAGE** if the row set was already partial. |
-| A walk is partial, denied or times out | Preserve returned rows and exit status; **PAUSE-COVERAGE** with the unfinished subtree or **SNMP-02** for another object. Do not call the table empty. |
-| Endpoint or security context changed | **SNMP-01**. Do not compare different contexts as equivalent access. |
-
-After retaining needed observations, remove only this temporary configuration:
-
-```bash
-ls -l -- '/tmp/owb-snmp-<same-run-id>/snmp.conf'
-rm -i -- '/tmp/owb-snmp-<same-run-id>/snmp.conf'
-rmdir -- '/tmp/owb-snmp-<same-run-id>'
-```
-
-If removal fails, preserve the exact path and use **PAUSE-RECOVERY**.
 
 # database
 
@@ -10178,107 +10036,33 @@ a successful ordinary-user write says nothing about what an NFS root client
 would receive. Root-squash conclusions require a separately authorized test
 context and must not be inferred from this branch.
 
-## SNMP-01. Why isolate client settings?
+## SNMP-01. Why scan one UDP port and guess communities?
 
-The protected config selects the assigned version and secret context without
-placing the secret in shell history or process arguments. `SNMPCONFPATH` selects
-the config directory for each invocation; it does not change your default settings.
-Client secrets still exist locally in that file. Use only simple supplied values
-that the config grammar accepts; unusual whitespace/quoting needs the installed
-client's configuration help, not an improvised escape rule.
-See [Net-SNMP configuration lookup](https://www.net-snmp.org/docs/man/snmp_config.html)
-and [client configuration tokens](https://www.net-snmp.org/docs/man/snmp.conf.html).
+161 is UDP, so a TCP scan never shows it; a `smux` listener on 199 is the
+side-channel that an agent exists. Testing `public`/`private` is cheaper and more
+honest than waiting for a supplied string that a box usually never provides.
+`-t 3 -r 0` keeps a dead attempt short, and `-On` prints numeric OIDs so no local
+MIB names are needed. SNMPv1 is enough for a read test; v3 only matters when a user
+and passphrases were actually supplied.
 
-The agent string explicitly names IPv4 UDP and its observed port. An authorized
-TCP endpoint uses `tcp:<ip>:<port>`; IPv6 uses the documented `udp6:[<ip>]:<port>`
-form instead. `-r 0` removes retries, `-t 3` sets response timeout and `-On` prints
-numeric OIDs. Numeric input and `-m ''` avoid dependence on locally installed MIB
-names. Check [common client options](https://www.net-snmp.org/docs/man/snmpcmd.html)
-and [snmpget](https://www.net-snmp.org/docs/man/snmpget.html).
+Silence can be a wrong community *or* a filter in front of the agent. Keep the two
+apart: a rejection means the agent answered, a timeout does not. The
+[`snmpget` manual](https://www.net-snmp.org/docs/man/snmpget.html) and
+[UDP scan behaviour](https://nmap.org/book/scan-methods-udp-scan.html) cover the
+client and transport details.
 
-A timeout can include silent access filtering; it does not tell you whether the
-community is wrong or SNMP is absent. Authentication/context errors must retain
-their specific stage. V3 algorithms vary with installed build/version. Use the
-supplied algorithms and installed help; this checklist never selects a weaker
-algorithm automatically. Reads are not `snmpset`, trap delivery or a write test.
+## SNMP-02. What do process and package rows actually prove?
 
-## SNMP-02. What do these objects establish?
-
-Optional reference for a concrete interface question. These commands are not
-required to finish SNMP-02. Read the reported uptime/interface count only if
-those values matter to that question:
-
-```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' snmpget -m '' -On -t 3 -r 0 'udp:<authorized-target-ipv4>:<observed-snmp-port>' \
-  .1.3.6.1.2.1.1.3.0 .1.3.6.1.2.1.2.1.0
-```
-
-Select interface descriptions, not the whole OID tree:
-
-```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' timeout 20s snmpwalk -m '' -On -t 3 -r 0 \
-  'udp:<authorized-target-ipv4>:<observed-snmp-port>' .1.3.6.1.2.1.2.2.1.2
-printf 'Walk exit status: %s\n' "$?"
-```
-
-The final OID component is the interface index. For one relevant returned index:
-
-```bash
-SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' snmpget -m '' -On -t 3 -r 0 'udp:<authorized-target-ipv4>:<observed-snmp-port>' \
-  '.1.3.6.1.2.1.2.2.1.3.<observed-interface-index>' \
-  '.1.3.6.1.2.1.2.2.1.7.<observed-interface-index>' \
-  '.1.3.6.1.2.1.2.2.1.8.<observed-interface-index>'
-```
-
-Interpret these through SNMP-02's result table and perform its exact cleanup.
-
-The routine working command selects the system name. The optional reference
-commands select uptime, interface count and one interface description subtree.
-Type/status queries concern a particular returned index.
-System uptime is the management subsystem's reported uptime, not independently
-verified host uptime. Interface metadata does not establish your connectivity or
-scope. The object definitions are in [MIB-II](https://www.rfc-editor.org/rfc/rfc1213.html).
-
-`snmpwalk` reads a subtree using successive requests. The wrapper stops a long
-walk; it does not make an incomplete table complete. Retain numeric OIDs with
-values and never suppress errors just to obtain a neat report. See
-[snmpwalk](https://www.net-snmp.org/docs/man/snmpwalk.html).
-
-Software and vendor-specific enumeration beyond the bounded SNMP-03 reads is
-handled only as far as SNMP-04's process and package question. Remaining software
-and vendor-specific reads are still content gaps. Do not infer comprehensive
-coverage from these selected objects. No private
-lab was reread; `DATA-002` in [the source checklist](checklist.md) supplies the
-question, and the [existing retrospective](lab-retrospective.md) has no corroborated
-SNMP case. These commands need live authorized client and outcome trials.
-
-## SNMP-03. Why select one management question?
-
-`sysObjectID`, host-resource device descriptions and IPv4 route entries answer
-different questions. A bounded walk preserves extent and timeout state while
-avoiding an unreviewed dump of every management object. Internal addresses and
-device descriptions are leads that require independent scope, reachability and service
-verification; they are not permission to pivot or execute. The device-description
-OID does not enumerate running processes. Process or software questions go to
-SNMP-04; they are not established by these commands.
-See the distinct device and running-software groups in
+`hrSWRunParameters` is the useful part: daemons often carry their config path,
+socket or bind address on the command line. `hrSWInstalledName` answers a
+different, version-shaped question. Both live in the
 [Host Resources MIB](https://www.rfc-editor.org/rfc/rfc2790.html).
 
-## SNMP-04. Why are process and package rows only leads?
-
-`hrSWRun*` and `hrSWInstalled*` are separate groups of the same Host Resources
-MIB. The first walk selects names so one index can be chosen before reading its
-path and arguments; the package walk answers a different, version-shaped
-question. Both are bounded because an unbounded process or package table fills
-the terminal with rows that no longer answer the named question.
-
-Command-line arguments often expose the configuration a daemon loaded, which is
-useful for a service lead, but the agent's copy can be truncated, stale or
-differ from a container's real process. A package string proves the agent
-reports it installed, not that the binary runs or that an advisory applies.
-Verify the service behavior and the exact version in another context before
-review at EXP-01. These reads remain read-only; see
-[Host Resources MIB](https://www.rfc-editor.org/rfc/rfc2790.html).
+The agent's copy can be truncated, stale or blind to a container, so treat a row as
+a pointer and confirm it on the service. An installed package is not a running
+process, and a version string is not proof that an advisory applies. Walking once
+into a file and grepping beats repeated targeted walks, and it preserves the
+partial output when an agent stalls.
 
 ## DB-01. Why separate transport, trust, account and database?
 

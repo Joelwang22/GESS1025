@@ -136,8 +136,8 @@ test("provides home, checklist index, and provenance pages", async () => {
   assert.match(index, /Linux privilege escalation/);
   assert.doesNotMatch(index, /generated\/modules\/linux\.md/);
   assert.match(index, /generated\/modules\/network/);
-  assert.match(source, /a7afdbc3b4ff12bfb2fa102a0b807ab89e1a10c1d8849d93c8f19b25763c185c/);
-  assert.match(source, /Published pages \| 136/);
+  assert.match(source, /008eb8fcc6959533a0547ccfeac122480724cf43ff1ed25c2b4d2c14e52366ef/);
+  assert.match(source, /Published pages \| 134/);
 });
 
 test("publishes one 15-page Linux privilege operator module", async () => {
@@ -272,7 +272,7 @@ test("generates every public page, module, and LNX compatibility URL", async () 
     text("site/generated/tasks/lnx-01.md"),
   ]);
 
-  assert.equal(taskFiles.length, 146);
+  assert.equal(taskFiles.length, 144);
   assert.equal(moduleFiles.length, 27);
   assert.match(net01, /^# NET-01\. Check connectivity/m);
   assert.match(net01, /## Explanations and troubleshooting/);
@@ -339,11 +339,11 @@ test("emits a complete public catalog with source provenance", async () => {
   assert.equal(generatedCatalog.sourceDigest, manifest.sourceDigest);
   assert.equal(generatedCatalog.snapshotSha256, manifest.snapshotSha256);
   assert.equal(generatedCatalog.moduleCount, 27);
-  assert.equal(generatedCatalog.taskCount, 136);
+  assert.equal(generatedCatalog.taskCount, 134);
   assert.equal(generatedCatalog.sourceModuleCount, 28);
-  assert.equal(generatedCatalog.sourceTaskCount, 146);
+  assert.equal(generatedCatalog.sourceTaskCount, 144);
   assert.equal(sidebar.length, generatedCatalog.modules.length);
-  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 136);
+  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 134);
   assert.ok(!generatedCatalog.tasks.some(({ id }) => id.startsWith("LNX-")));
   assert.deepEqual(
     generatedCatalog.tasks.filter(({ id }) => id.startsWith("LPRIV-")).map(({ id }) => id),
@@ -1441,13 +1441,13 @@ test("Find task offers Clear and Escape, and the directory flat list keeps every
   assert.match(find, /<button v-if="value" class="goto-clear" type="button" @click="clear">Clear<\/button>/);
   const directory = await text("site/.vitepress/theme/components/TaskDirectory.vue");
   assert.match(directory, /const flat = computed\(\(\) => shown\.value\.flatMap\(\(module\) => module\.tasks\)\);/);
-  // The server-rendered default is the by-module view with all 136 tasks and
+  // The server-rendered default is the by-module view with all 134 tasks and
   // both layout controls; no grouping pills or stored state.
   const html = await text("site/.vitepress/dist/checklist/index.html");
   const directoryHtml = html.slice(html.indexOf('class="directory-tools"'), html.indexOf('id="module-summary"'));
-  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 136);
+  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 134);
   assert.match(directoryHtml, /aria-pressed="true">\s*By module \(27\)/);
-  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(136\)/);
+  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(134\)/);
   assert.doesNotMatch(directory, /localStorage|sessionStorage/);
 });
 

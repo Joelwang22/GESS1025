@@ -41,7 +41,7 @@ gives one.
 | [SSH knock](../generated/modules/ssh_knock.md) | 1 |
 | [Windows privilege](../generated/modules/windows_privilege.md) | 1 |
 | [DNS and NFS](../generated/modules/dns_nfs.md) | 6 |
-| [SNMP](../generated/modules/snmp.md) | 4 |
+| [SNMP](../generated/modules/snmp.md) | 2 |
 | [Database](../generated/modules/database.md) | 5 |
 | [MSSQL](../generated/modules/mssql.md) | 3 |
 | [Mail and RDP](../generated/modules/mail_rdp.md) | 5 |

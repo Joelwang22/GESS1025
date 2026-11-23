@@ -10,6 +10,7 @@ const RESULT_LIMIT = 12;
 const { theme } = useData();
 const router = useRouter();
 const value = ref("");
+const input = ref(null);
 const message = ref("");
 
 const tasks = computed(() =>
@@ -33,6 +34,13 @@ function open(id) {
   router.go(taskHref(id));
 }
 
+// Clear keeps focus in the field so the next query can be typed at once.
+function clear() {
+  value.value = "";
+  message.value = "";
+  input.value?.focus();
+}
+
 function go() {
   if (exact.value) return open(exact.value);
   if (matches.value.length) return open(matches.value[0].id);
@@ -48,6 +56,7 @@ function go() {
     <div class="goto-row">
       <input
         id="goto-task-id"
+        ref="input"
         v-model="value"
         class="goto-input"
         placeholder="NET-01 or smb"
@@ -55,7 +64,9 @@ function go() {
         spellcheck="false"
         aria-describedby="goto-task-help"
         @input="message = ''"
+        @keydown.esc.prevent="clear"
       />
+      <button v-if="value" class="goto-clear" type="button" @click="clear">Clear</button>
       <button class="goto-button" type="submit">Go</button>
     </div>
     <p id="goto-task-help" class="goto-message" role="status" aria-live="polite">

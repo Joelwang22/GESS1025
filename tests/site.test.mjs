@@ -1277,3 +1277,20 @@ test("outcome lists are recognised by a slug on every item, shared by generator 
   assert.ok(!isOutcomeList(["http_reported: slugged", "Plain bullet without a slug"]));
   assert.ok(!isOutcomeList(["reply: a single word is not a slug", "no_reply: two words"]));
 });
+
+test("Find task offers Clear and Escape, and the directory flat list keeps every task", async () => {
+  await buildSite();
+  const find = await text("site/.vitepress/theme/components/GoToTask.vue");
+  assert.match(find, /@keydown\.esc\.prevent="clear"/);
+  assert.match(find, /<button v-if="value" class="goto-clear" type="button" @click="clear">Clear<\/button>/);
+  const directory = await text("site/.vitepress/theme/components/TaskDirectory.vue");
+  assert.match(directory, /const flat = computed\(\(\) => shown\.value\.flatMap\(\(module\) => module\.tasks\)\);/);
+  // The server-rendered default is the by-module view with all 145 tasks and
+  // both layout controls; no grouping pills or stored state.
+  const html = await text("site/.vitepress/dist/checklist/index.html");
+  const directoryHtml = html.slice(html.indexOf('class="directory-tools"'), html.indexOf('id="module-summary"'));
+  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 145);
+  assert.match(directoryHtml, /aria-pressed="true">\s*By module \(28\)/);
+  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(145\)/);
+  assert.doesNotMatch(directory, /localStorage|sessionStorage/);
+});

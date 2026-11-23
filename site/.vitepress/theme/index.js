@@ -9,6 +9,7 @@ import TaskHeader from "./components/TaskHeader.vue";
 import TaskRail from "./components/TaskRail.vue";
 import TaskRoutes from "./components/TaskRoutes.vue";
 import { installCopy } from "./copy.js";
+import { installSidebarScroll } from "./sidebar-scroll.js";
 
 import "./tokens.css";
 import "./components.css";
@@ -24,9 +25,12 @@ export default {
       "doc-footer-before": () => h(TaskRoutes),
     });
   },
-  enhanceApp({ app }) {
+  enhanceApp({ app, router }) {
     app.component("TaskDirectory", TaskDirectory);
     app.component("HomeJump", HomeJump);
-    if (inBrowser) installCopy();
+    if (inBrowser) {
+      installCopy();
+      installSidebarScroll(router);
+    }
   },
 };

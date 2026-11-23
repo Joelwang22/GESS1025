@@ -15,9 +15,9 @@ task** at the top of the sidebar.
 
 [Default box route](../generated/start.md){.action} [Module summary](#module-summary){.action}
 
-## Every task by module
+## Every task
 
-Every task in source order, grouped under its module.
+Every task in source order, grouped by module or as one flat list.
 
 <TaskDirectory />
 

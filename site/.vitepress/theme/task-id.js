@@ -1,0 +1,8 @@
+// Accepts "web-09", "WEB09", "web 9" or "lpriv-2" and returns the canonical
+// task ID shape "WEB-09". Returns null for anything else.
+export function normalizeTaskId(value) {
+  const compact = String(value ?? "").toUpperCase().replace(/\s+/g, "");
+  const match = /^([A-Z][A-Z0-9]*?)-?(\d{1,2})$/.exec(compact);
+  if (!match) return null;
+  return `${match[1]}-${match[2].padStart(2, "0")}`;
+}

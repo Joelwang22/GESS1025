@@ -6,6 +6,9 @@ import test, { before } from "node:test";
 import { promisify } from "node:util";
 
 import { escapeVuePlaceholders, generateSite, parseChecklist } from "../scripts/checklist.mjs";
+import { BLANK, blanksIn } from "../site/.vitepress/markdown.mjs";
+import { codeText } from "../site/.vitepress/theme/copy.js";
+import { normalizeTaskId } from "../site/.vitepress/theme/task-id.js";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
@@ -592,4 +595,211 @@ test("built task pages keep every source word and every command line visible in 
   }
   assert.ok(commandLines > 500, `expected a broad command audit, checked ${commandLines}`);
   assert.deepEqual(failures.slice(0, 40), []);
+});
+
+function fenceBodies(markdown) {
+  return fencedBlocks(markdown).map((block) => {
+    const lines = block.split("\n");
+    return {
+      lang: lines[0].replace(/^ {0,3}(`{3,}|~{3,})/, "").trim(),
+      body: lines.slice(1, -1).join("\n"),
+    };
+  });
+}
+
+function builtPlates(html) {
+  const main = html.slice(html.indexOf("<main"), html.lastIndexOf("</main>"));
+  return [
+    ...main.matchAll(
+      /<div class="cmd-plate language-([^"\s]*)"[^>]*>(<div class="cmd-head">[\s\S]*?)<pre[^>]*><code>([\s\S]*?)<\/code><\/pre>/g,
+    ),
+  ].map(([, lang, head, code]) => ({
+    lang,
+    head,
+    code,
+    text: decodeEntities(code.replace(/<[^>]+>/g, "")),
+  }));
+}
+
+async function taskPlates(task) {
+  const html = await text(`site/.vitepress/dist/generated/tasks/${task.id.toLowerCase()}.html`);
+  const module = checklist.modules.find(({ id }) => id === task.moduleId);
+  return {
+    html,
+    expected: fenceBodies([module.context, task.working, task.explanation].join("\n")),
+    built: builtPlates(html),
+  };
+}
+
+test("every command plate renders and copies its source block text exactly", async () => {
+  await buildSite();
+  const failures = [];
+  let blocks = 0;
+  for (const task of checklist.tasks) {
+    const { html, expected, built } = await taskPlates(task);
+    if (built.length !== expected.length) {
+      failures.push(`${task.id}: ${built.length} plates for ${expected.length} blocks`);
+      continue;
+    }
+    for (const [index, block] of expected.entries()) {
+      blocks += 1;
+      if (built[index].text !== block.body) failures.push(`${task.id}: block ${index + 1} text differs`);
+      if (built[index].lang !== block.lang) failures.push(`${task.id}: block ${index + 1} language differs`);
+      if (!built[index].head.includes(`<span class="cmd-lang">${block.lang || "text"}</span>`)) {
+        failures.push(`${task.id}: block ${index + 1} has no visible language label`);
+      }
+    }
+    if (/class="copy"/.test(html)) failures.push(`${task.id}: hover-only copy button remains`);
+    if ((html.match(/class="cmd-copy"/g) ?? []).length !== expected.length) {
+      failures.push(`${task.id}: copy controls do not match plates`);
+    }
+  }
+  assert.ok(blocks > 500, `expected a broad plate audit, checked ${blocks}`);
+  assert.deepEqual(failures, []);
+});
+
+test("the copy handler joins rendered line text without trimming or prompt stripping", () => {
+  const line = (value) => ({ classList: { contains: (name) => name === "line" }, textContent: value });
+  const other = { classList: { contains: () => false }, textContent: "ignored" };
+  const code = { children: [line("$ echo '<IP_ADDRESS>'  "), other, line(""), line("  > tail")] };
+  assert.equal(codeText(code), "$ echo '<IP_ADDRESS>'  \n\n  > tail");
+});
+
+test("command blanks are highlighted in place and listed above each plate", async () => {
+  await buildSite();
+  const escape = (value) => value.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const failures = [];
+  let marked = 0;
+  for (const task of checklist.tasks) {
+    const { expected, built } = await taskPlates(task);
+    for (const [index, block] of expected.entries()) {
+      const count = [...block.body.matchAll(BLANK)].length;
+      const found = (built[index].code.match(/class="blank"/g) ?? []).length;
+      if (found !== count) failures.push(`${task.id} block ${index + 1}: ${found}/${count} blanks marked`);
+      for (const blank of blanksIn(block.body)) {
+        if (!built[index].head.includes(`<code class="blank">${escape(blank)}</code>`)) {
+          failures.push(`${task.id} block ${index + 1}: header omits ${blank}`);
+        }
+      }
+      marked += count;
+    }
+  }
+  assert.ok(marked > 400, `expected many marked blanks, found ${marked}`);
+  assert.deepEqual(failures, []);
+  const literal = checklist.tasks.find(({ working, explanation }) =>
+    `${working}${explanation}`.includes("<0.4096>"),
+  );
+  const html = await text(`site/.vitepress/dist/generated/tasks/${literal.id.toLowerCase()}.html`);
+  assert.doesNotMatch(html, /class="blank">&lt;0\.4096&gt;/);
+});
+
+test("routes, stop states, and decision tables carry distinct marks", async () => {
+  await buildSite();
+  const [net01, web01] = await Promise.all([
+    text("site/.vitepress/dist/generated/tasks/net-01.html"),
+    text("site/.vitepress/dist/generated/tasks/web-01.html"),
+  ]);
+  assert.match(
+    net01,
+    /<a href="\.\/net-02\.html" class="route" title="NET-02: Scan the box&#39;s TCP ports and services">NET-02<\/a>/,
+  );
+  assert.match(net01, /<strong><span class="stop"[^>]*>PAUSE-ROUTE<\/span><\/strong>/);
+  assert.doesNotMatch(net01, /<a [^>]*>[^<]*PAUSE-ROUTE/);
+  assert.match(net01, /<table class="decision cols-2"/);
+  assert.match(net01, /<td data-label="Result">/);
+  assert.match(net01, /<td data-label="Next">/);
+  assert.match(web01, /<a href="\.\/web-08\.html" title="WEB-08: [^"]+" class="route route-short">08<\/a>/);
+  assert.match(net01, /<h1 [^>]*class="task-title"><span class="h-id">NET-01\.<\/span> Check connectivity/);
+  assert.match(net01, /<span class="sb-id">NET-01<\/span> <span class="sb-title">Check connectivity<\/span>/);
+
+  const terminalStates = new Set(manifest.terminalStates);
+  let stops = 0;
+  for (const task of checklist.tasks) {
+    const html = await text(`site/.vitepress/dist/generated/tasks/${task.id.toLowerCase()}.html`);
+    const main = html.slice(html.indexOf("<main"), html.lastIndexOf("</main>"));
+    for (const match of proseOutsideCode(`${task.working}\n${task.explanation}`).matchAll(
+      /\bNext: ((?:PAUSE|GAP)-[A-Z]+(?:-[A-Z]+)*)/g,
+    )) {
+      stops += 1;
+      assert.ok(terminalStates.has(match[1]));
+      assert.ok(
+        main.includes(`<span class="stop" title="Stop state named by the checklist">${match[1]}</span>`),
+        `${task.id} ${match[1]}`,
+      );
+    }
+  }
+  assert.ok(stops > 0);
+});
+
+test("task pages carry their derived routes and a route sheet outside <main>", async () => {
+  await buildSite();
+  const routes = JSON.parse(await text("site/.vitepress/generated/routes.json"));
+  const brief = ({ id, title }) => ({ id, title });
+  for (const [index, task] of checklist.tasks.entries()) {
+    const head = frontmatterOf(await text(`site/generated/tasks/${task.id.toLowerCase()}.md`));
+    const field = (name) => JSON.parse(head.match(new RegExp(`^${name}: (.*)$`, "m"))[1]);
+    assert.deepEqual(field("routesOut"), routes[task.id].outbound.map(brief), task.id);
+    assert.deepEqual(field("routesIn"), routes[task.id].inbound.map(brief), task.id);
+    assert.deepEqual(field("routeStops"), routes[task.id].terminalStates, task.id);
+    assert.deepEqual(field("sourcePosition"), { index: index + 1, total: checklist.tasks.length });
+  }
+  const [net01, net05] = await Promise.all([
+    text("site/.vitepress/dist/generated/tasks/net-01.html"),
+    text("site/.vitepress/dist/generated/tasks/net-05.html"),
+  ]);
+  const panel = net01.indexOf('class="route-panel"');
+  assert.ok(panel > net01.lastIndexOf("</main>"), "route sheet sits after <main>");
+  assert.match(net01.slice(panel), /href="\/checklist\/generated\/tasks\/net-02\.html"/);
+  assert.match(net01.slice(panel), /<span class="stop">PAUSE-ROUTE<\/span>/);
+  assert.match(net01, /class="task-rail"/);
+  assert.match(net01, /Next in source order/);
+  // A hub with more than twelve inbound routes folds them into native <details>.
+  assert.ok(routes["NET-05"].inbound.length > 12);
+  assert.match(
+    net05,
+    new RegExp(`<summary>Linked from ${routes["NET-05"].inbound.length} tasks</summary>`),
+  );
+});
+
+test("publishes the source preface verbatim as the default box route page", async () => {
+  await buildSite();
+  const html = await text("site/.vitepress/dist/generated/start.html");
+  const main = builtMainText(html, "start");
+  const preface = decodeEntities(
+    checklist.preface
+      .replace(/^<!--[\s\S]*?-->\s*/, "")
+      .replace(/\]\([^)\s]*\)/g, "]")
+      .replace(/^[ \t>]*\d+[.)][ \t]/gm, ""),
+  );
+  const built = tokenCounts(main);
+  const missing = [...tokenCounts(preface)].filter(([token, count]) => (built.get(token) ?? 0) < count);
+  assert.deepEqual(missing, []);
+  for (const id of ["NET-01", "NET-05", "SSH-02", "LNX-03", "EXP-03", "AD-01"]) {
+    assert.match(html, new RegExp(`href="\\./tasks/${id.toLowerCase()}\\.html" class="route"`), id);
+  }
+  assert.match(await text("site/index.md"), /generated\/start\.md/);
+});
+
+test("the go-to box accepts loose task ID spellings", () => {
+  assert.equal(normalizeTaskId("web-09"), "WEB-09");
+  assert.equal(normalizeTaskId(" lpriv2 "), "LPRIV-02");
+  assert.equal(normalizeTaskId("WUPLOAD-02"), "WUPLOAD-02");
+  assert.equal(normalizeTaskId("rexp 4"), "REXP-04");
+  assert.equal(normalizeTaskId("PAUSE-ROUTE"), null);
+  assert.equal(normalizeTaskId(""), null);
+});
+
+test("the theme never hides content with CSS", async () => {
+  const css = await text("site/.vitepress/theme/custom.css");
+  for (const pattern of [
+    /display:\s*none/,
+    /visibility:\s*hidden/,
+    /content-visibility/,
+    /clip(?:-path)?:\s*(?:rect|inset)/,
+    /(?:^|[\s;{])(?:max-)?height:\s*0(?:px)?\s*[;}]/m,
+    /overflow(?:-[xy])?:\s*(?:hidden|clip)/,
+    /(?:left|right|top):\s*-\d{3,}/,
+  ]) {
+    assert.doesNotMatch(css, pattern);
+  }
 });

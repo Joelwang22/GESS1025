@@ -2,12 +2,29 @@
 title: Checklist modules
 description: All 28 modules in the OSCP master checklist.
 outline: false
+aside: false
+pageClass: index-page
 ---
 
 # Checklist modules
 
 The 145 tasks are grouped into 28 modules. Use search when you know a task ID or
-keyword. Use this index when you know the service or host context.
+keyword. Use this index when you know the service or host context. To jump
+straight to a known ID, type it into **Go to task ID** at the top of the
+sidebar.
+
+[Default box route](../generated/start.md){.action} [Module summary](#module-summary){.action}
+
+## Every task by module
+
+Every task in source order, grouped under its module.
+
+<TaskDirectory />
+
+## Module summary
+
+Each module page lists its tasks, after the module context when the source
+gives one.
 
 | Module | Tasks |
 | --- | ---: |

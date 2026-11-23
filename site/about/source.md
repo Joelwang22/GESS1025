@@ -19,6 +19,10 @@ checkout.
 | Snapshot SHA-256 | `8d6eff26e2b383b832399636b356009e68ae68e7918217a1a837ee8799cccad5` |
 | Printed source digest | `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731` |
 
+The snapshot's edition heading carries this note, reproduced exactly:
+
+> Authoring edition; manual decisions are not runtime reviewer coverage.
+
 ## Retained files
 
 - Snapshot: `content/master-working-2026-11-21.working.132.md`

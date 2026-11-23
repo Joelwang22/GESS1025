@@ -1,5 +1,26 @@
+import { h } from "vue";
+import { inBrowser } from "vitepress";
 import DefaultTheme from "vitepress/theme";
+
+import GoToTask from "./components/GoToTask.vue";
+import TaskDirectory from "./components/TaskDirectory.vue";
+import TaskRail from "./components/TaskRail.vue";
+import TaskRoutes from "./components/TaskRoutes.vue";
+import { installCopy } from "./copy.js";
 
 import "./custom.css";
 
-export default DefaultTheme;
+export default {
+  extends: DefaultTheme,
+  Layout() {
+    return h(DefaultTheme.Layout, null, {
+      "sidebar-nav-before": () => h(GoToTask),
+      "aside-outline-before": () => h(TaskRail),
+      "doc-footer-before": () => h(TaskRoutes),
+    });
+  },
+  enhanceApp({ app }) {
+    app.component("TaskDirectory", TaskDirectory);
+    if (inBrowser) installCopy();
+  },
+};

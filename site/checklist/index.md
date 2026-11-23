@@ -1,6 +1,6 @@
 ---
 title: Checklist modules
-description: All 28 modules and 145 tasks in the OSCP checklist.
+description: Published modules and operator pages in the OSCP checklist.
 outline: false
 aside: false
 pageClass: index-page
@@ -10,17 +10,17 @@ next: false
 
 # Checklist modules
 
-Browse all 145 tasks when you know a task ID, need a result table, or need the
+Browse the published pages when you know an ID, need a result table, or need the
 prerequisites and recovery notes for a finding.
 
-For a quick Linux shell pass, open the
-[Linux privilege escalation checklist](../field/linux-privilege.md).
+For a Linux shell, start at
+[LPRIV-01](../generated/tasks/lpriv-01.md).
 
 [Default box route](../generated/start.md){.action} [Module summary](#module-summary){.action}
 
 ## Every task
 
-Every task in source order, grouped by module or as one flat list.
+Every published page in checklist order, grouped by module or as one flat list.
 
 <TaskDirectory />
 
@@ -41,7 +41,7 @@ gives one.
 | [SSH knock](../generated/modules/ssh_knock.md) | 1 |
 | [Windows privilege](../generated/modules/windows_privilege.md) | 1 |
 | [DNS and NFS](../generated/modules/dns_nfs.md) | 6 |
-| [SNMP](../generated/modules/snmp.md) | 3 |
+| [SNMP](../generated/modules/snmp.md) | 4 |
 | [Database](../generated/modules/database.md) | 5 |
 | [MSSQL](../generated/modules/mssql.md) | 3 |
 | [Mail and RDP](../generated/modules/mail_rdp.md) | 5 |
@@ -57,5 +57,4 @@ gives one.
 | [Access](../generated/modules/access.md) | 3 |
 | [Shell transfer](../generated/modules/shell_transfer.md) | 4 |
 | [Local artifact](../generated/modules/local_artifact.md) | 3 |
-| [Linux](../generated/modules/linux.md) | 10 |
-| [Linux privilege](../generated/modules/linux_privilege.md) | 15 |
+| [Linux privilege escalation](../generated/modules/linux_privilege.md) | 15 |

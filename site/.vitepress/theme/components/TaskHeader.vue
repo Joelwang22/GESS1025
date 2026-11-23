@@ -11,6 +11,7 @@ const { frontmatter, theme } = useData();
 
 const isTask = computed(() => Boolean(frontmatter.value.taskId));
 const isModule = computed(() => frontmatter.value.pageClass === "module-page");
+const isOperatorPage = computed(() => Boolean(frontmatter.value.operatorPage));
 const moduleLink = computed(() => withBase(`/generated/modules/${frontmatter.value.moduleId}.html`));
 const checklistLink = withBase("/checklist/index.html");
 const boxRouteLink = withBase("/generated/start.html");
@@ -22,7 +23,7 @@ const jumps = computed(() => {
   if (frontmatter.value.firstCommand) list.push({ href: `#${frontmatter.value.firstCommand}`, label: "First command" });
   if (frontmatter.value.resultsKind === "table") list.push({ href: "#results", label: "Result table" });
   if (frontmatter.value.resultsKind === "outcomes") list.push({ href: "#results", label: "Outcomes" });
-  list.push({ href: "#explanations-and-troubleshooting", label: "Explanations" });
+  if (!isOperatorPage.value) list.push({ href: "#explanations-and-troubleshooting", label: "Explanations" });
   list.push({ href: "#task-routes", label: `Routes (${routeCount.value})` });
   return list;
 });
@@ -46,7 +47,7 @@ const hub = computed(() => {
       <span class="task-crumbs-sep" aria-hidden="true">/</span>
       <span class="task-id-pair">
         <span class="task-stamp">{{ frontmatter.taskId }}</span>
-        <span v-if="position" class="task-position">task {{ position.index }} of {{ position.total }}</span>
+        <span v-if="position" class="task-position">{{ isOperatorPage ? "page" : "task" }} {{ position.index }} of {{ position.total }}</span>
       </span>
     </nav>
     <nav class="task-jumps" aria-label="Jump to a part of this task">

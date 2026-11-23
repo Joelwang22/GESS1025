@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   mkdir,
+  readdir,
   readFile,
   rm,
   writeFile,
@@ -23,6 +24,21 @@ const TASK_SHAPE = /^[A-Z][A-Z0-9]*-\d{2}$/;
 const TERMINAL_SHAPE = /^(?:PAUSE|GAP)-[A-Z]+(?:-[A-Z]+)*$/;
 const PLAIN_TASK_TOKEN = /\b[A-Z][A-Z0-9]*-\d{2}\b/g;
 const PLAIN_TERMINAL_TOKEN = /\b(?:PAUSE|GAP)-[A-Z]+(?:-[A-Z]+)*\b/g;
+const OPERATOR_MODULE_ID = "linux_privilege";
+const OPERATOR_MODULE_TITLE = "Linux privilege escalation";
+const RETIRED_MODULE_IDS = new Set(["linux", "linux_privilege"]);
+const LNX_REDIRECTS = new Map([
+  ["LNX-01", "LPRIV-01"],
+  ["LNX-02", "LPRIV-11"],
+  ["LNX-03", "LPRIV-03"],
+  ["LNX-04", "LPRIV-06"],
+  ["LNX-05", "LPRIV-04"],
+  ["LNX-06", "LPRIV-07"],
+  ["LNX-07", "LPRIV-08"],
+  ["LNX-08", "LPRIV-07"],
+  ["LNX-09", "LPRIV-14"],
+  ["LNX-10", "LPRIV-15"],
+]);
 
 const MODULE_DISPLAY_NAMES = new Map([
   ["network", "Network"],
@@ -52,7 +68,7 @@ const MODULE_DISPLAY_NAMES = new Map([
   ["shell_transfer", "Shell transfer"],
   ["local_artifact", "Local artifact"],
   ["linux", "Linux"],
-  ["linux_privilege", "Linux privilege"],
+  ["linux_privilege", OPERATOR_MODULE_TITLE],
 ]);
 
 function normalizeLines(markdown) {
@@ -628,6 +644,65 @@ function fenceCount(markdown) {
   return count;
 }
 
+function proseWordCount(markdown) {
+  return markdown
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/[\[\]#*`()<>]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+async function loadOperatorModule(sourceRoot) {
+  const directory = path.join(sourceRoot, "content/linux-privilege");
+  const names = (await readdir(directory))
+    .filter((name) => /^lpriv-\d{2}\.md$/.test(name))
+    .sort();
+  const expected = Array.from({ length: 15 }, (_, index) =>
+    `lpriv-${String(index + 1).padStart(2, "0")}.md`,
+  );
+  if (JSON.stringify(names) !== JSON.stringify(expected)) {
+    throw new Error("Linux privilege operator source must contain exactly LPRIV-01 through LPRIV-15");
+  }
+
+  const tasks = [];
+  for (const [index, name] of names.entries()) {
+    const markdown = (await readFile(path.join(directory, name), "utf8")).trim();
+    const lines = normalizeLines(markdown);
+    const heading = lines[0].match(/^# (LPRIV-\d{2})\. (.+)$/);
+    const expectedId = `LPRIV-${String(index + 1).padStart(2, "0")}`;
+    if (!heading || heading[1] !== expectedId) {
+      throw new Error(`${name} must start with "# ${expectedId}. <title>"`);
+    }
+    const working = lines.slice(1).join("\n").trim();
+    if (!working.startsWith("**Run this when:**")) {
+      throw new Error(`${expectedId} must start with a Run this when entry condition`);
+    }
+    if (!working.includes("**Look for:**") || !working.includes("**If found:**")) {
+      throw new Error(`${expectedId} must include Look for and If found guidance`);
+    }
+    if (fenceCount(working) > 4) {
+      throw new Error(`${expectedId} exceeds four command groups`);
+    }
+    if (proseWordCount(working) > 600) {
+      throw new Error(`${expectedId} exceeds 600 prose words`);
+    }
+    tasks.push({
+      id: expectedId,
+      title: heading[2],
+      moduleId: OPERATOR_MODULE_ID,
+      working,
+      explanation: "",
+    });
+  }
+
+  return {
+    id: OPERATOR_MODULE_ID,
+    context: "",
+    tasks,
+  };
+}
+
 // Landmarks for the task header's jump chips, derived from the page's
 // structure. Jumps target the working section, never the explanations: a
 // browser-only step such as WEB-09 has no command jump at all. Module context
@@ -676,6 +751,64 @@ function taskPage(task, module, { title, body }, route, position, routes) {
     routeStops: route.terminalStates,
     routesIn: route.inbound.map(brief),
   })}${body}`;
+}
+
+function operatorReferences(task, taskIds) {
+  const references = [];
+  for (const [id] of task.working.matchAll(/\bLPRIV-\d{2}\b/g)) {
+    if (!taskIds.has(id)) throw unknownDestination(id);
+    references.push({ kind: "task", id });
+  }
+  return references;
+}
+
+function operatorTaskPage(task, module, route, index, routes) {
+  const brief = ({ id, title: stationTitle }) => ({
+    id,
+    title: stationTitle,
+    module: routes[id].module.title,
+  });
+  const previous = module.tasks[index - 1];
+  const next = module.tasks[index + 1];
+  const pager = (candidate) =>
+    candidate
+      ? {
+          text: `${candidate.id}. ${candidate.title}`,
+          link: taskLink(candidate.id),
+        }
+      : false;
+  const body = escapeVuePlaceholders(task.working);
+  return `${frontmatter(`${task.id}. ${task.title}`, `Linux privilege escalation operator page ${task.id}`, {
+    taskId: task.id,
+    moduleId: module.id,
+    moduleTitle: OPERATOR_MODULE_TITLE,
+    pageClass: "task-page field-page operator-page",
+    operatorPage: true,
+    modulePosition: { index: index + 1, total: module.tasks.length },
+    firstCommand: fenceCount(task.working) ? "cmd-1" : null,
+    resultsKind: null,
+    routesOut: route.outbound.map(brief),
+    routeStops: [],
+    routesIn: route.inbound.map(brief),
+    prev: pager(previous),
+    next: pager(next),
+  })}# ${task.id}. ${task.title}\n\n${body}\n`;
+}
+
+function redirectPage(id, target) {
+  return `${frontmatter(`${id} moved`, `${id} now routes to ${target}`, {
+    layout: false,
+    search: false,
+    prev: false,
+    next: false,
+    redirectTarget: `./${target.toLowerCase()}.html`,
+  })}<main class="compatibility-redirect">
+
+# ${id} moved
+
+This retired URL now maps to [${target}](./${target.toLowerCase()}.md).
+
+</main>\n`;
 }
 
 function modulePage(module, taskIds, terminalStates) {
@@ -774,18 +907,21 @@ function whereToEnter(checklist, taskIds, terminalStates) {
   return `<!-- Generated by scripts/checklist.mjs from the source's Default box route. Do not edit. -->\n\n<div class="enter-sheet">\n\n${rows.join("\n\n")}\n\n</div>\n`;
 }
 
-function buildRoutes(checklist, moduleById, referencesByTask) {
-  const taskById = new Map(checklist.tasks.map((task) => [task.id, task]));
+function buildRoutes(tasks, moduleById, referencesByTask) {
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
   const station = (id) => ({ id, title: taskById.get(id).title, link: taskLink(id) });
-  const inbound = new Map(checklist.tasks.map(({ id }) => [id, []]));
+  const inbound = new Map(tasks.map(({ id }) => [id, []]));
   const routes = {};
 
-  for (const task of checklist.tasks) {
+  for (const task of tasks) {
     const module = moduleById.get(task.moduleId);
     const references = referencesByTask.get(task.id);
     const outbound = [
       ...new Set(
-        references.filter(({ kind, id }) => kind === "task" && id !== task.id).map(({ id }) => id),
+        references
+          .filter(({ kind }) => kind === "task")
+          .map(({ id }) => LNX_REDIRECTS.get(id) ?? id)
+          .filter((id) => id !== task.id && taskById.has(id)),
       ),
     ];
     for (const id of outbound) inbound.get(id).push(task.id);
@@ -802,19 +938,21 @@ function buildRoutes(checklist, moduleById, referencesByTask) {
       inbound: [],
     };
   }
-  for (const task of checklist.tasks) {
+  for (const task of tasks) {
     routes[task.id].inbound = inbound.get(task.id).map(station);
   }
   return routes;
 }
 
-function buildCatalog(checklist, snapshotSha256) {
+function buildCatalog(checklist, snapshotSha256, sourceChecklist = checklist) {
   return {
     edition: checklist.edition,
     sourceDigest: checklist.sourceDigest,
     snapshotSha256,
     moduleCount: checklist.modules.length,
     taskCount: checklist.tasks.length,
+    sourceModuleCount: sourceChecklist.modules.length,
+    sourceTaskCount: sourceChecklist.tasks.length,
     modules: checklist.modules.map((module) => ({
       id: module.id,
       title: displayName(module.id),
@@ -864,6 +1002,17 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
   }
 
   const references = validateReferences(manifest, sourceRoot);
+  const operatorModule = await loadOperatorModule(sourceRoot);
+  const publicModules = [
+    ...checklist.modules.filter(({ id }) => !RETIRED_MODULE_IDS.has(id)),
+    operatorModule,
+  ];
+  const publicTasks = publicModules.flatMap(({ tasks }) => tasks);
+  const publicChecklist = {
+    ...checklist,
+    modules: publicModules,
+    tasks: publicTasks,
+  };
   const referencePages = [];
   for (const reference of references) {
     const bytes = await readFile(reference.snapshot);
@@ -885,32 +1034,59 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
     rm(configGeneratedRoot, { recursive: true, force: true }),
   ]);
 
-  const taskIds = new Set(checklist.tasks.map(({ id }) => id));
+  const taskIds = new Set([
+    ...checklist.tasks.map(({ id }) => id),
+    ...publicTasks.map(({ id }) => id),
+  ]);
   const terminalStates = new Set(manifest.terminalStates);
-  const moduleById = new Map(checklist.modules.map((module) => [module.id, module]));
+  const moduleById = new Map(publicModules.map((module) => [module.id, module]));
   const referencesByTask = new Map();
   const bodies = new Map();
-  for (const task of checklist.tasks) {
-    const built = buildTaskBody(task, moduleById.get(task.moduleId), taskIds, terminalStates);
+  for (const task of publicTasks) {
+    if (task.moduleId === OPERATOR_MODULE_ID) {
+      referencesByTask.set(task.id, operatorReferences(task, taskIds));
+      continue;
+    }
+    const built = buildTaskBody(
+      task,
+      moduleById.get(task.moduleId),
+      taskIds,
+      terminalStates,
+    );
     referencesByTask.set(task.id, built.references);
     bodies.set(task.id, built);
   }
-  const routes = buildRoutes(checklist, moduleById, referencesByTask);
-  for (const [index, task] of checklist.tasks.entries()) {
+  const routes = buildRoutes(publicTasks, moduleById, referencesByTask);
+  for (const [index, task] of publicTasks.entries()) {
+    const module = moduleById.get(task.moduleId);
     await writeText(
       path.join(generatedRoot, "tasks", `${task.id.toLowerCase()}.md`),
-      taskPage(
-        task,
-        moduleById.get(task.moduleId),
-        bodies.get(task.id),
-        routes[task.id],
-        { index: index + 1, total: checklist.tasks.length },
-        routes,
-      ),
+      task.moduleId === OPERATOR_MODULE_ID
+        ? operatorTaskPage(
+            task,
+            module,
+            routes[task.id],
+            module.tasks.findIndex(({ id }) => id === task.id),
+            routes,
+          )
+        : taskPage(
+            task,
+            module,
+            bodies.get(task.id),
+            routes[task.id],
+            { index: index + 1, total: publicTasks.length },
+            routes,
+          ),
+    );
+  }
+  for (const [id, target] of LNX_REDIRECTS) {
+    await writeText(
+      path.join(generatedRoot, "tasks", `${id.toLowerCase()}.md`),
+      redirectPage(id, target),
     );
   }
   await writeText(path.join(generatedRoot, "start.md"), startPage(checklist, taskIds, terminalStates));
-  for (const module of checklist.modules) {
+  for (const module of publicModules) {
     await writeText(
       path.join(generatedRoot, "modules", `${module.id}.md`),
       modulePage(module, taskIds, terminalStates),
@@ -923,7 +1099,7 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
     );
   }
 
-  const sidebar = checklist.modules.map((module) => ({
+  const sidebar = publicModules.map((module) => ({
     text: displayName(module.id),
     collapsed: true,
     items: module.tasks.map(({ id, title }) => ({
@@ -935,8 +1111,11 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
     edition: checklist.edition,
     sourceDigest: checklist.sourceDigest,
     snapshotSha256,
-    taskCount: checklist.tasks.length,
-    modules: checklist.modules.map((module) => ({
+    taskCount: publicTasks.length,
+    moduleCount: publicModules.length,
+    sourceTaskCount: checklist.tasks.length,
+    sourceModuleCount: checklist.modules.length,
+    modules: publicModules.map((module) => ({
       id: module.id,
       title: displayName(module.id),
       taskCount: module.tasks.length,
@@ -967,14 +1146,16 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
     ),
     writeText(
       path.join(configGeneratedRoot, "catalog.json"),
-      `${JSON.stringify(buildCatalog(checklist, snapshotSha256), null, 2)}\n`,
+      `${JSON.stringify(buildCatalog(publicChecklist, snapshotSha256, checklist), null, 2)}\n`,
     ),
   ]);
 
   return {
     edition: checklist.edition,
-    moduleCount: checklist.modules.length,
-    taskCount: checklist.tasks.length,
+    moduleCount: publicModules.length,
+    taskCount: publicTasks.length,
+    sourceModuleCount: checklist.modules.length,
+    sourceTaskCount: checklist.tasks.length,
     snapshotSha256,
   };
 }
@@ -990,7 +1171,7 @@ async function main() {
     outputRoot: repositoryRoot,
   });
   process.stdout.write(
-    `Generated ${result.taskCount} tasks across ${result.moduleCount} modules from ${result.edition}.\n`,
+    `Generated ${result.taskCount} public tasks across ${result.moduleCount} public modules from ${result.edition}.\n`,
   );
 }
 

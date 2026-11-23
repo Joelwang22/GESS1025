@@ -12,6 +12,7 @@ const outbound = computed(() => frontmatter.value.routesOut ?? []);
 const stops = computed(() => frontmatter.value.routeStops ?? []);
 const inbound = computed(() => frontmatter.value.routesIn ?? []);
 const isTask = computed(() => Boolean(frontmatter.value.taskId));
+const isOperatorPage = computed(() => Boolean(frontmatter.value.operatorPage));
 const here = computed(() => frontmatter.value.moduleTitle);
 </script>
 
@@ -21,8 +22,14 @@ const here = computed(() => frontmatter.value.moduleTitle);
       <!-- The id puts this sheet in the "On this page" outline. -->
       <h2 id="task-routes" class="route-panel-title">Recorded routes for {{ frontmatter.taskId }}</h2>
       <p class="route-panel-note">
-        Every task and stop state this page links, in the order the text first
-        names them. The result table decides which one applies.
+        <template v-if="isOperatorPage">
+          Finding-driven links named on this page. Follow the one that matches
+          your evidence.
+        </template>
+        <template v-else>
+          Every task and stop state this page links, in the order the text first
+          names them. The result table decides which one applies.
+        </template>
       </p>
     </div>
 

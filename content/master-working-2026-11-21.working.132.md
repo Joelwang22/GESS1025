@@ -3725,12 +3725,14 @@ SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' snmpget -m '' -On -t 3 -r 0 'udp:<aut
 
 Stop when the result gives the next useful lead. Interface details are optional
 reference commands in the later SNMP-02 explanation. Use **SNMP-03** only for an
-unanswered vendor, device or route question, not because SNMP-02 finished.
+unanswered vendor, device or route question and **SNMP-04** only for an
+unanswered process or package question, not because SNMP-02 finished.
 
 | Result | Next action, after cleanup |
 | --- | --- |
 | In-scope hostname needs resolution | **DNS-01**, using that exact observed name and assigned resolver. A label need not be a resolvable DNS name. |
 | A detail answers an existing service question | Record source OID and time; **NET-05** for that observed endpoint. |
+| The remaining question is which process or package implements a service | Record the service and source OID; **SNMP-04** with that exact question. |
 | Interface name suggests internal networking | Record a qualified clue; **GAP-ACCESS** until scope and reachability are established. Interface status does not justify pivoting. |
 | No useful clue in these objects | **NET-05**. Record exactly what was read, not “SNMP enumerated completely.” |
 | Walk exit 124 or interrupted/partial output | Preserve returned rows and incomplete extent. Use **NET-05** for another lead or **PAUSE-COVERAGE** with the exact unfinished subtree. |
@@ -3788,6 +3790,60 @@ community strings, full process command lines or an unbounded routing table.
 | Route row reveals an internal address or interface | Record the clue and scope uncertainty; **GAP-ACCESS** until the address is independently authorized and reachable. Do not pivot from SNMP output alone. |
 | A walk is partial, denied or times out | Preserve returned rows and exit status; **PAUSE-COVERAGE** or **NET-04** for UDP uncertainty. Do not call the table empty. |
 | Vendor/device value conflicts with another context | Re-enter **SNMP-01** with the exact endpoint/security context; do not merge observations. |
+
+After retaining needed observations, remove only this temporary configuration:
+
+```bash
+ls -l -- '/tmp/owb-snmp-<same-run-id>/snmp.conf'
+rm -i -- '/tmp/owb-snmp-<same-run-id>/snmp.conf'
+rmdir -- '/tmp/owb-snmp-<same-run-id>'
+```
+
+If removal fails, preserve the exact path and use **PAUSE-RECOVERY**.
+
+## SNMP-04. Do running-process or installed-package rows answer an existing service question?
+
+Enter with the same endpoint and protected configuration after SNMP-02 returned
+an attributable response. Name the question this read will answer, for example
+which binary serves the observed SMTP port or which package version implements
+it. Use this task only when SNMP-03's bounded reads did not answer that question.
+
+List process names first, bounded by a timeout:
+
+```bash
+SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' timeout 20s snmpwalk -m '' -On -t 3 -r 0 \
+  'udp:<authorized-target-ipv4>:<observed-snmp-port>' .1.3.6.1.2.1.25.4.2.1.2
+printf 'Process-name walk exit status: %s\n' "$?"
+```
+
+The final OID component is the process index. For one relevant index, read its
+path and arguments:
+
+```bash
+SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' snmpget -m '' -On -t 3 -r 0 'udp:<authorized-target-ipv4>:<observed-snmp-port>' \
+  '.1.3.6.1.2.1.25.4.2.1.4.<observed-process-index>' \
+  '.1.3.6.1.2.1.25.4.2.1.5.<observed-process-index>'
+```
+
+For an unanswered package or version question, walk installed software instead:
+
+```bash
+SNMPCONFPATH='/tmp/owb-snmp-<same-run-id>' timeout 20s snmpwalk -m '' -On -t 3 -r 0 \
+  'udp:<authorized-target-ipv4>:<observed-snmp-port>' .1.3.6.1.2.1.25.6.3.1.2
+printf 'Installed-software walk exit status: %s\n' "$?"
+```
+
+Keep only rows that answer the named question. Do not collect every management
+object.
+
+| Result | Next action, after cleanup |
+| --- | --- |
+| Process row names a service binary or path | Record numeric OID, value, endpoint and extent; open that service's task (**MAIL-01** for the observed SMTP endpoint, otherwise **NET-05**). A reported row does not prove the process still runs. |
+| Path or arguments reveal a configuration file, socket, port or account | Record the exact value as a lead; verify it in the service or file, not from SNMP alone. |
+| Package name and version match the observed service and one candidate | Record package, version, OID and extent; review the candidate at **EXP-01**. A version match alone does not prove applicability. |
+| Relevant process returned with empty path and arguments | Record the name and the missing fields; **NET-05**, or **PAUSE-COVERAGE** if the row set was already partial. |
+| A walk is partial, denied or times out | Preserve returned rows and exit status; **PAUSE-COVERAGE** with the unfinished subtree or **SNMP-02** for another object. Do not call the table empty. |
+| Endpoint or security context changed | **SNMP-01**. Do not compare different contexts as equivalent access. |
 
 After retaining needed observations, remove only this temporary configuration:
 
@@ -10188,8 +10244,10 @@ walk; it does not make an incomplete table complete. Retain numeric OIDs with
 values and never suppress errors just to obtain a neat report. See
 [snmpwalk](https://www.net-snmp.org/docs/man/snmpwalk.html).
 
-Software and vendor-specific enumeration beyond the bounded SNMP-03 reads remain
-separate content gaps. Do not infer comprehensive coverage from these selected objects. No private
+Software and vendor-specific enumeration beyond the bounded SNMP-03 reads is
+handled only as far as SNMP-04's process and package question. Remaining software
+and vendor-specific reads are still content gaps. Do not infer comprehensive
+coverage from these selected objects. No private
 lab was reread; `DATA-002` in [the source checklist](checklist.md) supplies the
 question, and the [existing retrospective](lab-retrospective.md) has no corroborated
 SNMP case. These commands need live authorized client and outcome trials.
@@ -10201,9 +10259,25 @@ different questions. A bounded walk preserves extent and timeout state while
 avoiding an unreviewed dump of every management object. Internal addresses and
 device descriptions are leads that require independent scope, reachability and service
 verification; they are not permission to pivot or execute. The device-description
-OID does not enumerate running processes. Process or software questions need
-their own matching procedure; they are not established by these commands.
+OID does not enumerate running processes. Process or software questions go to
+SNMP-04; they are not established by these commands.
 See the distinct device and running-software groups in
+[Host Resources MIB](https://www.rfc-editor.org/rfc/rfc2790.html).
+
+## SNMP-04. Why are process and package rows only leads?
+
+`hrSWRun*` and `hrSWInstalled*` are separate groups of the same Host Resources
+MIB. The first walk selects names so one index can be chosen before reading its
+path and arguments; the package walk answers a different, version-shaped
+question. Both are bounded because an unbounded process or package table fills
+the terminal with rows that no longer answer the named question.
+
+Command-line arguments often expose the configuration a daemon loaded, which is
+useful for a service lead, but the agent's copy can be truncated, stale or
+differ from a container's real process. A package string proves the agent
+reports it installed, not that the binary runs or that an advisory applies.
+Verify the service behavior and the exact version in another context before
+review at EXP-01. These reads remain read-only; see
 [Host Resources MIB](https://www.rfc-editor.org/rfc/rfc2790.html).
 
 ## DB-01. Why separate transport, trust, account and database?

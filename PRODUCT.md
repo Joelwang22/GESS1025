@@ -18,38 +18,37 @@ consult the master checklist while working through a box.
 
 ## Product purpose
 
-Give an operator one command-first checklist beside a live terminal. Success
-means the common enumeration pass stays on one scannable page and a deeper
-procedure is one link away in the same navigation tree.
+Give an operator command-first pages beside a live terminal. Success means the
+Linux privilege pass has one clear 15-page path, while findings can jump to the
+exact page that resolves them.
 
 ## Positioning
 
-The practical Linux privilege page and the imported Operator Workbench tasks
-belong to one checklist. The concise page optimizes the common workflow for
-speed; the task pages retain the source detail without becoming a separate
-product category.
+Linux privilege escalation is one visible module with LPRIV-01 through
+LPRIV-15. The other published Operator Workbench tasks remain in the same
+checklist. Retired LNX URLs redirect into the new module and existing LPRIV
+URLs stay stable.
 
 ## Operating context
 
-Readers use the site alongside an authorized lab or exam workflow. The Linux
-privilege checklist groups commands an operator normally scans together. Task
-pages remain finding-driven rather than a required linear sequence. The
-retained reference source is `2026-11-21.working.132`, with 145 working task
-bodies and matching explanations.
+Readers use the site alongside an authorized lab or exam workflow. Each Linux
+privilege page starts with a useful command, a concrete signal, and exact next
+links. The retained reference source is `2026-11-21.working.132`; its original
+Linux task bodies stay out of published navigation and search.
 
 ## Capabilities and constraints
 
 - Static GitHub Pages output with local search and grouped navigation.
-- A concise Linux privilege escalation checklist with scoped-first
-  commands, short signals, and direct links into detailed procedures.
+- A 15-page Linux privilege escalation module with scoped-first commands,
+  short signals, direct finding links, and sequential previous/next controls.
 - Stable task URLs, route links, previous and next navigation, and code copying.
 - Exact imported-source wording, task IDs, commands, routes, version, and
-  provenance. Practical checklist copy is maintained separately.
+  provenance for published snapshot tasks. Operator copy is maintained
+  separately.
 - No progress state, notes, targets, credentials, accounts, analytics, backend,
   or command execution.
 - Presentation follows the field binder direction recorded in DESIGN.md:
-  compact command plates on the practical page and the full runbook treatment
-  on task pages.
+  compact operator pages and the full runbook treatment on retained tasks.
 
 ## Evidence on hand
 
@@ -62,8 +61,8 @@ be invented.
 
 ## Product principles
 
-- Put the practical workflow before the source archive.
-- Keep quick enumeration and deep procedures in one navigation tree.
+- Put the operator workflow before retained reference detail.
+- Keep enumeration and detailed procedures in one navigation tree.
 - Preserve the imported reference before styling it.
 - Make finding-driven navigation obvious once a lead exists.
 - Keep reading controls familiar and keyboard accessible.

@@ -13,10 +13,12 @@ checkout.
 | Field | Value |
 | --- | --- |
 | Edition | `2026-11-21.working.132` |
-| Working tasks | 145 |
-| Modules | 28 |
+| Imported snapshot tasks | 146 |
+| Imported snapshot modules | 28 |
+| Published pages | 136 |
+| Published modules | 27 |
 | Imported | 2026-11-23 |
-| Snapshot SHA-256 | `8d6eff26e2b383b832399636b356009e68ae68e7918217a1a837ee8799cccad5` |
+| Snapshot SHA-256 | `a7afdbc3b4ff12bfb2fa102a0b807ab89e1a10c1d8849d93c8f19b25763c185c` |
 | Printed source digest | `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731` |
 
 The snapshot's edition heading carries this note, reproduced exactly:
@@ -32,10 +34,12 @@ The snapshot's edition heading carries this note, reproduced exactly:
 
 ## What generation changes
 
-The generator splits the snapshot into module and task pages, and publishes the
-snapshot's opening section, "How to use this edition" with its default box
-route, as the [Box route](../generated/start.md) page. Visible wording and
-command content remain unchanged. It adds:
+The generator publishes the snapshot's non-Linux modules and its opening
+section, "How to use this edition" with the default box route. It replaces the
+snapshot's old Linux and narrow Linux-privilege modules with one authored
+[Linux privilege escalation](../generated/modules/linux_privilege.md) module.
+The replacement has exactly LPRIV-01 through LPRIV-15. The retired task bodies
+are not published as an archive. Generation also adds:
 
 - Links on recognized route marks: `Next: TASK-ID` destinations, bold task IDs
   such as `**NET-02**`, compound and abbreviated forms such as
@@ -51,11 +55,14 @@ command content remain unchanged. It adds:
   and the tasks that link to it.
 - The home page's "Where to enter" rows, quoted word for word from the
   Default box route with each named task's exact title.
+- Base-aware compatibility redirects from LNX-01 through LNX-10 to the closest
+  new LPRIV operator page. Existing LPRIV URLs keep their paths.
 
 The site's build step then marks presentation without changing text: command
 blanks such as `<IP_ADDRESS>`, route and stop marks, plain task IDs, decision
 tables, the "Enter when" and "Question" cues, and outcome lists. Copy writes
 each command block's text exactly as the snapshot gives it.
 
-Generation stops if the edition, source digest, snapshot hash, task count,
-explanation coverage, task IDs, or route destinations drift from the manifest.
+Generation stops if the edition, source digest, snapshot hash, imported task
+count, explanation coverage, task IDs, route destinations, or 15-page operator
+contract drifts from the expected structure.

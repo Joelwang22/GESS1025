@@ -1,13 +1,12 @@
 # OSCP checklist
 
-A command-first website for use beside a terminal. The practical Linux page
-keeps routine enumeration compact, while the complete Operator Workbench tasks
-remain searchable in the same checklist.
+A command-first website for use beside a terminal. Linux privilege escalation
+is one 15-page operator module, while the remaining Operator Workbench tasks
+stay searchable in the same checklist.
 
-The first field guide covers Linux privilege escalation. The retained reference
-contains edition `2026-11-21.working.132`: 145 tasks across 28 modules. It keeps
-the imported wording, commands, task IDs, routes, explanations, version, and
-provenance.
+The retained reference is edition `2026-11-21.working.132`. Its hash-pinned
+snapshot remains the provenance source. Generation publishes the non-Linux
+reference tasks plus the authored LPRIV-01 through LPRIV-15 operator pages.
 
 ## Local use
 
@@ -38,7 +37,7 @@ This repository is a checklist interface. It does not track box
 progress, store targets or credentials, execute commands, provide accounts, or
 reproduce Operator Workbench workflows.
 
-The checklist is finding-driven. It is not a required 145-step sequence and
+The checklist is finding-driven. It is not a required linear sequence and
 does not assert that a tool result proves access or completion.
 
 ## Source provenance
@@ -60,10 +59,10 @@ and provenance details are also published at `/checklist/about/source.html`.
 - `site/.vitepress/generated/`
 
 Both are ignored by Git and replaced on every generation. Do not edit them.
-Edit practical checklists and framing pages under `site/`, generator logic under
-`scripts/`, or imported content under `content/` as appropriate. Practical copy
-is maintained separately from the imported snapshot so an edit cannot silently
-change the retained source.
+Edit authored operator pages under `content/linux-privilege/`, framing pages
+under `site/`, generator logic under `scripts/`, or imported content under
+`content/` as appropriate. Operator copy is maintained separately from the
+imported snapshot so an edit cannot silently change the retained source.
 
 ## Design
 
@@ -83,7 +82,7 @@ edition it publishes.
 2. Update the snapshot path, edition, printed digest, SHA-256, expected task
    count, and import date in `content/source.json` and `scripts/checklist.mjs`.
 3. Reimport and hash any supporting local files that the snapshot links.
-4. Update the edition and counts on `site/checklist/index.md` and
+4. Reconcile the published architecture and provenance notes on
    `site/about/source.md`.
 5. Run `pnpm test` and `pnpm build`. Commit the new source and lockfile only
    after both commands pass.

@@ -39,21 +39,7 @@ const referenceSidebar = generatedSidebar.map((group, index) => ({
   }),
 }));
 
-const sidebar = referenceSidebar.map((group) => {
-  if (group.moduleTitle !== "Linux privilege") return group;
-  const items = [
-    {
-      text: '<span class="sb-title">Privilege escalation checklist</span>',
-      link: "/field/linux-privilege",
-    },
-    ...group.items,
-  ];
-  return {
-    ...group,
-    text: `<span class="sb-module">${escapeHtml(group.moduleTitle)}</span><span class="sb-count">${items.length}</span>`,
-    items,
-  };
-});
+const sidebar = referenceSidebar;
 
 const markdown = checklistMarkdown({
   terminalStates: new Set(source.terminalStates),
@@ -63,7 +49,7 @@ const markdown = checklistMarkdown({
 export default defineConfig({
   title: "OSCP Checklist",
   description:
-    "A command-first OSCP checklist with practical pages and complete task detail.",
+    "A command-first OSCP checklist with finding-driven operator pages and task detail.",
   lang: "en-US",
   base: "/checklist/",
   cleanUrls: false,
@@ -76,6 +62,12 @@ export default defineConfig({
     config: markdown.config,
   },
   head: [["meta", { name: "color-scheme", content: "light dark" }]],
+  transformHead({ pageData }) {
+    const target = pageData.frontmatter.redirectTarget;
+    return target
+      ? [["meta", { "http-equiv": "refresh", content: `0;url=${target}` }]]
+      : [];
+  },
   // VitePress keeps one meta tag per name, so the light and dark browser
   // chrome colours are written into the final HTML instead of `head`.
   transformHtml(code) {
@@ -100,8 +92,8 @@ export default defineConfig({
       label: "On this page",
     },
     docFooter: {
-      prev: "Previous in source order",
-      next: "Next in source order",
+      prev: "Previous",
+      next: "Next",
     },
     returnToTopLabel: "Back to top",
     sidebarMenuLabel: "Browse",

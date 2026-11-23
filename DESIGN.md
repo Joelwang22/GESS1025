@@ -1,6 +1,6 @@
 ---
 name: OSCP Master Checklist
-description: A command-first checklist with practical pages and complete Operator Workbench tasks.
+description: A command-first checklist with Linux operator pages and retained Operator Workbench tasks.
 colors:
   paper-light: "#faf9f5"
   desk-light: "#f1efe9"
@@ -152,10 +152,10 @@ components:
 **Creative North Star: "The Field Binder, in Slate & Signal"**
 
 The checklist has two deliberate reading speeds in one navigation tree. The
-practical Linux page is the sheet kept beside the console: compact command
-groups, a short signal to recognize, and a link for the next investigation.
-The imported task pages keep the original procedure sheets and their full
-decision record. A detailed task has:
+15 Linux privilege pages are the sheets kept beside the console: compact
+command groups, a short signal to recognize, and an exact next link. The
+retained task pages keep the original procedure sheets and their full decision
+record. A detailed retained task has:
 
 - a header row with its call number and place in the module;
 - the verbatim source title;
@@ -233,16 +233,16 @@ The VitePress shell is kept:
 Task pages reduce VitePress's top padding to 1.5rem, and the aside moves up to
 match. That keeps WSQL-01's first command line above the fold at 1440×900.
 
-The practical column has a 900px maximum and the task column an 820px maximum.
+The operator column has a 900px maximum and the retained-task column an 820px maximum.
 Both shrink to fit beside the sidebar and aside. Guidance uses a label column
-and a hanging body column. The practical Linux page is the first item in the
-existing Linux privilege module. The desktop sidebar can collapse without
-storing state, and the reading column recentres when it does.
+and a hanging body column. Linux privilege escalation is one sidebar group
+containing only LPRIV-01 through LPRIV-15. The desktop sidebar can collapse
+without storing state, and the reading column recentres when it does.
 
-A field page is one linear document: brief operating rule, immediately visible
-command groups, **Look for** signals, and **If found** reference links. The
-right-hand outline is its section index; it has no route rail or repeated module
-context.
+An operator page is one linear document: **Run this when**, an immediately
+visible command group, **Look for** signals, **If found** links, and normal
+continuation. LPRIV-01 through LPRIV-15 share one route rail and sequential
+previous/next controls.
 
 A detailed task page, top to bottom:
 
@@ -365,8 +365,8 @@ After a route change, the active sidebar item scrolls into view on desktop.
 ### Directory
 
 `/checklist/` has a filter by ID, title or module; Escape and Clear reset it.
-It has **By module (28)**, in printed-index columns, and **Flat list (145)**,
-showing ID, exact title and module. The server-rendered default lists all 145
+It has **By module (27)**, in printed-index columns, and **Flat list (136)**,
+showing ID, exact title and module. The server-rendered default lists all 136
 tasks. Nothing is stored.
 
 ## Do's and don'ts

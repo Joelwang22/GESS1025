@@ -31,6 +31,8 @@ colors:
   plate-head-dark: "#14181c"
   plate-ink: "#e8e6e1"
   plate-ink-2: "#a9afb7"
+  plate-blank: "rgba(255, 214, 64, 0.2)"
+  plate-blank-ink: "#ffe37a"
 typography:
   display:
     fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
@@ -46,7 +48,7 @@ typography:
     letterSpacing: "-0.022em"
   task-title:
     fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-    fontSize: "1.875rem"
+    fontSize: "1.75rem"
     fontWeight: 600
     lineHeight: 1.2
   title:
@@ -211,12 +213,13 @@ Restrained palette: neutrals, one interaction blue, one signal yellow.
   slabs, primary buttons.
 - **Paper** (`#fafaf8` / `#111417`): the reading sheet.
 - **Desk** (`#f0f0ec` / `#0c0f12`): sidebar, module context, explanation band,
-  table heads.
+  table heads, cue rows.
 - **Route blue** (`#1a4fd0` / `#94b6ff`): every task link, the Next column wash,
-  route sheet IDs, focus rings. Nothing decorative uses it.
-- **Blank yellow** (`#ffe45c` / `#f0cf45` with `#1b1600` text): only operator
-  blanks such as `<IP_ADDRESS>`, inside commands, inline code, and the plate
-  header's Fill in list.
+  route sheet and rail IDs, focus rings. Nothing decorative uses it.
+- **Blank yellow**: only operator blanks such as `<IP_ADDRESS>`. On paper it is
+  a solid highlighter (`#ffe45c` / `#f0cf45` with `#1b1600` text). On command
+  plates it is a softer wash (`rgba(255, 214, 64, 0.2)` with `#ffe37a` text), so
+  a block with ten blanks does not glare.
 - **Plate** (`#15181c` / `#090b0d`): command plates in both themes.
 
 ### Named rules
@@ -240,26 +243,31 @@ literal. No web fonts are loaded; the site stays offline-first.
 
 - **Display** 2.5rem / 600: home title only (2rem below 640px).
 - **Headline** 2rem / 600: framing page titles (1.65rem below 640px).
-- **Task title** 1.875rem / 600, under a mono call-number stamp.
+- **Task title** 1.75rem / 600, under a mono call-number stamp.
 - **Title** 1.375rem / 600: level-two sections, each opened by a 2px ink rule.
 - **Section** 1.15rem and **subsection** 1.05rem for nested source headings.
 - **Body** 16px / 1.65 at every width, prose capped at 74ch.
+- **Module context** 14px / 1.5, the one deliberately compact prose block.
 - **Table** 15px / 1.55; **meta** 14px; **label** 13px / 700; **caption** 12px / 700.
 - **Mono** 14px in plates (13.5px below 640px); **call number** 12.5px / 700.
 
 ## Layout
 
 VitePress's shell, re-materialised: a 304px binder-tab sidebar, an 820px reading
-column (prose 74ch, plates and tables full column width), and a 224px aside that
-carries the task rail above the page outline from 1280px.
+column (prose 74ch, plates and tables full column width), and a 224px aside from
+1280px holding the page outline, then the task rail. The layout maximum stays at
+1440px: VitePress derives the sidebar width from it, and a larger maximum makes
+the sidebar narrower than its groups, which clips titles.
 
-Task page order is the source's order: stamp and title, meta line, module
-context, working section, explanation band. Derived navigation sits outside
-`<main>`: the aside rail and the route sheet above the source-order pager.
+Task page order is the source's order: stamp and title, meta line with jumps,
+module context, working section, explanation band. Derived navigation sits
+outside `<main>`: the aside rail and the route sheet above the source-order
+pager. Module and box-route pages have no pager.
 
 Below 640px every table stacks into bordered rows with column labels, the
-header row stays visible as a legend, command plates extend 12px into the
-gutters, and the explanation band runs edge to edge.
+header row stays visible as a legend, cue rows stack their label above the
+text, command plates extend 12px into the gutters, and the explanation band runs
+edge to edge.
 
 ## Elevation and depth
 
@@ -274,15 +282,25 @@ under a 3px datum rule, not a card.
 
 ## Components
 
+### Call-number stamp and meta line
+
+The heading's call number sits in a 2px ink box; the source's period follows
+the box in muted ink, and the title starts on the next line. The meta line
+below names the module and the task's position, then offers jump chips that
+exist only when the page has their target: **First command** (`#cmd-1`),
+**Result table** (`#results`), **Explanations**, and **Routes**.
+
 ### Command plate
 
-Header: the fence's own language word, a **Fill in** list of every distinct
-blank in the block, and an always-visible **Copy** button. Body: Shiki
-github-dark colours, `pre-wrap` wrapping, and a two-column hanging indent so a
-wrapped line never reads as a new command. Copy writes each rendered line's
-text joined by newlines, with no trimming or prompt stripping, so the clipboard
-equals the source block byte for byte. The button label changes to "Copied"
-inside a polite live region.
+Row one, which never wraps its controls away: the fence's own language word,
+**Wrap lines** (a toggle with `aria-pressed`; off scrolls long lines sideways
+inside the plate) and an always-visible **Copy** button. Row two, only when the
+block has blanks: **Fill in** and every distinct blank. Body: Shiki github-dark
+colours, `pre-wrap` wrapping, and a two-column hanging indent so a wrapped line
+never reads as a new command. Copy writes each rendered line's text joined by
+newlines, with no trimming or prompt stripping, so the clipboard equals the
+source block byte for byte. The button label changes to "Copied" inside a
+polite live region. Every plate has an anchor, `cmd-1`, `cmd-2` and so on.
 
 ### Marks
 
@@ -294,28 +312,53 @@ inside a polite live region.
   the checklist".
 - **Call number**: plain task IDs in prose are set in mono.
 
+### Cue rows and outcome rows
+
+"Enter when:" and "Question:" paragraphs become ruled desk-tone rows with the
+label in its own column; the question is set semibold. Bullet lists whose every
+item opens with an outcome slug (`http_reported:`) become ruled rows with the
+slug in a mono chip. Words and order are unchanged.
+
 ### Decision table
 
-Tables whose last header starts with "Next" are decision tables: 2px ink rule
-under a desk-tone head, 1px row rules, a faint blue wash on the Next column,
-and a 46% condition column in two-column tables.
+A table is a decision table when its last header starts with "Next" or
+"Revisit", unless it names an expression to type ("Next table expression").
+2px ink rule under a desk-tone head, 1px row rules, a faint blue wash on the
+route column, and a 46% condition column in two-column tables. The first one on
+a page carries the `results` anchor.
 
 ### Module context
 
 The binder tab note: desk band, 1px border, label "<Module> module context ·
-Applies to every task in this module". Always expanded.
+Applies to every task in this module". Always expanded, never collapsed, set at
+14px. From 1100px wide it flows into two columns on task pages so long contexts
+take half the height.
+
+### Task rail
+
+In the aside, under the outline: the call number and module, then the task's
+routes. Up to six routes show their titles; a hub task shows call-number chips
+(titles on hover and focus) and a link to the route sheet, so the outline stays
+in view.
 
 ### Route sheet
 
-"Where <ID> can lead": every linked task with its exact title in a grid of
-rows, the stop states it names, and the tasks that link to it. Inbound lists of
-more than 12 fold into native `<details>`.
+"Where <ID> can lead" (`#task-routes`): every linked task with its exact title
+and, for cross-module routes, its module, the stop states it names, and the
+tasks that link to it. Inbound lists of more than 12 fold into native
+`<details>` with a Show / Hide cue.
 
-### Go to task ID
+### Find task
 
-The first control in the sidebar: a mono input with a datalist of all 145 IDs
-and titles. It accepts loose spellings ("web9", "lpriv-2") and reports unknown
-IDs inline.
+The first control in the sidebar. An exact or loosely typed ID ("web9",
+"lpriv-2") opens that task on Enter. Any other text lists live matches by ID,
+title word or module (the first 12, with the total), and Enter opens the first.
+
+### Directory filter
+
+On `/checklist/`, the full directory renders by default in source order, read
+down each column. Typing filters it by ID, title word or module; clearing
+restores every task.
 
 ## Do's and don'ts
 

@@ -531,12 +531,49 @@ function moduleContextSection(module, context) {
   ].join("\n");
 }
 
+// A table is a decision table when its last column names where to go next
+// ("Next", "Next choice", "Next action", "Revisit"). Columns that hold syntax
+// to type next ("Next table expression") are reference data, not routes.
+export function isDecisionHeaders(headers) {
+  const last = String(headers.at(-1) ?? "").trim();
+  return /^(?:next|revisit)\b/i.test(last) && !/\bexpression$/i.test(last);
+}
+
+function tableHeaderRows(markdown) {
+  const lines = normalizeLines(markdown);
+  const structural = classifyStructuralLines(lines);
+  const headers = [];
+  for (let index = 0; index + 1 < lines.length; index += 1) {
+    if (!structural[index] || !/^\s*\|/.test(lines[index])) continue;
+    if (!/^\s*\|(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(lines[index + 1])) continue;
+    headers.push(
+      lines[index]
+        .trim()
+        .replace(/^\||\|$/g, "")
+        .split("|")
+        .map((cell) => cell.trim()),
+    );
+  }
+  return headers;
+}
+
+function hasFence(markdown) {
+  return normalizeLines(markdown).some((line) => /^ {0,3}(`{3,}|~{3,})/.test(line));
+}
+
 // Presentation-only line under the task heading: the module, the task's place
-// in that module, and a jump to the explanation band. Derived from structure;
-// it adds no instruction and implies no progress.
+// in that module, and jumps to the page's own landmarks. Derived from the
+// page's structure; it adds no instruction and implies no progress.
 function taskMetaLine(task, module) {
   const position = module.tasks.findIndex(({ id }) => id === task.id) + 1;
-  return `[${displayName(module.id)}](../modules/${module.id}) module · task ${position} of ${module.tasks.length} · [Explanations and troubleshooting](#explanations-and-troubleshooting) {.task-meta}\n\n`;
+  const page = [module.context, task.working, task.explanation].join("\n");
+  const jumps = [
+    hasFence(page) ? "[First command](#cmd-1)" : null,
+    tableHeaderRows(page).some(isDecisionHeaders) ? "[Result table](#results)" : null,
+    "[Explanations](#explanations-and-troubleshooting)",
+    "[Routes](#task-routes)",
+  ].filter(Boolean);
+  return `[${displayName(module.id)}](../modules/${module.id}) module · task ${position} of ${module.tasks.length} · ${jumps.join(" ")} {.task-meta}\n\n`;
 }
 
 function buildTaskBody(task, module, taskIds, terminalStates) {
@@ -549,8 +586,12 @@ function buildTaskBody(task, module, taskIds, terminalStates) {
   return { title, body, references: sections.flatMap(({ references }) => references) };
 }
 
-function taskPage(task, module, { title, body }, route, position) {
-  const brief = ({ id, title: stationTitle }) => ({ id, title: stationTitle });
+function taskPage(task, module, { title, body }, route, position, routes) {
+  const brief = ({ id, title: stationTitle }) => ({
+    id,
+    title: stationTitle,
+    module: routes[id].module.title,
+  });
   return `${frontmatter(title, `OSCP master checklist task ${task.id}`, {
     taskId: task.id,
     moduleId: module.id,
@@ -565,8 +606,12 @@ function taskPage(task, module, { title, body }, route, position) {
 
 function modulePage(module, taskIds, terminalStates) {
   const name = displayName(module.id);
+  // Each row keeps the exact "ID. Title" text; spans only align the ID column.
   const taskList = module.tasks
-    .map(({ id, title }) => `- [${id}. ${title}](../tasks/${id.toLowerCase()})`)
+    .map(
+      ({ id, title }) =>
+        `- [<span class="module-task-id">${id}.</span> <span class="module-task-title">${escapeHtml(title)}</span>](../tasks/${id.toLowerCase()})`,
+    )
     .join("\n");
   const context = module.context
     ? moduleContextSection(
@@ -576,8 +621,10 @@ function modulePage(module, taskIds, terminalStates) {
     : "";
   return `${frontmatter(name, `${name} module in the OSCP master checklist`, {
     pageClass: "module-page",
+    prev: false,
+    next: false,
     moduleId: module.id,
-  })}# ${name}\n\n${context}## Tasks\n\n${taskList}\n`;
+  }).replace("outline: [2, 3]", "outline: false")}# ${name}\n\n${context}## Tasks\n\n${taskList}\n`;
 }
 
 // The source opens with "How to use this edition", including the default box
@@ -590,6 +637,8 @@ function startPage(checklist, taskIds, terminalStates) {
   });
   return `${frontmatter("How to use this edition", "The default box route and reading guidance from the OSCP master checklist", {
     pageClass: "start-page",
+    prev: false,
+    next: false,
   })}${markdown}\n`;
 }
 
@@ -718,10 +767,14 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
   for (const [index, task] of checklist.tasks.entries()) {
     await writeText(
       path.join(generatedRoot, "tasks", `${task.id.toLowerCase()}.md`),
-      taskPage(task, moduleById.get(task.moduleId), bodies.get(task.id), routes[task.id], {
-        index: index + 1,
-        total: checklist.tasks.length,
-      }),
+      taskPage(
+        task,
+        moduleById.get(task.moduleId),
+        bodies.get(task.id),
+        routes[task.id],
+        { index: index + 1, total: checklist.tasks.length },
+        routes,
+      ),
     );
   }
   await writeText(path.join(generatedRoot, "start.md"), startPage(checklist, taskIds, terminalStates));

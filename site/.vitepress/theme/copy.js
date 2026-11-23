@@ -35,9 +35,15 @@ const timers = new WeakMap();
 
 export function installCopy() {
   window.addEventListener("click", async (event) => {
-    const button = event.target instanceof Element ? event.target.closest(".cmd-copy") : null;
+    const button = event.target instanceof Element ? event.target.closest(".cmd-copy, .cmd-wrap") : null;
     if (!button) return;
     const plate = button.closest(".cmd-plate");
+    if (button.classList.contains("cmd-wrap")) {
+      // Wrapping is presentation only; the code text and copy are unchanged.
+      const scrolling = plate?.classList.toggle("is-scrolling") ?? false;
+      button.setAttribute("aria-pressed", String(!scrolling));
+      return;
+    }
     const code = plate?.querySelector("pre code");
     const status = plate?.querySelector(".cmd-status");
     if (!code) return;

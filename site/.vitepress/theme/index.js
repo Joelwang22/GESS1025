@@ -15,7 +15,7 @@ export default {
   Layout() {
     return h(DefaultTheme.Layout, null, {
       "sidebar-nav-before": () => h(GoToTask),
-      "aside-outline-before": () => h(TaskRail),
+      "aside-outline-after": () => h(TaskRail),
       "doc-footer-before": () => h(TaskRoutes),
     });
   },

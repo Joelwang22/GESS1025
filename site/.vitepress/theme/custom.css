@@ -33,6 +33,8 @@
   --rb-plate-rule-strong: #4a515b;
   --rb-plate-ink: #e8e6e1;
   --rb-plate-ink-2: #a9afb7;
+  --rb-plate-blank-bg: rgba(255, 214, 64, 0.2);
+  --rb-plate-blank-fg: #ffe37a;
   --rb-radius-s: 4px;
   --rb-radius: 8px;
 
@@ -60,7 +62,7 @@
   --vp-code-block-color: var(--rb-plate-ink);
   --vp-code-line-height: 1.65;
   --vp-code-font-size: 0.875em;
-  --vp-layout-max-width: 1520px;
+  --vp-layout-max-width: 1440px;
   --vp-sidebar-width: 304px;
   --vp-sidebar-bg-color: var(--rb-desk);
   --vp-font-family-base:
@@ -197,14 +199,13 @@ samp {
 /* Task heading: a stamped call number above the exact title */
 
 .vp-doc h1.task-title {
-  font-size: 1.875rem;
+  font-size: 1.75rem;
   margin-bottom: 0.5rem;
 }
 
 .vp-doc .h-id {
-  display: block;
-  width: fit-content;
-  margin-bottom: 0.6rem;
+  display: inline-block;
+  margin-bottom: 0.45rem;
   padding: 0.18rem 0.55rem 0.14rem;
   border: 2px solid var(--rb-ink);
   border-radius: var(--rb-radius-s);
@@ -215,8 +216,20 @@ samp {
   line-height: 1.3;
 }
 
+.vp-doc .h-dot {
+  margin-left: 0.15rem;
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.95rem;
+  color: var(--rb-ink-3);
+}
+
+.vp-doc .h-dot::after {
+  content: "\A";
+  white-space: pre;
+}
+
 .vp-doc .task-meta {
-  margin: 0 0 1.5rem;
+  margin: 0 0 1.1rem;
   font-size: 14px;
   line-height: 1.5;
   color: var(--rb-ink-2);
@@ -225,8 +238,8 @@ samp {
 /* Module context: the binder tab note that every task in a module repeats */
 
 .vp-doc .ledger-module-context {
-  margin: 1.25rem 0 2rem;
-  padding: 0.85rem 1.1rem 0.25rem;
+  margin: 0.9rem 0 1.5rem;
+  padding: 0.7rem 1rem 0.1rem;
   background: var(--rb-desk);
   border: 1px solid var(--rb-rule-strong);
   border-radius: var(--rb-radius);
@@ -234,8 +247,23 @@ samp {
 
 .vp-doc .ledger-module-context > p,
 .vp-doc .ledger-module-context li {
-  font-size: 15px;
-  line-height: 1.6;
+  margin: 0 0 0.6rem;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Wide columns hold long contexts in two short columns instead of one tall
+   block. Every word stays visible; only the measure changes. */
+@media (min-width: 1100px) {
+  .task-page .vp-doc .ledger-module-context {
+    columns: 2 17rem;
+    column-gap: 1.75rem;
+  }
+
+  .task-page .vp-doc .ledger-module-context-label {
+    column-span: all;
+  }
+
 }
 
 .vp-doc .ledger-module-context-label {
@@ -243,7 +271,7 @@ samp {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.1rem 0.75rem;
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.4rem;
 }
 
 .vp-doc .ledger-module-context-name {
@@ -279,7 +307,7 @@ samp {
 /* Command plates */
 
 .vp-doc div.cmd-plate {
-  margin: 1.25rem 0;
+  margin: 1rem 0 1.25rem;
   background: var(--rb-plate);
   border: 1px solid var(--rb-plate-rule);
   border-radius: var(--rb-radius);
@@ -287,12 +315,7 @@ samp {
 }
 
 .vp-doc .cmd-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.75rem;
-  min-height: 44px;
-  padding: 0.35rem 0.4rem 0.35rem 1rem;
+  display: block;
   background: var(--rb-plate-head);
   border-bottom: 1px solid var(--rb-plate-rule);
   border-radius: var(--rb-radius) var(--rb-radius) 0 0;
@@ -309,13 +332,26 @@ samp {
   color: var(--rb-plate-ink);
 }
 
+.vp-doc .cmd-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 44px;
+  padding: 0.35rem 0.4rem 0.35rem 1rem;
+}
+
 .vp-doc .cmd-fill {
-  flex: 1 1 auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem 0.4rem;
-  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0.4rem 0.75rem 0.45rem 1rem;
+  border-top: 1px solid var(--rb-plate-rule);
+  font-size: 12.5px;
+  line-height: 1.4;
 }
 
 .vp-doc .cmd-fill-label {
@@ -329,8 +365,8 @@ samp {
   line-height: 1.5;
   padding: 0.05rem 0.35rem;
   border-radius: 3px;
-  background: var(--rb-blank-bg);
-  color: var(--rb-blank-fg);
+  background: var(--rb-plate-blank-bg);
+  color: var(--rb-plate-blank-fg);
   font-size: 12px;
   font-weight: 600;
   text-decoration: underline dashed 1px;
@@ -340,8 +376,33 @@ samp {
 
 .vp-doc .cmd-actions {
   display: flex;
+  flex: none;
   align-items: center;
+  gap: 0.4rem;
   margin-left: auto;
+}
+
+.vp-doc .cmd-wrap {
+  min-height: 34px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--rb-plate-rule-strong);
+  border-radius: var(--rb-radius-s);
+  background: transparent;
+  color: var(--rb-plate-ink-2);
+  font-family: var(--vp-font-family-base);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vp-doc .cmd-wrap:hover {
+  border-color: var(--rb-plate-ink-2);
+  color: var(--rb-plate-ink);
+}
+
+.vp-doc .cmd-wrap[aria-pressed="false"] {
+  border-style: dashed;
+  color: var(--rb-plate-ink);
 }
 
 .vp-doc .cmd-copy {
@@ -409,11 +470,11 @@ samp {
 
 .vp-doc div.cmd-plate .blank,
 .vp-doc div.cmd-plate .blank span {
-  color: var(--rb-blank-fg);
+  color: var(--rb-plate-blank-fg);
 }
 
 .vp-doc div.cmd-plate code .blank {
-  background: var(--rb-blank-bg);
+  background: var(--rb-plate-blank-bg);
   border-radius: 2px;
   text-decoration: underline dashed 1px;
   text-underline-offset: 3px;
@@ -785,10 +846,10 @@ samp {
 
 .sb-count {
   font-family: var(--vp-font-family-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--rb-ink-3);
+  color: var(--rb-ink-2);
 }
 
 .VPSidebarItem.level-0 > .item > .text,
@@ -861,7 +922,6 @@ samp {
   color: var(--rb-ink);
   font-family: var(--vp-font-family-mono);
   font-size: 14px;
-  text-transform: uppercase;
 }
 
 .goto-input::placeholder {
@@ -1059,6 +1119,7 @@ samp {
 }
 
 .module-page .vp-doc h2#tasks + ul li {
+  max-width: none;
   margin: 0;
   border-bottom: 1px solid var(--rb-rule);
 }
@@ -1177,5 +1238,294 @@ samp {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+}
+
+/* ---- Round 2 additions ---- */
+
+/* Jump targets clear the sticky navigation bar. */
+.vp-doc .cmd-plate,
+.vp-doc table.decision,
+.route-panel {
+  scroll-margin-top: calc(var(--vp-nav-height) + 16px);
+}
+
+/* Task meta line: jump links read as a compact row of small controls. */
+.vp-doc .task-meta a[href^="#"] {
+  display: inline-block;
+  margin: 0.1rem 0 0.1rem 0.25rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--rb-rule-strong);
+  border-radius: var(--rb-radius-s);
+  color: var(--rb-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  text-decoration: none;
+}
+
+.vp-doc .task-meta a[href^="#"]:hover {
+  border-color: var(--rb-route);
+  color: var(--rb-route);
+}
+
+/* Scroll mode for one plate: long lines run sideways inside the plate. */
+.vp-doc div.cmd-plate.is-scrolling code {
+  width: max-content;
+  min-width: 100%;
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.vp-doc div.cmd-plate.is-scrolling code .line {
+  display: inline;
+  width: auto;
+  padding-left: 0;
+  text-indent: 0;
+}
+
+/* Enter when / Question cues */
+.vp-doc p.cue {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  max-width: none;
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border-top: 1px solid var(--rb-rule-strong);
+  background: var(--rb-desk);
+}
+
+.vp-doc p.cue + p.cue {
+  border-top-color: var(--rb-rule);
+}
+
+.vp-doc p.cue-question {
+  margin-bottom: 1.1rem;
+  border-bottom: 1px solid var(--rb-rule-strong);
+  font-weight: 600;
+}
+
+.vp-doc .cue-label {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.9;
+  color: var(--rb-ink-2);
+}
+
+/* Outcome lists: one ruled row per outcome slug. */
+.vp-doc ul.outcomes {
+  margin: 1rem 0 1.5rem;
+  padding: 0;
+  border-top: 2px solid var(--rb-ink);
+  list-style: none;
+}
+
+.vp-doc ul.outcomes > li {
+  max-width: none;
+  margin: 0;
+  padding: 0.55rem 0.2rem;
+  border-bottom: 1px solid var(--rb-rule);
+}
+
+.vp-doc .outcome-slug {
+  display: inline-block;
+  margin-right: 0.15rem;
+  padding: 0 0.35rem;
+  border-radius: 3px;
+  background: var(--rb-panel);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.84em;
+  font-weight: 700;
+}
+
+/* Rail on hub tasks: call-number chips instead of titled rows. */
+.task-rail-count {
+  margin-left: 0.3rem;
+  font-family: var(--vp-font-family-mono);
+  font-weight: 600;
+  color: var(--rb-ink-3);
+}
+
+.task-rail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.task-rail-chips .route-chip {
+  color: var(--rb-route);
+}
+
+.task-rail-more {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--rb-ink-2);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.VPDocAsideOutline + .task-rail,
+.task-rail {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rb-rule);
+}
+
+/* Route sheet: destination module tag */
+.route-row-body {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.route-row-module {
+  font-size: 12.5px;
+  color: var(--rb-ink-2);
+}
+
+.route-inbound-more > summary::after {
+  content: "Show";
+  margin-left: 0.5rem;
+  color: var(--rb-route);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.route-inbound-more[open] > summary::after {
+  content: "Hide";
+}
+
+/* Find task results in the sidebar */
+.goto-results {
+  display: grid;
+  gap: 1px;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.goto-results a {
+  display: grid;
+  grid-template-columns: 5.4rem minmax(0, 1fr);
+  column-gap: 0.45rem;
+  padding: 0.3rem 0.35rem;
+  border-radius: var(--rb-radius-s);
+  color: var(--rb-ink);
+  font-size: 13px;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.goto-results a:hover,
+.goto-results a:focus-visible {
+  background: var(--rb-route-soft);
+}
+
+.goto-result-id {
+  font-family: var(--vp-font-family-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--rb-route);
+}
+
+.goto-result-module {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--rb-ink-2);
+}
+
+/* Directory filter on /checklist/ */
+.directory-tools {
+  margin: 1rem 0 0.5rem;
+}
+
+.directory-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.directory-row {
+  display: flex;
+  gap: 0.4rem;
+  max-width: 28rem;
+}
+
+.directory-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 0.65rem;
+  border: 1px solid var(--rb-rule-strong);
+  border-radius: var(--rb-radius-s);
+  background: var(--rb-paper);
+  color: var(--rb-ink);
+  font-size: 15px;
+}
+
+.directory-input::placeholder {
+  color: var(--rb-ink-3);
+}
+
+.directory-clear {
+  min-height: 40px;
+  padding: 0 0.8rem;
+  border: 1px solid var(--rb-ink);
+  border-radius: var(--rb-radius-s);
+  color: var(--rb-ink);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vp-doc .directory-status {
+  margin: 0.4rem 0 0;
+  font-size: 13px;
+  color: var(--rb-ink-2);
+}
+
+/* Module pages: an aligned call-number column, exact "ID. Title" text. */
+.module-page .vp-doc h2#tasks + ul a {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  color: var(--rb-ink);
+  font-weight: 400;
+}
+
+.module-page .vp-doc .module-task-id {
+  font-family: var(--vp-font-family-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rb-route);
+}
+
+.module-page .vp-doc h2#tasks + ul a:hover .module-task-title {
+  color: var(--rb-route);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+@media (max-width: 640px) {
+  .vp-doc p.cue {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+
+  .vp-doc .cue-label {
+    line-height: 1.4;
+  }
+
+  .vp-doc .cmd-bar {
+    padding-left: 0.75rem;
+  }
+
+  .vp-doc .cmd-fill {
+    padding-left: 0.75rem;
   }
 }

@@ -10,8 +10,8 @@ pageClass: index-page
 
 The 145 tasks are grouped into 28 modules. Use search when you know a task ID or
 keyword. Use this index when you know the service or host context. To jump
-straight to a known ID, type it into **Go to task ID** at the top of the
-sidebar.
+straight to a task from any page, type its ID or a title word into **Find
+task** at the top of the sidebar.
 
 [Default box route](../generated/start.md){.action} [Module summary](#module-summary){.action}
 

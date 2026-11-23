@@ -5,10 +5,15 @@ import path from "node:path";
 import test, { before } from "node:test";
 import { promisify } from "node:util";
 
-import { escapeVuePlaceholders, generateSite, parseChecklist } from "../scripts/checklist.mjs";
+import {
+  escapeVuePlaceholders,
+  generateSite,
+  isDecisionHeaders,
+  parseChecklist,
+} from "../scripts/checklist.mjs";
 import { BLANK, blanksIn } from "../site/.vitepress/markdown.mjs";
 import { codeText } from "../site/.vitepress/theme/copy.js";
-import { normalizeTaskId } from "../site/.vitepress/theme/task-id.js";
+import { matchTasks, normalizeTaskId } from "../site/.vitepress/theme/task-id.js";
 
 const execFileAsync = promisify(execFile);
 const repositoryRoot = path.resolve(import.meta.dirname, "..");
@@ -709,7 +714,11 @@ test("routes, stop states, and decision tables carry distinct marks", async () =
   assert.match(net01, /<td data-label="Result">/);
   assert.match(net01, /<td data-label="Next">/);
   assert.match(web01, /<a href="\.\/web-08\.html" title="WEB-08: [^"]+" class="route route-short">08<\/a>/);
-  assert.match(net01, /<h1 [^>]*class="task-title"><span class="h-id">NET-01\.<\/span> Check connectivity/);
+  // The stamp holds the call number; the source period stays in the heading.
+  assert.match(
+    net01,
+    /<h1 [^>]*class="task-title"><span class="h-id">NET-01<\/span><span class="h-dot">\.<\/span> Check connectivity/,
+  );
   assert.match(net01, /<span class="sb-id">NET-01<\/span> <span class="sb-title">Check connectivity<\/span>/);
 
   const terminalStates = new Set(manifest.terminalStates);
@@ -734,7 +743,7 @@ test("routes, stop states, and decision tables carry distinct marks", async () =
 test("task pages carry their derived routes and a route sheet outside <main>", async () => {
   await buildSite();
   const routes = JSON.parse(await text("site/.vitepress/generated/routes.json"));
-  const brief = ({ id, title }) => ({ id, title });
+  const brief = ({ id, title }) => ({ id, title, module: routes[id].module.title });
   for (const [index, task] of checklist.tasks.entries()) {
     const head = frontmatterOf(await text(`site/generated/tasks/${task.id.toLowerCase()}.md`));
     const field = (name) => JSON.parse(head.match(new RegExp(`^${name}: (.*)$`, "m"))[1]);
@@ -802,4 +811,135 @@ test("the theme never hides content with CSS", async () => {
   ]) {
     assert.doesNotMatch(css, pattern);
   }
+});
+
+test("decision tables are recognised by their route column, not by the word Next alone", () => {
+  for (const headers of [
+    ["Result", "Next"],
+    ["Result", "Next choice"],
+    ["Observed result", "Next action, after cleanup"],
+    ["Prior blocked question on this assigned endpoint", "Revisit"],
+  ]) {
+    assert.ok(isDecisionHeaders(headers), headers.join(" | "));
+  }
+  for (const headers of [
+    ["Engine", "Next table expression"],
+    ["Engine", "Next column expression"],
+    ["Required fact", "Compare with the candidate"],
+    ["Mark", "Meaning"],
+  ]) {
+    assert.ok(!isDecisionHeaders(headers), headers.join(" | "));
+  }
+});
+
+test("every task page offers jumps to its own landmarks, and each target exists", async () => {
+  await buildSite();
+  for (const task of checklist.tasks) {
+    const html = await text(`site/.vitepress/dist/generated/tasks/${task.id.toLowerCase()}.html`);
+    const meta = html.match(/<p class="task-meta">([\s\S]*?)<\/p>/)?.[1];
+    assert.ok(meta, `${task.id} has a meta line`);
+    for (const [, anchor] of meta.matchAll(/href="#([^"]+)"/g)) {
+      assert.ok(html.includes(`id="${anchor}"`), `${task.id} jump #${anchor}`);
+    }
+    assert.match(meta, /href="#explanations-and-troubleshooting"/);
+    assert.match(meta, /href="#task-routes"/);
+    const hasCommand = /class="cmd-plate/.test(html);
+    assert.equal(/href="#cmd-1"/.test(meta), hasCommand, `${task.id} first-command jump`);
+    assert.equal(/href="#results"/.test(meta), /<table class="decision/.test(html), `${task.id} result jump`);
+  }
+  const [wsql05, ad03] = await Promise.all([
+    text("site/.vitepress/dist/generated/tasks/wsql-05.html"),
+    text("site/.vitepress/dist/generated/tasks/ad-03.html"),
+  ]);
+  assert.doesNotMatch(wsql05, /<table class="decision[^"]*"[^>]*>\s*<thead>\s*<tr>\s*<th>Engine<\/th>/);
+  assert.match(ad03, /<table class="decision[^>]*><thead><tr><th>Prior blocked question on this assigned endpoint<\/th><th>Revisit<\/th>/);
+});
+
+test("Enter when and Question cues and outcome lists keep their exact words", async () => {
+  await buildSite();
+  let cues = 0;
+  let outcomes = 0;
+  for (const task of checklist.tasks) {
+    const html = await text(`site/.vitepress/dist/generated/tasks/${task.id.toLowerCase()}.html`);
+    const source = `${task.working}\n${task.explanation}`;
+    const expectedCues = proseOutsideCode(source).match(/^(?:Enter when|Question):/gm) ?? [];
+    const builtCues = html.match(/<p class="cue cue-(?:enter|question)"><span class="cue-label">(?:Enter when|Question):<\/span>/g) ?? [];
+    assert.equal(builtCues.length, expectedCues.length, `${task.id} cues`);
+    cues += builtCues.length;
+    for (const list of html.matchAll(/<ul class="outcomes">([\s\S]*?)<\/ul>/g)) {
+      for (const [, slug] of list[1].matchAll(/<li><span class="outcome-slug">([a-z0-9_]+)<\/span>:/g)) {
+        assert.ok(source.includes(`- ${slug}: `), `${task.id} ${slug}`);
+        outcomes += 1;
+      }
+    }
+  }
+  assert.ok(cues >= 36, `expected the 36 source cues, found ${cues}`);
+  const sourceOutcomes = checklist.tasks.reduce(
+    (sum, task) =>
+      sum +
+      (proseOutsideCode(`${task.working}\n${task.explanation}`).match(/^- [a-z][a-z0-9]*(?:_[a-z0-9]+)+: /gm) ?? [])
+        .length,
+    0,
+  );
+  // Lists that mix slugged and plain bullets stay ordinary lists.
+  assert.ok(outcomes >= 100 && outcomes <= sourceOutcomes, `outcome rows ${outcomes} of ${sourceOutcomes}`);
+  const net05 = await text("site/.vitepress/dist/generated/tasks/net-05.html");
+  assert.match(net05, /<li><span class="outcome-slug">http_reported<\/span>: Nmap reported an HTTP\/HTTPS label/);
+});
+
+test("command plates keep Copy and Wrap on one row with blanks listed below", async () => {
+  await buildSite();
+  const html = await text("site/.vitepress/dist/generated/tasks/ad-03.html");
+  const plates = builtPlates(html);
+  assert.ok(plates.length > 0);
+  for (const plate of plates) {
+    const bar = plate.head.match(/<div class="cmd-bar">([\s\S]*?)<\/div>/)[1];
+    assert.match(bar, /class="cmd-lang"/);
+    assert.match(bar, /<button type="button" class="cmd-wrap" aria-pressed="true"/);
+    assert.match(bar, /class="cmd-copy"/);
+    assert.doesNotMatch(bar, /class="blank"/);
+  }
+  assert.match(html, /id="cmd-1"/);
+});
+
+test("the find box matches task IDs, title words, and modules", () => {
+  const tasks = [
+    { id: "SMB-01", title: "List shares for the current identity", module: "File services" },
+    { id: "LPRIV-02", title: "Does this reviewed SUID binary change identity?", module: "Linux privilege" },
+    { id: "AD-06", title: "Request one roastable Kerberos ticket", module: "Windows and Active Directory" },
+  ];
+  assert.deepEqual(matchTasks(tasks, "smb").map(({ id }) => id), ["SMB-01"]);
+  assert.deepEqual(matchTasks(tasks, "suid").map(({ id }) => id), ["LPRIV-02"]);
+  assert.deepEqual(matchTasks(tasks, "kerberos ticket").map(({ id }) => id), ["AD-06"]);
+  assert.deepEqual(matchTasks(tasks, "linux").map(({ id }) => id), ["LPRIV-02"]);
+  assert.deepEqual(matchTasks(tasks, "   "), []);
+});
+
+test("module pages list exact task titles in an aligned column without an outline", async () => {
+  await buildSite();
+  for (const module of checklist.modules) {
+    const page = await text(`site/generated/modules/${module.id}.md`);
+    assert.match(frontmatterOf(page), /^outline: false$/m);
+    const html = await text(`site/.vitepress/dist/generated/modules/${module.id}.html`);
+    // A module page is not a step in source order, so it has no task pager.
+    assert.doesNotMatch(html, /in source order/, module.id);
+    for (const task of module.tasks) {
+      const row = html.match(
+        new RegExp(`<span class="module-task-id">${task.id}\\.</span> <span class="module-task-title">([^<]*)</span>`),
+      );
+      assert.ok(row, `${module.id} lists ${task.id}`);
+      assert.equal(decodeEntities(row[1]), task.title);
+    }
+  }
+});
+
+test("both light and dark browser chrome colours ship, and the layout keeps the sidebar whole", async () => {
+  await buildSite();
+  const home = await text("site/.vitepress/dist/index.html");
+  assert.match(home, /<meta name="theme-color" content="#fafaf8" media="\(prefers-color-scheme: light\)">/);
+  assert.match(home, /<meta name="theme-color" content="#111417" media="\(prefers-color-scheme: dark\)">/);
+  // VitePress derives the sidebar width from the layout maximum; above 1440px
+  // the computed sidebar is narrower than its groups and titles clip.
+  const css = await text("site/.vitepress/theme/custom.css");
+  assert.match(css, /--vp-layout-max-width: 1440px;/);
 });

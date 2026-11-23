@@ -6,3 +6,17 @@ export function normalizeTaskId(value) {
   if (!match) return null;
   return `${match[1]}-${match[2].padStart(2, "0")}`;
 }
+
+// Matches tasks whose ID, title or module contains every typed word, in
+// source order. "smb" finds the SMB tasks; "suid bash" needs both words.
+export function matchTasks(tasks, query) {
+  const words = String(query ?? "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length) return [];
+  return tasks.filter(({ id, title, module }) => {
+    const haystack = `${id} ${title} ${module ?? ""}`.toLowerCase();
+    return words.every((word) => haystack.includes(word));
+  });
+}

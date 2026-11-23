@@ -12,10 +12,11 @@ const outbound = computed(() => frontmatter.value.routesOut ?? []);
 const stops = computed(() => frontmatter.value.routeStops ?? []);
 const inbound = computed(() => frontmatter.value.routesIn ?? []);
 const isTask = computed(() => Boolean(frontmatter.value.taskId));
+const here = computed(() => frontmatter.value.moduleTitle);
 </script>
 
 <template>
-  <section v-if="isTask" class="route-panel" aria-label="Routes recorded in this task">
+  <section v-if="isTask" id="task-routes" class="route-panel" aria-label="Routes recorded in this task">
     <div class="route-panel-head">
       <h2 class="route-panel-title">Where {{ frontmatter.taskId }} can lead</h2>
       <p class="route-panel-note">
@@ -28,7 +29,10 @@ const isTask = computed(() => Boolean(frontmatter.value.taskId));
       <li v-for="station in outbound" :key="station.id">
         <a class="route-row" :href="taskHref(station.id)">
           <span class="route-row-id">{{ station.id }}</span>
-          <span class="route-row-title">{{ station.title }}</span>
+          <span class="route-row-body">
+            <span class="route-row-title">{{ station.title }}</span>
+            <span v-if="station.module && station.module !== here" class="route-row-module">{{ station.module }} module</span>
+          </span>
         </a>
       </li>
     </ol>

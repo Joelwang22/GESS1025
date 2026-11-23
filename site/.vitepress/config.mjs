@@ -59,11 +59,15 @@ export default defineConfig({
     codeTransformers: markdown.codeTransformers,
     config: markdown.config,
   },
-  head: [
-    ["meta", { name: "theme-color", content: "#f6f6f3", media: "(prefers-color-scheme: light)" }],
-    ["meta", { name: "theme-color", content: "#111417", media: "(prefers-color-scheme: dark)" }],
-    ["meta", { name: "color-scheme", content: "light dark" }],
-  ],
+  head: [["meta", { name: "color-scheme", content: "light dark" }]],
+  // VitePress keeps one meta tag per name, so the light and dark browser
+  // chrome colours are written into the final HTML instead of `head`.
+  transformHtml(code) {
+    return code.replace(
+      "</head>",
+      '<meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111417" media="(prefers-color-scheme: dark)"></head>',
+    );
+  },
   themeConfig: {
     logo: false,
     siteTitle: "OSCP Master Checklist",

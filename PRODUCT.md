@@ -42,8 +42,8 @@ finding-driven rather than a required linear sequence. The source material is
 - Exact source wording, task IDs, commands, routes, version, and provenance.
 - No progress state, notes, targets, credentials, accounts, analytics, backend,
   or command execution.
-- The first release uses a restrained documentation baseline. A separate later
-  task will decide any stronger visual direction.
+- Presentation follows the runbook binder direction recorded in DESIGN.md:
+  command plates, marked blanks, routes and stop states, all source text intact.
 
 ## Evidence on hand
 

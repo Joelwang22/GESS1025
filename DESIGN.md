@@ -1,230 +1,335 @@
 ---
 name: OSCP Master Checklist
-description: A quiet, searchable field manual for the Operator Workbench master checklist.
+description: An operations runbook binder for the Operator Workbench master checklist, read beside a live terminal.
 colors:
-  field-blue-light: "#1d4ed8"
-  field-blue-hover-light: "#2563eb"
-  field-blue-solid: "#3b82f6"
-  field-blue-soft-light: "rgba(37, 99, 235, 0.12)"
-  field-blue-dark: "#93c5fd"
-  field-blue-hover-dark: "#60a5fa"
-  field-blue-soft-dark: "rgba(96, 165, 250, 0.14)"
-  paper-light: "#ffffff"
-  panel-light: "#f6f6f7"
-  ink-light: "#3c3c43"
-  muted-ink-light: "#67676c"
-  rule-light: "#e2e2e3"
-  paper-dark: "#1b1b1f"
-  panel-dark: "#202127"
-  ink-dark: "#dfdfd6"
-  muted-ink-dark: "#98989f"
-  rule-dark: "#2e2e32"
-  important-soft-light: "rgba(159, 122, 234, 0.14)"
-  important-soft-dark: "rgba(159, 122, 234, 0.16)"
+  ink-light: "#16181b"
+  ink-2-light: "#444a51"
+  ink-3-light: "#656b73"
+  paper-light: "#fafaf8"
+  desk-light: "#f0f0ec"
+  panel-light: "#e9e9e4"
+  rule-light: "#dadad3"
+  rule-strong-light: "#bdbdb5"
+  route-light: "#1a4fd0"
+  route-hover-light: "#0f3aa6"
+  ink-dark: "#e7e5df"
+  ink-2-dark: "#babec4"
+  ink-3-dark: "#959ca4"
+  paper-dark: "#111417"
+  desk-dark: "#0c0f12"
+  panel-dark: "#1d2227"
+  rule-dark: "#272c33"
+  rule-strong-dark: "#3a414a"
+  route-dark: "#94b6ff"
+  route-hover-dark: "#b8cfff"
+  blank-light: "#ffe45c"
+  blank-dark: "#f0cf45"
+  blank-ink: "#1b1600"
+  plate-light: "#15181c"
+  plate-dark: "#090b0d"
+  plate-head-light: "#1d2127"
+  plate-head-dark: "#14181c"
+  plate-ink: "#e8e6e1"
+  plate-ink-2: "#a9afb7"
 typography:
+  display:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontSize: "2.5rem"
+    fontWeight: 600
+    lineHeight: 1.2
+    letterSpacing: "-0.03em"
   headline:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
     fontSize: "2rem"
     fontWeight: 600
-    lineHeight: 1.25
-    letterSpacing: "-0.025em"
-  title:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    fontSize: "1.5rem"
+    lineHeight: 1.2
+    letterSpacing: "-0.022em"
+  task-title:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontSize: "1.875rem"
     fontWeight: 600
-    lineHeight: 1.3333333
-    letterSpacing: "-0.02em"
+    lineHeight: 1.2
+  title:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontSize: "1.375rem"
+    fontWeight: 600
+    lineHeight: 1.3
+    letterSpacing: "-0.015em"
+  section:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontSize: "1.15rem"
+    fontWeight: 600
+    lineHeight: 1.4
+  subsection:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontSize: "1.05rem"
+    fontWeight: 600
+    lineHeight: 1.4
+  route-sheet-title:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontSize: "1.125rem"
+    fontWeight: 700
+    lineHeight: 1.35
   body:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
     fontSize: "16px"
     fontWeight: 400
-    lineHeight: 1.68
+    lineHeight: 1.65
+  table:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontSize: "15px"
+    fontWeight: 400
+    lineHeight: 1.55
   label:
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
-    fontSize: "0.875rem"
-    fontWeight: 600
-    lineHeight: 1.45
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontSize: "13px"
+    fontWeight: 700
+    lineHeight: 1.4
+  meta:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontSize: "14px"
+    fontWeight: 400
+    lineHeight: 1.5
+  caption:
+    fontFamily: 'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontSize: "12px"
+    fontWeight: 700
+    lineHeight: 1.4
   mono:
-    fontFamily: '"Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace'
+    fontFamily: '"Cascadia Mono", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'
+    fontSize: "14px"
+    fontWeight: 400
+    lineHeight: 1.65
+  call-number:
+    fontFamily: '"Cascadia Mono", ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace'
+    fontSize: "12.5px"
+    fontWeight: 700
+    lineHeight: 1.4
 rounded:
-  inline: "4px"
+  mark: "3px"
+  control: "4px"
+  row: "6px"
   block: "8px"
+  sheet: "0px"
 components:
-  link-default:
-    textColor: "{colors.field-blue-light}"
-    typography: "{typography.body}"
-  link-hover:
-    textColor: "{colors.field-blue-hover-light}"
-  code-block:
-    backgroundColor: "{colors.panel-light}"
-    textColor: "{colors.muted-ink-light}"
+  command-plate:
+    backgroundColor: "{colors.plate-light}"
+    textColor: "{colors.plate-ink}"
     typography: "{typography.mono}"
     rounded: "{rounded.block}"
-    padding: "20px 24px"
-  callout-important:
-    backgroundColor: "{colors.important-soft-light}"
-    textColor: "{colors.ink-light}"
-    rounded: "{rounded.block}"
-    padding: "16px"
-  table-header:
-    backgroundColor: "{colors.panel-light}"
-    textColor: "{colors.muted-ink-light}"
+    padding: "14px 18px"
+  command-plate-head:
+    backgroundColor: "{colors.plate-head-light}"
+    textColor: "{colors.plate-ink-2}"
     typography: "{typography.label}"
-    padding: "8px 16px"
-  search-field:
-    backgroundColor: "{colors.panel-light}"
+    padding: "6px 6px 6px 16px"
+  blank:
+    backgroundColor: "{colors.blank-light}"
+    textColor: "{colors.blank-ink}"
+    rounded: "{rounded.mark}"
+  route-mark:
+    textColor: "{colors.route-light}"
+    typography: "{typography.call-number}"
+  stop-mark:
+    backgroundColor: "{colors.ink-light}"
+    textColor: "{colors.paper-light}"
+    typography: "{typography.call-number}"
+    rounded: "{rounded.mark}"
+  call-number-stamp:
     textColor: "{colors.ink-light}"
-    rounded: "{rounded.inline}"
-    padding: "8px 12px"
-  task-pager:
-    backgroundColor: "{colors.paper-light}"
-    textColor: "{colors.field-blue-light}"
+    typography: "{typography.call-number}"
+    rounded: "{rounded.control}"
+  module-context:
+    backgroundColor: "{colors.desk-light}"
+    textColor: "{colors.ink-light}"
     rounded: "{rounded.block}"
-    padding: "12px 16px"
+    padding: "14px 18px"
+  notes-band:
+    backgroundColor: "{colors.desk-light}"
+    textColor: "{colors.ink-light}"
+    rounded: "{rounded.sheet}"
+    padding: "4px 24px 12px"
+  decision-table-head:
+    backgroundColor: "{colors.desk-light}"
+    textColor: "{colors.ink-light}"
+    typography: "{typography.label}"
+    padding: "10px 14px"
+  route-sheet:
+    backgroundColor: "{colors.paper-light}"
+    textColor: "{colors.ink-light}"
+    rounded: "{rounded.block}"
+    padding: "18px 20px"
+  route-row:
+    textColor: "{colors.ink-light}"
+    rounded: "{rounded.row}"
+    padding: "9px 11px"
+  action-primary:
+    backgroundColor: "{colors.ink-light}"
+    textColor: "{colors.paper-light}"
+    rounded: "{rounded.row}"
+    padding: "0 16px"
+  goto-input:
+    backgroundColor: "{colors.paper-light}"
+    textColor: "{colors.ink-light}"
+    typography: "{typography.mono}"
+    rounded: "{rounded.control}"
 ---
 
 # Design System: OSCP Master Checklist
 
 ## Overview
 
-**Creative North Star: "The Indexed Field Manual"**
+**Creative North Star: "The Runbook Binder"**
 
-The site is a quiet reference built for use beside an active lab or exam workflow. Its visual system stays close to VitePress's familiar documentation shell so readers can search, scan a grouped sidebar, read a task, and follow its recorded route without learning a new interface. The system is compact around navigation and generous around long-form content.
+Each task is a procedure sheet in an operations binder kept beside the console.
+It has a stamped call number, a tab note that applies to every sheet behind
+its module tab, dark command plates with the blanks highlighted, a ruled result
+matrix, and a route sheet at the foot that lists every place the sheet can send
+you. The sidebar is the binder's tab edge: module tabs with counts, then call
+numbers in a fixed column.
 
-This first release is intentionally restrained. System sans text, monospace commands, one blue interaction color, and thin rules carry the interface. Content structure does the rest. The design avoids dashboard widgets, progress signals, and visual claims that a task has been completed.
+The reader is mid-box with a terminal open on the other half of the screen. The
+design optimises the loop the source itself prescribes: read the context, fill
+the blanks, run one command, match the result, follow the route. Nothing on the
+page tracks progress or suggests that a result means success.
 
-**Key Characteristics:**
+**Key characteristics**
 
-- Documentation-first hierarchy with no decorative hero treatment.
-- One theme-aware blue family for links, focus, selection, and active navigation.
-- Flat surfaces separated by tone and thin rules.
-- A narrow reading column inside a wide shell with a persistent grouped sidebar.
-- Native Markdown patterns for commands, result tables, callouts, and task routing.
+- Commands look like commands: dark plates in both themes, echoing the terminal
+  beside the browser, with a persistent language label and Copy control.
+- Three marks carry meaning by shape as well as colour: route (arrow and
+  underline), blank (highlighter fill and dashed underline), and stop (solid
+  inverted slab with a square).
+- Flat sheets separated by heavy ink rules and tonal bands; no floating cards.
+- One interaction blue, reserved for routes, links and focus.
 
 ## Colors
 
-The palette is neutral in both themes, with blue reserved for interaction and a soft violet used only by VitePress's semantic important callout.
+Restrained palette: neutrals, one interaction blue, one signal yellow.
 
-### Primary
+- **Ink** (`#16181b` light, `#e7e5df` dark): text, heavy rules, stamps, stop
+  slabs, primary buttons.
+- **Paper** (`#fafaf8` / `#111417`): the reading sheet.
+- **Desk** (`#f0f0ec` / `#0c0f12`): sidebar, module context, explanation band,
+  table heads.
+- **Route blue** (`#1a4fd0` / `#94b6ff`): every task link, the Next column wash,
+  route sheet IDs, focus rings. Nothing decorative uses it.
+- **Blank yellow** (`#ffe45c` / `#f0cf45` with `#1b1600` text): only operator
+  blanks such as `<IP_ADDRESS>`, inside commands, inline code, and the plate
+  header's Fill in list.
+- **Plate** (`#15181c` / `#090b0d`): command plates in both themes.
 
-- **Field Blue:** The light-theme link and focus color (`#1d4ed8`) becomes a pale blue (`#93c5fd`) in dark mode. It marks links, selected navigation, and the strongest focus cue.
-- **Field Blue Hover:** The light-theme hover and focus outline color (`#2563eb`) becomes a brighter blue (`#60a5fa`) in dark mode.
-- **Field Blue Solid:** The shared middle blue (`#3b82f6`) supports solid brand roles inherited from VitePress.
-- **Field Blue Wash:** A translucent wash (`rgba(37, 99, 235, 0.12)` in light mode and `rgba(96, 165, 250, 0.14)` in dark mode) marks text selection and soft brand states.
+### Named rules
 
-### Secondary
+**The One Meaning Per Colour Rule.** Blue means "go somewhere". Yellow means
+"replace this before running". Ink slabs mean "the checklist stops here". No
+colour is reused for another meaning, and no success or failure colour exists.
 
-- **Important Violet Wash:** VitePress renders the single important callout with a soft semantic violet (`rgba(159, 122, 234, 0.14)` in light mode and `rgba(159, 122, 234, 0.16)` in dark mode). This is a message type, not a second brand accent.
-
-### Neutral
-
-- **Paper:** The document background is white (`#ffffff`) in light mode and charcoal (`#1b1b1f`) in dark mode.
-- **Soft Panel:** Sidebars, code blocks, alternating table rows, and fields use a soft gray (`#f6f6f7`) in light mode and a raised charcoal (`#202127`) in dark mode.
-- **Graphite Ink:** Primary text uses dark graphite (`#3c3c43`) in light mode and warm off-white (`#dfdfd6`) in dark mode.
-- **Muted Ink:** Secondary copy and table labels use gray (`#67676c`) in light mode and cool gray (`#98989f`) in dark mode.
-- **Quiet Rule:** Dividers use pale gray (`#e2e2e3`) in light mode and deep gray (`#2e2e32`) in dark mode.
-
-### Named Rules
-
-**The One Blue Voice Rule.** Use the field-blue family for interaction. Do not add unrelated accent colors to ordinary navigation or document controls.
-
-**The Semantic Exception Rule.** Violet belongs only to the important callout already present on the home page. It does not become a decorative palette.
+**The Shape Carries It Rule.** Each mark keeps its meaning in greyscale and in
+forced-colours mode: the arrow, the dashed underline and the square glyph stay
+visible without colour.
 
 ## Typography
 
-**Display Font:** None. Page headings use the same system sans family as the body.
-
-**Body Font:** UI system sans with Segoe UI and generic sans-serif fallbacks.
-
-**Label/Mono Font:** Cascadia Code with SFMono-Regular, Consolas, Liberation Mono, and monospace fallbacks.
-
-**Character:** The typography is plain, familiar, and dense enough for technical reference. Weight and spacing establish hierarchy. Monospace appears only where commands, identifiers, hashes, or literal paths need it.
+System sans for reading and interface; Cascadia Mono (with ui-monospace,
+SF Mono, Menlo, Consolas and Liberation Mono fallbacks) for commands, code and
+call numbers. Ligatures are disabled in all code so `->`, `!=` and `==` stay
+literal. No web fonts are loaded; the site stays offline-first.
 
 ### Hierarchy
 
-- **Headline** (600, `2rem` desktop and `1.75rem` below `48rem`, `1.25` desktop line height): Page titles. The custom letter spacing is tight (`-0.025em`).
-- **Title** (600, `1.5rem`, `1.3333333`): Major task sections. Each level-two heading begins after a large gap and a divider.
-- **Section heading** (600, `1.25rem`, `1.4`): Nested instructions within long tasks.
-- **Body** (400, `16px`, `1.68` on the document and `1.75` on paragraphs): Long-form instructions inside a maximum `74ch` measure. Body text drops to `15px` at `640px` and below.
-- **Label** (600, `0.875rem`, `1.45` where used in navigation): Table headings, sidebar items, and compact interface labels.
-- **Mono** (contextual size, normal weight): Command blocks, inline code, task IDs where marked as code, source hashes, and paths.
-
-### Named Rules
-
-**The Commands Stay Mono Rule.** Use monospace for literal input and output, not for general emphasis or decorative headings.
-
-**The Reading Measure Rule.** Keep article content at or below `74ch`. The sidebar and outline may widen the shell, but not the text column.
+- **Display** 2.5rem / 600: home title only (2rem below 640px).
+- **Headline** 2rem / 600: framing page titles (1.65rem below 640px).
+- **Task title** 1.875rem / 600, under a mono call-number stamp.
+- **Title** 1.375rem / 600: level-two sections, each opened by a 2px ink rule.
+- **Section** 1.15rem and **subsection** 1.05rem for nested source headings.
+- **Body** 16px / 1.65 at every width, prose capped at 74ch.
+- **Table** 15px / 1.55; **meta** 14px; **label** 13px / 700; **caption** 12px / 700.
+- **Mono** 14px in plates (13.5px below 640px); **call number** 12.5px / 700.
 
 ## Layout
 
-The site uses the standard VitePress documentation frame with a compact top navigation, a grouped left sidebar, the article column, and an on-page outline when space permits. The shell can grow to `1520px`; the sidebar is `300px`; the article content stays at `74ch`. This allows long task names to remain useful in navigation without stretching instructions into hard-to-read lines.
+VitePress's shell, re-materialised: a 304px binder-tab sidebar, an 820px reading
+column (prose 74ch, plates and tables full column width), and a 224px aside that
+carries the task rail above the page outline from 1280px.
 
-Spacing follows the Markdown hierarchy. Paragraphs, lists, tables, code, and callouts sit on a `1rem` rhythm. Level-two sections begin after `3rem`, then use a divider and `1.5rem` of top padding. On screens at `640px` or below, body type drops to `15px`, code blocks extend `8px` into the page gutter, and their rounded corners remain visible.
+Task page order is the source's order: stamp and title, meta line, module
+context, working section, explanation band. Derived navigation sits outside
+`<main>`: the aside rail and the route sheet above the source-order pager.
 
-VitePress owns responsive collapse behavior. The desktop sidebar and outline become familiar menu-driven navigation on narrower screens. Do not replace that behavior with a custom app shell.
+Below 640px every table stacks into bordered rows with column labels, the
+header row stays visible as a legend, command plates extend 12px into the
+gutters, and the explanation band runs edge to edge.
 
-## Elevation & Depth
+## Elevation and depth
 
-The reading experience is flat. Page, sidebar, code, table, and callout layers are separated by tonal shifts and one-pixel rules, not persistent card shadows. VitePress's low overlay shadow is reserved for transient UI such as local search. It should not be copied onto article sections.
-
-### Shadow Vocabulary
-
-- **Transient Overlay** (`box-shadow: 0 3px 12px rgba(0, 0, 0, 0.07), 0 1px 4px rgba(0, 0, 0, 0.07)`): Local search and other temporary floating UI supplied by VitePress.
-
-### Named Rules
-
-**The Flat Reading Rule.** Document content stays flat at rest. Use tone and rules for structure; reserve shadow for a temporary layer above the document.
+Flat. Structure comes from 1-3px ink rules, tonal bands and plate darkness.
+Shadows belong only to VitePress's transient overlays (search, mobile menu).
 
 ## Shapes
 
-The form language is softly squared. Inline code and compact fields use a `4px` radius. Code blocks and semantic callouts use an `8px` radius. Tables rely on straight one-pixel borders rather than an outer card silhouette. On mobile, wide command blocks may run into the gutter, but they keep their `8px` corners.
-
-**The Two Radius Rule.** Use `4px` for inline or compact controls and `8px` for block-level reading aids. Do not introduce pill shapes into the baseline.
+3px marks, 4px controls, 6px rows and buttons, 8px blocks (plates, module
+context, route sheet). The explanation band is square: it is a sheet section
+under a 3px datum rule, not a card.
 
 ## Components
 
-### Navigation
+### Command plate
 
-Navigation is the VitePress default theme with a text site title, Checklist and Source links, local search, a theme switch, a repository link, a grouped sidebar, and an on-page outline. Default text is neutral; hover and active states use Field Blue. The sidebar text keeps a `1.45` line height for long task names. Narrow screens use VitePress's menu treatment.
+Header: the fence's own language word, a **Fill in** list of every distinct
+blank in the block, and an always-visible **Copy** button. Body: Shiki
+github-dark colours, `pre-wrap` wrapping, and a two-column hanging indent so a
+wrapped line never reads as a new command. Copy writes each rendered line's
+text joined by newlines, with no trimming or prompt stripping, so the clipboard
+equals the source block byte for byte. The button label changes to "Copied"
+inside a polite live region.
 
-### Search field
+### Marks
 
-Local search uses VitePress's detailed results view. The field sits on the soft panel color with the standard interactive border. Focus uses the global `3px` Field Blue outline with a `3px` offset. Search is a navigation tool, not a dashboard panel.
+- **Route**: mono, bold, blue, underlined, with a drawn arrow; the `title`
+  gives the destination task's exact title. Abbreviated parts such as `/08`
+  drop the arrow.
+- **Blank**: highlighter fill, dashed underline, in code and inline code.
+- **Stop**: ink slab with a square, never a link, titled "Stop state named by
+  the checklist".
+- **Call number**: plain task IDs in prose are set in mono.
 
-### Document links
+### Decision table
 
-Links are medium-weight Field Blue with a visible underline and a `0.16em` underline offset. Hover moves to the brighter Field Blue variant. All links retain the global keyboard focus ring.
+Tables whose last header starts with "Next" are decision tables: 2px ink rule
+under a desk-tone head, 1px row rules, a faint blue wash on the Next column,
+and a 46% condition column in two-column tables.
 
-### Code blocks
+### Module context
 
-Command blocks use the soft panel color, muted document text, the project monospace stack, `20px 24px` internal padding, and `8px` corners at normal widths. Long lines can wrap anywhere because the source contains long commands and paths. VitePress supplies the copy control.
+The binder tab note: desk band, 1px border, label "<Module> module context ·
+Applies to every task in this module". Always expanded.
 
-### Important callout
+### Route sheet
 
-The home-page warning is a VitePress important block with a soft violet background, neutral text, `16px` padding, and `8px` corners. It carries the finding-driven safety guidance. The violet remains local to this semantic block.
+"Where <ID> can lead": every linked task with its exact title in a grid of
+rows, the stop states it names, and the tasks that link to it. Inbound lists of
+more than 12 fold into native `<details>`.
 
-### Result tables
+### Go to task ID
 
-Task result tables are horizontally scrollable, use one-pixel dividers, and alternate paper with the soft panel tone. Headers use muted `0.875rem` semibold text with `8px 16px` padding. Numeric columns use tabular figures. Tables remain part of the article flow rather than becoming cards.
+The first control in the sidebar: a mono input with a datalist of all 145 IDs
+and titles. It accepts loose spellings ("web9", "lpriv-2") and reports unknown
+IDs inline.
 
-### Task pager
+## Do's and don'ts
 
-Previous and next task links come from VitePress's document footer. They use the ordinary paper background, thin divider treatment, Field Blue link text, and concise labels. The pager supports the recorded route without implying progress or completion.
+### Do
 
-## Do's and Don'ts
+- Keep every source word, command and table in `<main>` and in source order.
+- Use blue only for routes and links, yellow only for blanks.
+- Keep commands visible and copyable without hover.
+- Label derived navigation as derived, and keep it outside `<main>`.
 
-### Do:
+### Don't
 
-- **Do** keep the article column at `74ch` or narrower.
-- **Do** use Field Blue for links, focus, active navigation, and soft selection.
-- **Do** render commands and literal paths in the established monospace stack.
-- **Do** keep result tables, command blocks, callouts, and previous or next links inside normal document flow.
-- **Do** preserve light and dark theme behavior through the existing VitePress variables.
-
-### Don't:
-
-- **Don't** add dashboards, progress meters, completion badges, or operator state to this reading interface.
-- **Don't** turn modules or tasks into floating cards with persistent shadows.
-- **Don't** use the important-callout violet as a general accent.
-- **Don't** add decorative typefaces, illustration, or pill controls to the lightweight baseline.
-- **Don't** style a command result as proof that access or completion occurred.
+- Don't hide anything with `display: none`, `visibility: hidden`, zero height,
+  clipping or off-screen positioning. The test suite forbids these in the theme.
+- Don't collapse source content. Only derived inbound lists may use `<details>`.
+- Don't add progress, completion, success colours or operator state.
+- Don't load remote fonts or assets.

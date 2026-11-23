@@ -2,29 +2,29 @@
 version: 1
 slug: "site-index-md"
 primary_target: "site/index.md"
-related_targets: ["site/checklist/index.md","site/about/source.md"]
+related_targets: ["site/checklist/index.md","site/about/source.md","site/generated/start.md"]
 ---
 
 # Checklist reading site
 
-Mode: Read
+Mode: Read (task pages are used in an Operate posture: beside a live terminal)
 
-Audience: OSCP candidates and authorized lab operators consulting a long reference during a box.
+Audience: OSCP candidates and authorized lab operators consulting the checklist mid-box, often in split screen beside Kali.
 
-Job: Find the relevant module or task, understand its action and result cues, then follow the recorded route.
+Job: Enter at the right task, fill the blanks in each command, match the observed result to a table row, and follow its route.
 
-Constraints: Preserve all source content and provenance. Add no operator state or application behavior. This release intentionally defers a visual redesign.
+Constraints: Preserve all source content, order, and provenance; no CSS hiding; copied commands byte-exact; static and offline; no operator state.
 
 ## Direction contract
 
-THESIS: A quiet, indexed field manual that refuses dashboard widgets and progress theater.
+THESIS: Each task is a sheet in an operations runbook binder; the site refuses the generic docs page and the neon hacker terminal.
 
-OWN-WORLD: VitePress's neutral documentation shell, one blue accent, system sans text, monospace only for commands, and flat rule-based navigation.
+OWN-WORLD: Laminated-sheet paper and instrument slate; dark command plates; highlighter-yellow blanks; blue arrowed route marks; inverted stop slabs; heavy ink rules; mono call numbers in a sidebar of binder tabs.
 
-STORY: Orient to the finding-driven method, search or browse to one task, read its working instructions and explanation, then follow its next-task link.
+STORY: Read the module tab note, copy a plate after filling its listed blanks, match the result row, take the route.
 
-FIRST VIEWPORT: A compact top bar and grouped sidebar frame the checklist title, edition, use guidance, and direct links to NET-01 and the full module index.
+FIRST VIEWPORT: Stamped call number, exact title, module and position line, then the first command plate with its Fill in list and Copy; the aside shows routes with destination titles.
 
-FORM: Brief-pinned category-standard documentation site; seed `brief-pinned-vitepress-read-2026-11-23`.
+FORM: Ops runbook binder, candidate 6 of 7 (man page, QRH, gamebook, transit map, field book, runbook binder, RFC); seed 8523243c. Raises: highlighter for the one thing to change (zine); marks by shape, not hue (cutting bench); source vs derived labelled (provenance ribbon).
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance

@@ -136,7 +136,7 @@ test("provides home, checklist index, and provenance pages", async () => {
   assert.match(index, /Linux privilege escalation/);
   assert.doesNotMatch(index, /generated\/modules\/linux\.md/);
   assert.match(index, /generated\/modules\/network/);
-  assert.match(source, /21a6fa3501453c60e894de23464574831efe2353743fb9494a2ff7c59028ec1b/);
+  assert.match(source, /a286bcb3a25038add369db4bddeb6bd89235d9d5f6a3d6fd6ca9dbbefdc91af9/);
   assert.match(source, /Published pages \| 162/);
 });
 

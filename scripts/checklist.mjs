@@ -761,9 +761,8 @@ function taskPage(task, module, { title, body }, route, position, routes) {
 
 function operatorReferences(task, taskIds) {
   const references = [];
-  for (const [id] of task.working.matchAll(/\bLPRIV-\d{2}\b/g)) {
-    if (!taskIds.has(id)) throw unknownDestination(id);
-    references.push({ kind: "task", id });
+  for (const [id] of task.working.matchAll(/\b([A-Z][A-Z0-9]*-\d{2})\b/g)) {
+    if (taskIds.has(id)) references.push({ kind: "task", id });
   }
   return references;
 }

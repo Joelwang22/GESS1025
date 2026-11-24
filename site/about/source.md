@@ -18,7 +18,7 @@ checkout.
 | Published pages | 162 |
 | Published modules | 33 |
 | Imported | 2026-11-23 |
-| Snapshot SHA-256 | `21a6fa3501453c60e894de23464574831efe2353743fb9494a2ff7c59028ec1b` |
+| Snapshot SHA-256 | `a286bcb3a25038add369db4bddeb6bd89235d9d5f6a3d6fd6ca9dbbefdc91af9` |
 | Printed source digest | `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731` |
 
 The snapshot's edition heading carries this note, reproduced exactly:

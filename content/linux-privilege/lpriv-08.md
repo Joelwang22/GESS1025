@@ -47,6 +47,6 @@ sed -n '1,200p' ~/.ssh/known_hosts 2>/dev/null
 ssh-keygen -lf '<READABLE_PUBLIC_OR_PRIVATE_KEY>' 2>/dev/null
 ```
 
-**Look for:** readable private keys, permitted usernames, reused keys, and internal hostnames. Verify the target host key before any SSH login.
+**Look for:** readable private keys, permitted usernames, reused keys, and internal hostnames. Verify the target host key before any SSH login. Copy a relevant key back to Kali with [XFER-02](./xfer-02) before using it.
 
 **If nothing stands out:** continue to [LPRIV-09](./lpriv-09).

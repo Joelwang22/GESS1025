@@ -171,6 +171,7 @@ If the server requires TLS, use **FTP-04** instead.
 | Listing returned | **FTP-02**. A listing is not file access. |
 | Login denied | **NET-05**. |
 | Login works, listing or data channel fails | Check the route at **NET-01**, then **NET-05**. |
+| Writable directory and write test permitted | **FTP-03**. |
 | TLS required | **FTP-04**. |
 
 ## FTP-02 Check one relevant FTP file
@@ -240,6 +241,7 @@ quit
 | File transferred | Inspect the copy as in FTP-02. ZIP or key material goes to **ART-01**; account-plus-SSH goes to **SSH-01**; otherwise **NET-05**. |
 | Share denied or logon denied | **SMB-01**. |
 | Path or file denied | Keep the path; **NET-05**. |
+| Share writable and write test permitted | **SMB-03**. |
 | Timeout or partial copy | Not a completed read; retry or **PAUSE-COVERAGE**. |
 
 # remote_access
@@ -259,6 +261,7 @@ Compare the host key with anything already pinned. If one account is supplied, g
 | Endpoint answers, key unchanged, account supplied | **SSH-02**. |
 | Endpoint answers, no account | **NET-05**; SSH stays a blocked prerequisite. |
 | Pinned key changed | **PAUSE-ROUTE** until explained. |
+| Port closed but a knock sequence was read | **SSH-03**. |
 | Connection fails before key exchange | **NET-03**. |
 
 ## SSH-02. Verify one permitted SSH session and enter its host branch
@@ -321,6 +324,7 @@ Or `feroxbuster -u '<TARGET_URL>/' -w /usr/share/wordlists/dirbuster/directory-l
 | Result | Next |
 | --- | --- |
 | Dynamic path or input | **WEB-03**, **WEB-06** or **WEB-08**. |
+| Input implied but its name is unknown | **WEB-07**. |
 | Downloaded file | **ART-01**. |
 | Wildcard or filtering noise | Compare against the baseline, then one retry. |
 | Nothing new | **NET-05**. |
@@ -378,6 +382,7 @@ Keep the captured method, content type and every required field. JSON or multipa
 | --- | --- |
 | Nothing changes | **NET-05**, or **WEB-04** if discovery is unfinished. |
 | Upload function observed | **WEB-10**. |
+| Stored create/update with a delete route | **WSTORE-01**. |
 | Required account observed | **WEB-09**. |
 | POSIX argument, file read or SQL context | **WEXEC-01** / **WREAD-01** / **WSQL-01**. |
 | Anomaly | **GAP-WEB-INPUT**. |
@@ -1250,6 +1255,7 @@ A captured NetNTLMv2 hash proves coercion.
 | Result | Next |
 | --- | --- |
 | Hash captured | **PASS-02** to crack it, or **RELAY-02** to relay it. |
+| Capture passively before coercing | **RELAY-01**. |
 | No authentication arrives | Check the interface and target service; **PAUSE-COVERAGE**. |
 | RPC denied | **AD-03** on another host. |
 
@@ -1489,6 +1495,8 @@ pwd
 | --- | --- |
 | Attributable output on the assigned host | **REXP-03**. |
 | Module load, no identity output | **REXP-03**; status text is not proof. |
+| Module loaded, identity missing | **REDIS-04**. |
+| Verified PHP include and writable web dir | **REXP-04**. |
 | Replication or module error | **REXP-03** for the actual state. |
 
 ## REXP-03. What state did the rogue-server attempt leave behind?
@@ -1633,6 +1641,7 @@ dig '@<DNS_IP>' -p '<DNS_PORT>' -x '<TARGET_IP>' +timeout=3 +tries=1
 | A record returned | **DNS-02** with that name. |
 | CNAME only | Query the canonical name if in scope; otherwise **NET-05**. |
 | NXDOMAIN | **NET-05**. |
+| SOA or NS suggests an assigned zone | **DNS-03**. |
 | REFUSED, SERVFAIL or timeout | **NET-03**, or **PAUSE-ROUTE** for a route problem. |
 
 ## DNS-02 — Does this name belong to the service you intend to inspect?
@@ -1705,6 +1714,7 @@ sudo umount -- '/tmp/owb-nfs' && rmdir -- '/tmp/owb-nfs'
 | File readable | **NET-05** for its matching service. |
 | Mount denied | **NET-05**. |
 | Permission denied | **NET-05**; keep your `id`. |
+| Export writable and write test permitted | **NFS-03**. |
 | Stalled or unmount failed | **PAUSE-RECOVERY**. |
 
 ## NFS-03 — Can this explicitly permitted identity write one inert file and remove it?
@@ -1823,6 +1833,8 @@ For verified TLS use `PGSSLMODE=verify-full PGSSLROOTCERT='<CA>'` and the certif
 | Result | Next |
 | --- | --- |
 | SQL prompt | **DB-02**. |
+| Engine is MSSQL with an ODBC client | **DB-03**. |
+| Oracle listener identified | **DB-06**. |
 | Password or account denied | **NET-05**. |
 | Certificate or hostname failure | **PAUSE-ROUTE**. |
 | Refused, timeout or DNS failure | **NET-03** or **PAUSE-ROUTE**. |
@@ -2235,6 +2247,7 @@ Ordinary and true must match, false must differ.
 | Only false changes the result | **WSQL-03** for visible output, or **WSQL-06** for Boolean-only. |
 | Error only | **WEB-06** / **PAUSE-COVERAGE**. |
 | Nothing differs | Another field at **WEB-01**. |
+| Single-quoted context observed | **WSQL-02**. |
 | Session or rate limit | **WEB-09** / **PAUSE-COVERAGE**. |
 
 ## WSTORE-01. Does one observed stored-input flow persist an inert marker?
@@ -2702,6 +2715,7 @@ Compare the candidate with the exact product/version, the function you reached, 
 | No candidate, no other service | **PAUSE-COVERAGE**. |
 | One prerequisite missing | Answer it at **NET-03**, **WEB-03** or **LNX-01**. |
 | Unsupported artifact or no recovery | **GAP-ACCESS**. |
+| Candidate needs delivery to the target | **XFER-01**. |
 | Route conflict | **PAUSE-ROUTE**. |
 
 ## EXP-02. What did one reviewed attempt actually produce?
@@ -2775,6 +2789,7 @@ In the target: `export TERM=xterm-256color; stty rows '<ROWS>' cols '<COLS>'`.
 | --- | --- |
 | PTY and line editing work | **LNX-01**. |
 | No Python or job control | **PAUSE-COVERAGE**. |
+| Restricted shell with Vim available | **SHELL-02**. |
 | Local tty broken | `stty sane` on that tty, then **PAUSE-RECOVERY**. |
 
 ## SHELL-02. Can an available Vim open a usable same-user shell?

@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { parseChecklist } from "../scripts/checklist.mjs";
 
 import { FOLD_FOLLOWERS, toMilliseconds } from "../site/.vitepress/theme/sidebar-fold.js";
 
@@ -182,7 +183,9 @@ test("module rows keep name and count on one line; task IDs fit their column", a
   assert.ok(!rules.some((rule) => rule.selectors.includes(".VPSidebarItem.level-1 .text bdi")));
   const tasks = rules.find((rule) => rule.selectors.includes(".VPSidebarItem.level-2 .text bdi"));
   const idColumn = Number.parseFloat(declaration(tasks.body, "grid-template-columns"));
-  const catalog = JSON.parse(await readFile(path.resolve(themeDir, "../generated/catalog.json"), "utf8"));
+  // Read maintained input directly: generated files may not exist yet when
+  // Node starts the test files concurrently on a clean checkout.
+  const catalog = parseChecklist(await readFile(path.resolve(import.meta.dirname, "../content/master-working-2026-11-21.working.132.md"), "utf8"));
   const longest = Math.max(...catalog.tasks.map(({ id }) => id.length));
   // 12px mono at up to 0.61em advance, 16px root.
   assert.ok(idColumn * 16 >= longest * 12 * 0.61, `${idColumn}rem holds a ${longest}-character ID`);

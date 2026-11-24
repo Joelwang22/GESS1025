@@ -6,8 +6,12 @@
 
 /* Browser surfaces */
 
+/* The gutter is reserved on every page, so moving between a short module
+   page and a long task, or filtering the directory, never slides the
+   layout sideways as the scrollbar comes and goes. */
 html {
   scrollbar-color: var(--rb-rule-strong) transparent;
+  scrollbar-gutter: stable;
 }
 
 ::selection {
@@ -20,31 +24,131 @@ html {
   outline-offset: 2px;
 }
 
-/* Desktop navigation can step out of the way without turning the document
-   into a second layout. The control stays in the top bar so it can always
-   restore the sidebar. */
+/* Sidebar fold: the desktop sidebar steps out of the way without turning the
+   document into a second layout. The menu control sits in the top bar at the
+   sidebar's seam, in a slot that never moves, so the same spot restores it.
+   The nav bar keeps its title column in both states; only paint changes
+   there, so the search field and the control stay put under the pointer. */
+
+/* Registered so the nav bar surface can follow the sidebar's edge instead of
+   snapping. Unsupported browsers keep the instant change. */
+@property --vp-nav-col-offset {
+  syntax: "<length-percentage>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+.sidebar-toggle-slot {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+
 .sidebar-toggle {
-  min-height: 36px;
-  margin-inline-end: 0.75rem;
-  padding: 0.35rem 0.65rem;
+  display: grid;
+  place-items: center;
+  width: var(--rb-toggle-size);
+  height: var(--rb-toggle-size);
+  padding: 0;
   border: 1px solid var(--rb-rule-strong);
   border-radius: var(--rb-radius-s);
   background: transparent;
   color: var(--rb-ink-2);
-  font: 600 13px/1 var(--vp-font-family-base);
   cursor: pointer;
+  transition:
+    color 0.15s ease-out,
+    border-color 0.15s ease-out,
+    background-color 0.15s ease-out;
+  animation: rb-toggle-arrive 0.16s ease-out;
 }
 
 .sidebar-toggle:hover {
   border-color: var(--rb-ink-2);
+  background: var(--rb-desk);
   color: var(--rb-ink);
 }
 
+@keyframes rb-toggle-arrive {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Three ruled bars. While the sidebar is out they fold into an arrow that
+   points the way it will leave; once it has gone they open back into the
+   menu mark. */
+.sidebar-toggle-glyph {
+  position: relative;
+  width: 18px;
+  height: 14px;
+  scale: var(--vp-direction-multiplier) 1;
+}
+
+.sidebar-toggle-bar {
+  position: absolute;
+  inset-inline-start: 0;
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transform-origin: 0 50%;
+  transition: transform var(--rb-fold-show-duration) var(--rb-fold-show-easing);
+}
+
+.sidebar-toggle-bar:nth-child(1) {
+  top: 0;
+}
+
+.sidebar-toggle-bar:nth-child(2) {
+  top: 6px;
+}
+
+.sidebar-toggle-bar:nth-child(3) {
+  top: 12px;
+}
+
+.sidebar-toggle[aria-expanded="true"] .sidebar-toggle-bar:nth-child(1) {
+  transform: translate(1px, 6px) rotate(-42deg) scaleX(0.56);
+}
+
+.sidebar-toggle[aria-expanded="true"] .sidebar-toggle-bar:nth-child(2) {
+  transform: translateX(1px) scaleX(0.94);
+}
+
+.sidebar-toggle[aria-expanded="true"] .sidebar-toggle-bar:nth-child(3) {
+  transform: translate(1px, -6px) rotate(42deg) scaleX(0.56);
+}
+
 @media (min-width: 960px) {
+  /* The glyph's bars line up with the reading column's left edge. */
+  .sidebar-toggle-slot {
+    min-width: var(--rb-toggle-size);
+    margin-inline: calc(2rem - (var(--rb-toggle-size) - 18px) / 2) 0.75rem;
+  }
+
+  :root .Layout .VPSidebar {
+    transition:
+      transform var(--rb-fold-show-duration) var(--rb-fold-show-easing),
+      opacity 0s;
+  }
+
   html.sidebar-collapsed .Layout .VPSidebar {
     opacity: 0;
     pointer-events: none;
     transform: translateX(calc(-100% * var(--vp-direction-multiplier)));
+    /* Stays opaque while it slides, then drops out once off screen. */
+    transition:
+      transform var(--rb-fold-hide-duration) var(--rb-fold-hide-easing),
+      opacity 0s linear var(--rb-fold-hide-duration);
+  }
+
+  .Layout .VPNavBar {
+    transition: --vp-nav-col-offset var(--rb-fold-show-duration) var(--rb-fold-show-easing);
+  }
+
+  html.sidebar-collapsed .Layout .VPNavBar.has-sidebar {
+    --vp-nav-col-offset: 0px;
+    transition: --vp-nav-col-offset var(--rb-fold-hide-duration) var(--rb-fold-hide-easing);
   }
 
   html.sidebar-collapsed .Layout .VPContent.has-sidebar {
@@ -52,14 +156,21 @@ html {
     padding-inline: 0;
   }
 
-  html.sidebar-collapsed .Layout .VPNavBar.has-sidebar {
-    --vp-nav-col-offset: 0px;
+  html.sidebar-collapsed .Layout .VPLocalNav.has-sidebar {
+    padding-inline-start: 0;
+  }
+}
+
+/* Between 960px and 1280px the "On this page" bar is server-rendered empty
+   and filled once the outline is read in the browser, which pushed the page
+   down after load. The bar now holds its height from the first paint. */
+@media (min-width: 960px) and (max-width: 1279px) {
+  .Layout .VPLocalNav.has-sidebar.empty {
+    display: block;
   }
 
-  html.sidebar-collapsed .Layout .VPNavBar.has-sidebar .title,
-  html.sidebar-collapsed .Layout .VPNavBarTitle.has-sidebar {
-    min-width: 0;
-    max-width: none;
+  .Layout .VPLocalNav.has-sidebar .container {
+    min-height: 47px;
   }
 }
 
@@ -422,7 +533,13 @@ samp {
   margin-right: 0.15em;
 }
 
-.VPSidebarItem.level-0 > .item .text bdi {
+/* Section and module rows keep their caret on the label's centre line, even
+   when a long section name wraps or a touch row grows to 44px. */
+.VPSidebar .VPSidebarItem:is(.level-0, .level-1) > .item {
+  align-items: center;
+}
+
+.VPSidebarItem:is(.level-0, .level-1) > .item .text bdi {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
@@ -430,22 +547,29 @@ samp {
 
 .sb-module {
   flex: 1;
+  min-width: 0;
 }
 
-.sb-section {  flex: 1;
+.sb-section {
+  flex: 1;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--rb-ink-3);
 }
 
+/* The module's task count sits flush right as a tab number, beside the
+   caret, instead of trailing a wrapped name. */
 .sb-count {
+  flex: none;
+  min-width: 2ch;
   font-family: var(--vp-font-family-mono);
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--rb-ink-2);
+  text-align: end;
+  color: var(--rb-ink-3);
 }
 
 .VPSidebarItem.level-0 > .item > .text,
@@ -455,14 +579,31 @@ samp {
   color: var(--rb-ink);
 }
 
-.VPSidebarItem.level-1 .text bdi {
+.VPSidebar .VPSidebarItem.level-1 > .item > .text {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--rb-ink);
+}
+
+/* Below 960px the drawer opens from the "Browse" button; its mark is the
+   same three ruled bars as the desktop control. */
+.VPLocalNav .menu-icon {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 14'%3E%3Cpath fill='none' stroke='black' stroke-linecap='round' stroke-width='2' d='M1 1h16M1 7h16M1 13h16'/%3E%3C/svg%3E");
+  width: 1.125em;
+  height: 0.875em;
+}
+
+/* Task rows: a call-number column sized to the longest ID (JENKINS-01), so
+   titles get the rest of the width and wrap less. */
+.VPSidebarItem.level-2 .text bdi {
   display: grid;
-  grid-template-columns: 5.4rem minmax(0, 1fr);
+  grid-template-columns: 4.75rem minmax(0, 1fr);
   column-gap: 0.45rem;
   align-items: baseline;
 }
 
-.VPSidebarItem.level-1 .sb-title:only-child {
+.VPSidebarItem.level-2 .sb-title:only-child {
   grid-column: 1 / -1;
 }
 
@@ -484,6 +625,12 @@ samp {
   min-height: 44px;
   padding-block: 0.6rem;
   white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  :root {
+    --rb-toggle-size: 44px;
+  }
 }
 
 @media (max-width: 959px), (pointer: coarse) {
@@ -744,6 +891,11 @@ samp {
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
+  }
+
+  /* The fold and the glyph change state at once; nothing slides. */
+  .sidebar-toggle {
+    animation: none;
   }
 }
 

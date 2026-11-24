@@ -508,6 +508,8 @@
 /* Find task stays pinned at the top of the desktop sidebar, so it remains
    in reach after the sidebar scrolls to the active task. */
 .goto {
+  position: relative;
+  z-index: 2;
   margin: 1rem 0 0.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--rb-rule);
@@ -555,11 +557,21 @@
   gap: 0.4rem;
 }
 
-.goto-input {
+/* Clear sits inside the field's end, over padding the field always keeps,
+   so typing the first character never narrows the field or moves Go. */
+.goto-field {
+  position: relative;
+  display: flex;
   flex: 1;
   min-width: 0;
+}
+
+.goto-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
   min-height: 38px;
-  padding: 0 0.6rem;
+  padding: 0 3.4rem 0 0.6rem;
   border: 1px solid var(--rb-rule-strong);
   border-radius: var(--rb-radius-s);
   background: var(--rb-paper);
@@ -594,15 +606,37 @@
   border-color: var(--rb-ink-2);
 }
 
+/* Status and matches open as a sheet over the tree, anchored under the
+   form's rule, instead of pushing every module down while typing. */
+.goto-panel {
+  position: absolute;
+  top: 100%;
+  /* Wide enough to cover the carets and active marker that overhang the
+     tree's column; the inner padding keeps text on the field's edge. */
+  inset-inline: -0.75rem;
+  max-height: min(28rem, calc(100dvh - 12rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.goto-panel.is-open {
+  margin-top: 0.4rem;
+  padding: 0.5rem 0.4rem;
+  border: 1px solid var(--rb-rule-strong);
+  border-radius: var(--rb-radius);
+  background: var(--rb-paper);
+  box-shadow: 0 10px 24px -12px rgba(16, 20, 27, 0.45);
+}
+
 .goto-message {
-  margin: 0.35rem 0 0;
+  margin: 0;
   font-size: 12.5px;
   line-height: 1.4;
   color: var(--rb-ink-2);
 }
 
-.goto-message:empty {
-  margin: 0;
+.goto-panel.is-open .goto-message:not(:empty) {
+  padding: 0.1rem 0.35rem 0.35rem;
 }
 
 
@@ -954,14 +988,14 @@
 .goto-results {
   display: grid;
   gap: 1px;
-  margin: 0.35rem 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .goto-results a {
   display: grid;
-  grid-template-columns: 5.4rem minmax(0, 1fr);
+  grid-template-columns: 4.75rem minmax(0, 1fr);
   column-gap: 0.45rem;
   padding: 0.3rem 0.35rem;
   border-radius: var(--rb-radius-s);
@@ -1281,21 +1315,26 @@
   }
 }
 
-/* Find task: Clear sits between the field and Go while the field has text. */
+/* Find task: Clear sits at the field's end while the field has text. */
 .goto-clear {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
   min-height: 38px;
   padding: 0 0.6rem;
-  border: 1px solid var(--rb-rule-strong);
-  border-radius: var(--rb-radius-s);
+  border: 0;
+  border-radius: 0 var(--rb-radius-s) var(--rb-radius-s) 0;
   background: transparent;
-  color: var(--rb-ink);
+  color: var(--rb-ink-2);
   font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .goto-clear:hover {
-  border-color: var(--rb-ink-2);
+  color: var(--rb-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 /* Directory layout toggle and flat call-number list */

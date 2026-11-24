@@ -136,8 +136,8 @@ test("provides home, checklist index, and provenance pages", async () => {
   assert.match(index, /Linux privilege escalation/);
   assert.doesNotMatch(index, /generated\/modules\/linux\.md/);
   assert.match(index, /generated\/modules\/network/);
-  assert.match(source, /19a3dcce8d5639bd38ef962db99c15f6eca877a1378bc44cfb8b1e8eb260620b/);
-  assert.match(source, /Published pages \| 134/);
+  assert.match(source, /21a6fa3501453c60e894de23464574831efe2353743fb9494a2ff7c59028ec1b/);
+  assert.match(source, /Published pages \| 162/);
 });
 
 test("publishes one 15-page Linux privilege operator module", async () => {
@@ -272,8 +272,8 @@ test("generates every public page, module, and LNX compatibility URL", async () 
     text("site/generated/tasks/lnx-01.md"),
   ]);
 
-  assert.equal(taskFiles.length, 144);
-  assert.equal(moduleFiles.length, 27);
+  assert.equal(taskFiles.length, 172);
+  assert.equal(moduleFiles.length, 33);
   assert.match(net01, /^# NET-01\. Check connectivity/m);
   assert.match(net01, /## Explanations and troubleshooting/);
   assert.match(net05, /Next: \[WEB-01\]\(\.\/web-01\)/);
@@ -287,7 +287,7 @@ test("preserves module and task order in the sidebar", async () => {
     await text("site/.vitepress/generated/sidebar.json"),
   );
 
-  assert.equal(sidebar.length, 27);
+  assert.equal(sidebar.length, 33);
   assert.equal(sidebar[0].text, "Network");
   assert.deepEqual(
     sidebar[0].items.slice(0, 3).map(({ text: label, link }) => ({ label, link })),
@@ -319,7 +319,7 @@ test("names modules with an explicit acronym-correct display map", async () => {
     (match) => match[1],
   );
 
-  assert.equal(indexNames.length, 27);
+  assert.equal(indexNames.length, 33);
   assert.deepEqual(sidebar.map(({ text: label }) => label), indexNames);
   for (const name of ["HTTP", "Windows and Active Directory", "DNS and NFS", "SNMP", "MSSQL", "FTP TLS", "SSH knock", "SQL continuation", "Mail and RDP"]) {
     assert.ok(indexNames.includes(name), name);
@@ -338,12 +338,12 @@ test("emits a complete public catalog with source provenance", async () => {
   assert.equal(generatedCatalog.edition, manifest.edition);
   assert.equal(generatedCatalog.sourceDigest, manifest.sourceDigest);
   assert.equal(generatedCatalog.snapshotSha256, manifest.snapshotSha256);
-  assert.equal(generatedCatalog.moduleCount, 27);
-  assert.equal(generatedCatalog.taskCount, 134);
-  assert.equal(generatedCatalog.sourceModuleCount, 28);
-  assert.equal(generatedCatalog.sourceTaskCount, 144);
+  assert.equal(generatedCatalog.moduleCount, 33);
+  assert.equal(generatedCatalog.taskCount, 162);
+  assert.equal(generatedCatalog.sourceModuleCount, 34);
+  assert.equal(generatedCatalog.sourceTaskCount, 172);
   assert.equal(sidebar.length, generatedCatalog.modules.length);
-  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 134);
+  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 162);
   assert.ok(!generatedCatalog.tasks.some(({ id }) => id.startsWith("LNX-")));
   assert.deepEqual(
     generatedCatalog.tasks.filter(({ id }) => id.startsWith("LPRIV-")).map(({ id }) => id),
@@ -1443,13 +1443,13 @@ test("Find task offers Clear and Escape, and the directory flat list keeps every
   assert.match(find, /<button v-if="value" class="goto-clear" type="button" @click="clear">Clear<\/button>/);
   const directory = await text("site/.vitepress/theme/components/TaskDirectory.vue");
   assert.match(directory, /const flat = computed\(\(\) => shown\.value\.flatMap\(\(module\) => module\.tasks\)\);/);
-  // The server-rendered default is the by-module view with all 134 tasks and
+  // The server-rendered default is the by-module view with all 162 tasks and
   // both layout controls; no grouping pills or stored state.
   const html = await text("site/.vitepress/dist/checklist/index.html");
   const directoryHtml = html.slice(html.indexOf('class="directory-tools"'), html.indexOf('id="module-summary"'));
-  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 134);
-  assert.match(directoryHtml, /aria-pressed="true">\s*By module \(27\)/);
-  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(134\)/);
+  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 162);
+  assert.match(directoryHtml, /aria-pressed="true">\s*By module \(33\)/);
+  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(162\)/);
   assert.doesNotMatch(directory, /localStorage|sessionStorage/);
 });
 

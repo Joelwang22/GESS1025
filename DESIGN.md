@@ -365,8 +365,8 @@ After a route change, the active sidebar item scrolls into view on desktop.
 ### Directory
 
 `/checklist/` has a filter by ID, title or module; Escape and Clear reset it.
-It has **By module (27)**, in printed-index columns, and **Flat list (134)**,
-showing ID, exact title and module. The server-rendered default lists all 134
+It has **By module (33)**, in printed-index columns, and **Flat list (162)**,
+showing ID, exact title and module. The server-rendered default lists all 162
 tasks. Nothing is stored.
 
 ## Do's and don'ts

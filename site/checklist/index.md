@@ -36,6 +36,9 @@ gives one.
 | [Remote access](../generated/modules/remote_access.md) | 2 |
 | [HTTP](../generated/modules/http.md) | 11 |
 | [Windows and Active Directory](../generated/modules/windows_ad.md) | 37 |
+| [ADCS](../generated/modules/adcs.md) | 4 |
+| [AD abuse](../generated/modules/ad_abuse.md) | 6 |
+| [Password attacks](../generated/modules/password_attacks.md) | 2 |
 | [Redis](../generated/modules/redis.md) | 4 |
 | [Redis exploitation](../generated/modules/redis_exploitation.md) | 4 |
 | [SSH knock](../generated/modules/ssh_knock.md) | 1 |
@@ -45,6 +48,7 @@ gives one.
 | [Database](../generated/modules/database.md) | 5 |
 | [MSSQL](../generated/modules/mssql.md) | 3 |
 | [Mail and RDP](../generated/modules/mail_rdp.md) | 5 |
+| [Other services](../generated/modules/other_services.md) | 6 |
 | [Web input](../generated/modules/web_input.md) | 4 |
 | [FTP write](../generated/modules/ftp_write.md) | 1 |
 | [FTP TLS](../generated/modules/ftp_tls.md) | 1 |
@@ -54,7 +58,9 @@ gives one.
 | [SQL continuation](../generated/modules/sql_continuation.md) | 5 |
 | [Web upload](../generated/modules/web_upload.md) | 2 |
 | [Web editor](../generated/modules/web_editor.md) | 1 |
+| [Advanced web](../generated/modules/web_advanced.md) | 7 |
 | [Access](../generated/modules/access.md) | 3 |
 | [Shell transfer](../generated/modules/shell_transfer.md) | 4 |
+| [Pivoting](../generated/modules/pivoting.md) | 3 |
 | [Local artifact](../generated/modules/local_artifact.md) | 3 |
 | [Linux privilege escalation](../generated/modules/linux_privilege.md) | 15 |

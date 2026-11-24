@@ -239,6 +239,20 @@ and a hanging body column. Linux privilege escalation is one sidebar group
 containing only LPRIV-01 through LPRIV-20. The desktop sidebar can collapse
 without storing state, and the reading column recentres when it does.
 
+Nothing moves unless the reader asked it to:
+
+- The root reserves its scrollbar gutter, so short and long pages share one
+  width.
+- The nav bar keeps its title column in both sidebar states. The menu control
+  sits in a server-rendered slot at the sidebar's seam, so neither it nor
+  search moves on hydration or on collapse.
+- Between 960px and 1280px the "On this page" bar is held at full height from
+  the first paint instead of filling in after load.
+- The fold is one motion. The sidebar slides out, the nav bar surface follows
+  its edge, and the reading column is carried to its new place by a transform
+  (FLIP), all on the `--rb-fold-*` tokens. Hiding takes 220ms and showing
+  takes 320ms. With reduced motion the state changes at once.
+
 An operator page is one linear document: **Run this when**, an immediately
 visible command group, **Look for** signals, **If found** links, and normal
 continuation. LPRIV-01 through LPRIV-20 share one route rail and sequential
@@ -348,6 +362,17 @@ uppercase micro-type, modules keep their counts, and tasks sit one level beneath
 their module. The grouping is generated from the same section list as the
 checklist index.
 
+A module row keeps its name and its count, flush right in mono, on one line.
+Carets sit on the label's centre line. Task rows use a 4.75rem call-number
+column, sized to the longest ID (JENKINS-01).
+
+The menu control is a 36px outlined square (44px on coarse pointers). It has
+no visible label; its accessible name is "Sidebar navigation", with
+`aria-expanded`. Its three ruled bars fold into a left arrow while the
+sidebar is out, then open back into the menu mark once the sidebar is
+folded away. Below 960px the drawer's **Browse** button uses the same
+three-bar mark.
+
 ### Find task (sidebar) and the home jump
 
 Find task is pinned at the top of the desktop sidebar.
@@ -355,6 +380,11 @@ Find task is pinned at the top of the desktop sidebar.
 - An exact or loose ID ("web9") shows "Press Enter to open *ID*: *title*".
 - Other text lists live matches by ID, title word or module.
 - **Clear** and Escape reset the field.
+
+**Clear** sits inside the field's end, over padding the field always keeps, so
+typing never narrows the field. The status line and matches open as a sheet
+over the tree, under the form's rule. They show while focus is in the form,
+so typing never pushes the modules down.
 
 The home jump box does the same, and adds **Full-text search /**, which opens
 VitePress's local search. `/` opens it from any page.

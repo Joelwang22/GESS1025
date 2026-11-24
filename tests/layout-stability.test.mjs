@@ -90,17 +90,14 @@ test("collapsing the sidebar leaves the nav bar's layout alone", async () => {
   assert.equal(declaration(surface.body, "--vp-nav-col-offset"), "0px");
 });
 
-test("the local outline bar holds its place across the fold and on load", async () => {
+test("the local navigation follows the sidebar fold without forcing an empty bar", async () => {
   const rules = await themeRules();
   const folded = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes("html.sidebar-collapsed .Layout .VPLocalNav.has-sidebar"));
   assert.ok(folded, "the local nav drops the sidebar offset when folded");
   assert.equal(declaration(folded.body, "padding-inline-start"), "0");
   const band = "@media (min-width: 960px) and (max-width: 1279px)";
   const empty = rules.find((rule) => rule.media === band && rule.selectors.includes(".Layout .VPLocalNav.has-sidebar.empty"));
-  assert.ok(empty, "the server-rendered empty bar is kept in flow");
-  assert.equal(declaration(empty.body, "display"), "block");
-  const height = rules.find((rule) => rule.media === band && rule.selectors.includes(".Layout .VPLocalNav.has-sidebar .container"));
-  assert.match(declaration(height.body, "min-height"), /^\d+px$/);
+  assert.equal(empty, undefined, "task pages do not reserve space for an empty outline bar");
 });
 
 test("the fold moves sidebar, nav surface and column on one shared timing", async () => {

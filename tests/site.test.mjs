@@ -194,7 +194,7 @@ test("publishes one 20-page Linux privilege operator module", async () => {
   }
 });
 
-test("renders every Linux operator command with copy controls and live routes", async () => {
+test("renders every Linux operator command with copy controls and inline routes", async () => {
   await buildSite();
   for (let index = 1; index <= 20; index += 1) {
     const slug = `lpriv-${String(index).padStart(2, "0")}`;
@@ -205,7 +205,7 @@ test("renders every Linux operator command with copy controls and live routes", 
     assert.equal([...operatorHtml.matchAll(/class="cmd-copy"/g)].length, fencedBlocks(operatorSource).length, slug);
     assert.match(operatorHtml, /class="Layout task-page field-page operator-page"/);
     assert.match(operatorHtml, /class="sb-module">Linux privilege escalation/);
-    assert.match(operatorHtml, /class="route-panel"/);
+    assert.doesNotMatch(operatorHtml, /class="(?:route-panel|task-rail|task-jumps)"/);
     assert.doesNotMatch(operatorHtml, /field\/linux-privilege|id="explanations-and-troubleshooting"/);
   }
   const lpriv01 = await text("site/.vitepress/dist/generated/tasks/lpriv-01.html");
@@ -864,12 +864,14 @@ test("routes, stop states, and decision tables carry distinct marks", async () =
   assert.match(net01, /<td data-label="Result">/);
   assert.match(net01, /<td data-label="Next">/);
   assert.match(web01, /<a href="\.\/web-08\.html"[^>]*class="route"[^>]*>WEB-08<\/a>/);
-  // The title is the verbatim source heading; the call-number stamp and the
-  // task's place in its module sit in the header row above it, outside <main>.
+  // The title is the verbatim source heading; the compact module location and
+  // the task's place in its module sit above it, outside <main>.
   assert.match(net01, /<h1 id="net-01-check-connectivity" tabindex="-1">NET-01\. Check connectivity <a class="header-anchor"/);
   const header = net01.indexOf('<div class="task-header">');
   assert.ok(header >= 0 && header < net01.indexOf("<main"), "header row precedes <main>");
-  assert.match(net01, /<span class="task-id-pair"><span class="task-stamp">NET-01<\/span><span class="task-position">task 1 of 5<\/span>(?:<!---->)?<\/span>/);
+  assert.match(net01, /<a href="\/checklist\/generated\/modules\/network\.html">Network<\/a>/);
+  assert.match(net01, /<span class="task-position">Task 1 of 5<\/span>/);
+  assert.doesNotMatch(net01, /class="(?:task-stamp|task-jumps|task-rail|route-panel)"/);
   assert.match(net01, /<span class="sb-id">NET-01<\/span> <span class="sb-title">Check connectivity<\/span>/);
 
   const terminalStates = new Set(manifest.terminalStates);
@@ -891,7 +893,7 @@ test("routes, stop states, and decision tables carry distinct marks", async () =
   assert.ok(stops > 0);
 });
 
-test("task pages carry their derived routes and a route sheet outside <main>", async () => {
+test("task pages keep route metadata without duplicating routes outside the procedure", async () => {
   await buildSite();
   const routes = JSON.parse(await text("site/.vitepress/generated/routes.json"));
   const brief = ({ id, title }) => ({ id, title, module: routes[id].module.title });
@@ -907,22 +909,12 @@ test("task pages carry their derived routes and a route sheet outside <main>", a
       assert.deepEqual(field("sourcePosition"), { index: index + 1, total: catalog.tasks.length });
     }
   }
-  const [net01, net05] = await Promise.all([
-    text("site/.vitepress/dist/generated/tasks/net-01.html"),
-    text("site/.vitepress/dist/generated/tasks/net-05.html"),
-  ]);
-  const panel = net01.indexOf('class="route-panel"');
-  assert.ok(panel > net01.lastIndexOf("</main>"), "route sheet sits after <main>");
-  assert.match(net01.slice(panel), /href="\/checklist\/generated\/tasks\/net-02\.html"/);
-  assert.match(net01.slice(panel), /<span class="stop">PAUSE-ROUTE<\/span>/);
-  assert.match(net01, /class="task-rail"/);
+  const net01 = await text("site/.vitepress/dist/generated/tasks/net-01.html");
+  const main = net01.slice(net01.indexOf("<main"), net01.lastIndexOf("</main>"));
+  assert.match(main, /href="\.\/net-02\.html"/);
+  assert.match(main, /<span class="stop"[^>]*>PAUSE-ROUTE<\/span>/);
+  assert.doesNotMatch(net01, /class="(?:route-panel|task-rail|task-jumps)"/);
   assert.match(net01, />Next</);
-  // A hub with more than twelve inbound routes folds them into native <details>.
-  assert.ok(routes["NET-05"].inbound.length > 12);
-  assert.match(
-    net05,
-    new RegExp(`<summary>Linked from ${routes["NET-05"].inbound.length} tasks</summary>`),
-  );
   const [lpriv01, lpriv20] = await Promise.all([
     text("site/.vitepress/dist/generated/tasks/lpriv-01.html"),
     text("site/.vitepress/dist/generated/tasks/lpriv-20.html"),
@@ -999,54 +991,14 @@ test("decision tables are recognised by their route column, not by the word Next
   }
 });
 
-test("every task page offers jumps to its own landmarks, and each target exists", async () => {
+test("every task page removes short-page jump navigation and the document outline", async () => {
   await buildSite();
   for (const task of catalog.tasks) {
+    const source = await text(`site/generated/tasks/${task.id.toLowerCase()}.md`);
     const html = await text(`site/.vitepress/dist/generated/tasks/${task.id.toLowerCase()}.html`);
-    const meta = html.match(/<nav class="task-jumps"[^>]*>([\s\S]*?)<\/nav>/)?.[1];
-    assert.ok(meta, `${task.id} has a jump row`);
-    for (const [, anchor] of meta.matchAll(/href="#([^"]+)"/g)) {
-      assert.ok(html.includes(`id="${anchor}"`), `${task.id} jump #${anchor}`);
-    }
-    const routeCount = JSON.parse(frontmatterOf(await text(`site/generated/tasks/${task.id.toLowerCase()}.md`)).match(/^routesOut: (.*)$/m)[1]).length;
-    assert.match(meta, new RegExp(`href="#task-routes">Routes \\(${routeCount}\\)</a>`), `${task.id} routes count`);
-    if (task.id.startsWith("LPRIV-")) {
-      assert.match(meta, /href="#cmd-1">First command<\/a>/, `${task.id} first-command jump`);
-      assert.doesNotMatch(meta, /href="#(?:results|explanations-and-troubleshooting)"/);
-      continue;
-    }
-    assert.match(meta, /href="#explanations-and-troubleshooting"/);
-    // Jumps go to the working section only. Every target must sit before the
-    // explanations band, and a jump exists exactly when the working section
-    // (or the module context above it) has the landmark.
-    const notes = html.indexOf('<section class="task-notes"');
-    for (const [, anchor] of meta.matchAll(/href="#(cmd-\d+|results)"/g)) {
-      assert.ok(html.indexOf(`id="${anchor}"`) < notes, `${task.id} #${anchor} is above the explanations`);
-    }
-    const sourceTask = checklist.tasks.find(({ id }) => id === task.id);
-    assert.equal(/href="#cmd-\d+"/.test(meta), fencedBlocks(sourceTask.working).length > 0, `${task.id} first-command jump`);
-    const workingHtml = html.slice(html.indexOf("<main"), notes);
-    // Result jump: the first decision table before the explanations, or
-    // failing that the first outcome list there, labelled for what it is.
-    const hasTable = /<table class="decision/.test(workingHtml);
-    const hasOutcomes = /<ul class="outcomes"/.test(workingHtml);
-    const expectedLabel = hasTable ? "Result table" : hasOutcomes ? "Outcomes" : null;
-    const label = meta.match(/href="#results">([^<]+)<\/a>/)?.[1] ?? null;
-    assert.equal(label, expectedLabel, `${task.id} result jump`);
-    if (expectedLabel) {
-      const target = html.match(/<(table|ul) [^>]*id="results"/)?.[1];
-      assert.equal(target, hasTable ? "table" : "ul", `${task.id} #results target`);
-    }
+    assert.match(frontmatterOf(source), /^outline: false$/m, task.id);
+    assert.doesNotMatch(html, /class="(?:task-jumps|task-rail|route-panel)"/, task.id);
   }
-  const net05Jumps = (await text("site/.vitepress/dist/generated/tasks/net-05.html")).match(
-    /<nav class="task-jumps"[^>]*>([\s\S]*?)<\/nav>/,
-  )[1];
-  assert.match(net05Jumps, /href="#results">Outcomes<\/a>/, "NET-05 jumps to its outcome list");
-  const web09 = (await text("site/.vitepress/dist/generated/tasks/web-09.html")).match(
-    /<nav class="task-jumps"[^>]*>([\s\S]*?)<\/nav>/,
-  )[1];
-  assert.doesNotMatch(web09, /First command/, "WEB-09's working step has no command");
-  assert.match(web09, /href="#results"/);
   const [wsql05, ad03] = await Promise.all([
     text("site/.vitepress/dist/generated/tasks/wsql-05.html"),
     text("site/.vitepress/dist/generated/tasks/ad-03.html"),
@@ -1054,7 +1006,6 @@ test("every task page offers jumps to its own landmarks, and each target exists"
   assert.doesNotMatch(wsql05, /<table class="decision[^"]*"[^>]*>\s*<thead>\s*<tr>\s*<th>Engine<\/th>/);
   assert.match(ad03, /<table class="decision[^>]*><thead><tr><th>Prior blocked question on this assigned endpoint<\/th><th>Revisit<\/th>/);
 });
-
 test("Enter when and Question cues and outcome lists keep their exact words", async () => {
   await buildSite();
   let cues = 0;
@@ -1088,7 +1039,7 @@ test("Enter when and Question cues and outcome lists keep their exact words", as
   assert.match(net05, /<li><span class="outcome-slug">http_reported<\/span>: Nmap reported an HTTP\/HTTPS label/);
 });
 
-test("command plates keep Copy and Wrap on one row with blanks listed below", async () => {
+test("command plates keep Copy visible and add Wrap only when a block needs it", async () => {
   await buildSite();
   const html = await text("site/.vitepress/dist/generated/tasks/ad-03.html");
   const plates = builtPlates(html);
@@ -1101,6 +1052,9 @@ test("command plates keep Copy and Wrap on one row with blanks listed below", as
     assert.doesNotMatch(bar, /class="blank"/);
   }
   assert.match(html, /id="cmd-1"/);
+  const net01 = await text("site/.vitepress/dist/generated/tasks/net-01.html");
+  assert.match(net01, /class="cmd-copy"/);
+  assert.doesNotMatch(net01, /class="cmd-wrap"/);
 });
 
 test("the find box matches task IDs, title words, and modules", () => {
@@ -1200,7 +1154,7 @@ test("placeholders are marked without altering text or matching literals", async
   assert.doesNotMatch(uploadProof, /class="blank"/);
 });
 
-test("task pages separate outcome rows, stop marks, inbound folds and the explanation band", async () => {
+test("task pages separate outcome rows, stop marks and the explanation band without a route appendix", async () => {
   await buildSite();
   const [net01, net05, ad03] = await Promise.all([
     text("site/.vitepress/dist/generated/tasks/net-01.html"),
@@ -1214,7 +1168,7 @@ test("task pages separate outcome rows, stop marks, inbound folds and the explan
   assert.match(net05, /<span class="outcome-slug">http_reported<\/span>/);
   assert.match(net05, /<span class="stop"[^>]*>GAP-SERVICE<\/span>/);
   assert.match(net05, /<span class="stop"[^>]*>PAUSE-COVERAGE<\/span>/);
-  assert.match(net05, /<details class="route-inbound-more">/);
+  assert.doesNotMatch(net05, /class="(?:route-panel|task-rail|task-jumps)"/);
   assert.match(ad03, /data-label="Revisit"/);
   // Plain task IDs in prose are marked as IDs, never as routes.
   assert.match(net05, /<span class="task-id"[^>]*>NET-03<\/span>/);
@@ -1519,27 +1473,22 @@ test("narrow command plates inset each row once, so labels line up with the code
   }
 });
 
-test("the route sheet heading shares the heading jump offsets below the sticky bars", async () => {
-  const routes = await text("site/.vitepress/theme/components/TaskRoutes.vue");
-  assert.match(routes, /<h2 id="task-routes" class="route-panel-title">/);
+test("task pages use only source headings and command targets below sticky bars", async () => {
   const headingRules = (await allThemeRules()).filter(
     (rule) => rule.selectors.includes(".Layout .vp-doc :is(h1, h2, h3, h4, h5, h6)[id]") && /scroll-margin-top/.test(rule.body),
   );
   assert.ok(headingRules.length >= 3, "heading offsets exist for desktop, tablet and phone widths");
   for (const rule of headingRules) {
-    assert.ok(rule.selectors.includes(".Layout .route-panel-title[id]"), `${rule.media ?? "base"}: #task-routes uses the heading offset`);
+    assert.doesNotMatch(rule.selectors.join(" "), /route-panel-title/);
   }
 });
 
-test("task jump chips stay compact on desktop and reach 44px on narrow screens or coarse pointers", async () => {
+test("the compact task location row keeps its position separate from the source title", async () => {
   const rules = await allThemeRules();
-  const base = rules.find((rule) => rule.media === null && rule.selectors.includes(".task-jumps a"));
-  assert.equal(declaration(base.body, "min-height"), "28px");
-  const touch = rules.find(
-    (rule) => rule.media === "@media (max-width: 959px), (pointer: coarse)" && rule.selectors.includes(".Layout .task-jumps a"),
-  );
-  assert.ok(touch, "jump chips join the touch-target rule");
-  assert.equal(declaration(touch.body, "min-height"), "44px");
+  const header = rules.find((rule) => rule.media === null && rule.selectors.includes(".task-header"));
+  assert.equal(declaration(header.body, "border-bottom"), "0");
+  const position = rules.find((rule) => rule.media === null && rule.selectors.includes(".task-position"));
+  assert.equal(declaration(position.body, "margin-left"), "auto");
 });
 
 test("the pinned Find task masks the full sidebar width while rows scroll beneath it", async () => {

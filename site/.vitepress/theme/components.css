@@ -1,6 +1,6 @@
 /*
- * Components: command plates, marks, the route sheet and rail, Find task,
- * directories, cue rows and outcome rows. Loaded after tokens.css and before
+ * Components: command plates, marks, Find task, directories, cue rows and
+ * outcome rows. Loaded after tokens.css and before
  * custom.css, which holds VitePress overrides and narrow-screen adjustments.
  */
 
@@ -290,219 +290,6 @@
 }
 
 
-/* Route sheet at the foot of each task */
-
-.route-panel {
-  margin: 3rem 0 1.5rem;
-  padding: 1.1rem 1.25rem 1.25rem;
-  border: 2px solid var(--rb-ink);
-  border-radius: var(--rb-radius);
-  color: var(--rb-ink);
-}
-
-.route-panel-title {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.route-panel-note {
-  max-width: 62ch;
-  margin: 0.25rem 0 0.9rem;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--rb-ink-2);
-}
-
-.route-panel-empty {
-  font-size: 14px;
-  color: var(--rb-ink-2);
-}
-
-.route-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
-  gap: 0.4rem 0.6rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Route card: the call number and, for a cross-module route, its module on
-   the top line; the exact title below. */
-.route-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  height: 100%;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid var(--rb-rule-strong);
-  border-radius: 6px;
-  color: var(--rb-ink);
-  font-size: 14px;
-  line-height: 1.4;
-  text-decoration: none;
-  transition:
-    border-color 0.15s ease-out,
-    background-color 0.15s ease-out;
-}
-
-.route-row:hover {
-  border-color: var(--rb-route);
-  background: var(--rb-route-soft);
-}
-
-.route-row-id {
-  font-family: var(--vp-font-family-mono);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--rb-route);
-}
-
-.route-stops {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0.9rem 0 0;
-  font-size: 14px;
-}
-
-.route-stops-label,
-.route-inbound-title,
-.route-inbound-more > summary {
-  margin: 0 0.35rem 0 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--rb-ink-2);
-}
-
-.route-inbound {
-  margin-top: 1rem;
-  padding-top: 0.8rem;
-  border-top: 1px solid var(--rb-rule);
-}
-
-.route-inbound-more > summary {
-  cursor: pointer;
-}
-
-.route-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin: 0.5rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.route-chip {
-  display: inline-block;
-  padding: 0.2rem 0.5rem;
-  border: 1px solid var(--rb-rule-strong);
-  border-radius: var(--rb-radius-s);
-  color: var(--rb-ink);
-  font-family: var(--vp-font-family-mono);
-  font-size: 12.5px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.route-chip:hover {
-  border-color: var(--rb-route);
-  color: var(--rb-route);
-}
-
-/* Aside rail: the task's call number and routes, beside the reading column */
-
-.task-rail {
-  margin-bottom: 1.25rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--rb-rule);
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.task-rail-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.6rem;
-  margin: 0;
-}
-
-.task-rail-id {
-  padding: 0.05rem 0.4rem;
-  border: 2px solid var(--rb-ink);
-  border-radius: var(--rb-radius-s);
-  font-family: var(--vp-font-family-mono);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.task-rail-module {
-  color: var(--rb-ink-2);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.18em;
-}
-
-.task-rail-label {
-  margin: 0.9rem 0 0.3rem;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--rb-ink-2);
-}
-
-.task-rail-list {
-  display: grid;
-  gap: 1px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.task-rail-list a {
-  display: grid;
-  gap: 1px;
-  margin: 0 -0.4rem;
-  padding: 0.3rem 0.4rem;
-  border-radius: var(--rb-radius-s);
-  color: var(--rb-ink);
-  text-decoration: none;
-}
-
-.task-rail-list a:hover {
-  background: var(--rb-route-soft);
-}
-
-.task-rail-route-id {
-  font-family: var(--vp-font-family-mono);
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--rb-route);
-}
-
-.task-rail-route-title {
-  font-size: 12.5px;
-  color: var(--rb-ink-2);
-}
-
-.task-rail-empty {
-  margin: 0;
-  color: var(--rb-ink-2);
-}
-
-.task-rail-stops {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin: 0.6rem 0 0;
-  font-size: 13px;
-}
-
-
 /* Go to task ID */
 
 /* Find task stays pinned at the top of the desktop sidebar, so it remains
@@ -737,24 +524,21 @@
 
 /* ---- Round 2 additions ---- */
 
-/* Jump targets clear the sticky navigation bar. */
+/* Command and decision targets clear the sticky navigation bar. */
 .vp-doc .cmd-plate,
-.vp-doc table.decision,
-.route-panel {
+.vp-doc table.decision {
   scroll-margin-top: calc(var(--vp-nav-height) + 16px);
 }
 
-/* Header row above the title: breadcrumb with the call-number stamp and the
-   task's place in its module on the left, jumps to this page's landmarks on
-   the right. Derived navigation, outside <main>. */
+/* Compact location row above the title. Derived navigation, outside <main>. */
 .task-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.4rem 1rem;
-  padding-bottom: 0.55rem;
-  border-bottom: 1px solid var(--rb-rule);
+  padding-bottom: 0;
+  border-bottom: 0;
   font-size: 14px;
   line-height: 1.5;
 }
@@ -811,6 +595,7 @@
 }
 
 .task-position {
+  margin-left: auto;
   font-size: 13px;
   color: var(--rb-ink-2);
 }
@@ -873,9 +658,9 @@
   gap: 0.75rem;
   max-width: none;
   margin: 0;
-  padding: 0.55rem 0.8rem;
-  border-top: 1px solid var(--rb-rule-strong);
-  background: var(--rb-desk);
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--rb-rule);
+  background: transparent;
 }
 
 .vp-doc p.cue + p.cue {
@@ -919,69 +704,6 @@
   font-family: var(--vp-font-family-mono);
   font-size: 0.84em;
   font-weight: 700;
-}
-
-/* Rail on hub tasks: call-number chips instead of titled rows. */
-.task-rail-count {
-  margin-left: 0.3rem;
-  font-family: var(--vp-font-family-mono);
-  font-weight: 600;
-  color: var(--rb-ink-3);
-}
-
-.task-rail-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.task-rail-chips .route-chip {
-  color: var(--rb-route);
-}
-
-.task-rail-more {
-  display: inline-block;
-  margin-top: 0.5rem;
-  color: var(--rb-ink-2);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.18em;
-}
-
-.VPDocAsideOutline + .task-rail,
-.task-rail {
-  margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--rb-rule);
-}
-
-/* Route sheet: destination module tag */
-.route-row-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.2rem 0.6rem;
-}
-
-.route-row-module {
-  font-size: 12.5px;
-  color: var(--rb-ink-2);
-}
-
-.route-inbound-more > summary::after {
-  content: "Show";
-  margin-left: 0.5rem;
-  color: var(--rb-route);
-  text-decoration: underline;
-  text-underline-offset: 0.18em;
-}
-
-.route-inbound-more[open] > summary::after {
-  content: "Hide";
 }
 
 /* Find task results in the sidebar */

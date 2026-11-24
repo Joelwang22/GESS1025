@@ -524,12 +524,13 @@ function moduleLink(id) {
 }
 
 function frontmatter(title, description, fields = {}) {
+  const { outline = [2, 3], ...metadata } = fields;
   return [
     "---",
     `title: ${JSON.stringify(title)}`,
     `description: ${JSON.stringify(description)}`,
-    "outline: [2, 3]",
-    ...Object.entries(fields).map(([key, value]) => `${key}: ${JSON.stringify(value)}`),
+    `outline: ${JSON.stringify(outline)}`,
+    ...Object.entries(metadata).map(([key, value]) => `${key}: ${JSON.stringify(value)}`),
     "---",
     "",
   ].join("\n");
@@ -550,15 +551,16 @@ function renderSection(markdown, taskIds, terminalStates, options) {
 
 const LONG_CONTEXT = 600;
 
-function moduleContextSection(module, context) {
+function moduleContextSection(module, context, { labelled = true } = {}) {
   const name = displayName(module.id);
   return [
     // Long contexts (the four web modules, up to 1,467 characters) may flow
     // into two columns on wide screens; short ones stay a single column.
-    `<section class="ledger-module-context"${module.context.length >= LONG_CONTEXT ? ' data-context-size="long"' : ""} aria-labelledby="module-context">`,
+    `<section class="ledger-module-context"${module.context.length >= LONG_CONTEXT ? ' data-context-size="long"' : ""} ${labelled ? 'aria-labelledby="module-context"' : `aria-label="${escapeHtml(name)} module context"`}>`,
     "",
-    `<p id="module-context" class="ledger-module-context-label"><span class="ledger-module-context-name">${escapeHtml(name)} module context</span> <span class="ledger-module-context-scope">Applies to every task in this module</span></p>`,
-    "",
+    ...(labelled
+      ? [`<p id="module-context" class="ledger-module-context-label"><span class="ledger-module-context-name">${escapeHtml(name)} module context</span> <span class="ledger-module-context-scope">Applies to every task in this module</span></p>`, ""]
+      : []),
     context,
     "",
     "</section>",
@@ -748,7 +750,7 @@ function buildTaskBody(task, module, taskIds, terminalStates) {
     renderSection(markdown, taskIds, terminalStates),
   );
   const [context, working, explanation] = sections;
-  const body = `# ${title}\n\n${module.context ? moduleContextSection(module, context.markdown) : ""}${working.markdown}\n\n<section class="task-notes" aria-labelledby="explanations-and-troubleshooting">\n\n## Explanations and troubleshooting\n\n${explanation.markdown}\n\n</section>\n`;
+  const body = `# ${title}\n\n${module.context ? moduleContextSection(module, context.markdown, { labelled: false }) : ""}${working.markdown}\n\n<section class="task-notes" aria-labelledby="explanations-and-troubleshooting">\n\n## Explanations and troubleshooting\n\n${explanation.markdown}\n\n</section>\n`;
   return { title, body, references: sections.flatMap(({ references }) => references) };
 }
 
@@ -763,6 +765,7 @@ function taskPage(task, module, { title, body }, route, position, routes) {
     moduleId: module.id,
     moduleTitle: displayName(module.id),
     pageClass: "task-page",
+    outline: false,
     sourcePosition: position,
     ...taskLandmarks(task, module),
     routesOut: route.outbound.map(brief),
@@ -800,6 +803,7 @@ function operatorTaskPage(task, module, route, index, routes) {
     moduleId: module.id,
     moduleTitle: OPERATOR_MODULE_TITLE,
     pageClass: "task-page field-page operator-page",
+    outline: false,
     operatorPage: true,
     modulePosition: { index: index + 1, total: module.tasks.length },
     firstCommand: fenceCount(task.working) ? "cmd-1" : null,
@@ -845,12 +849,13 @@ function modulePage(module, taskIds, terminalStates) {
     : "";
   return `${frontmatter(name, `${name} module in the OSCP master checklist`, {
     pageClass: "module-page",
+    outline: false,
     prev: false,
     next: false,
     moduleId: module.id,
     moduleTitle: name,
     moduleTaskCount: module.tasks.length,
-  }).replace("outline: [2, 3]", "outline: false")}# ${name}\n\n${context}## Tasks\n\n${taskList}\n`;
+  })}# ${name}\n\n${context}## Tasks\n\n${taskList}\n`;
 }
 
 // The source opens with "How to use this edition", including the default box

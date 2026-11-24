@@ -140,9 +140,6 @@ components:
     backgroundColor: "{colors.desk-light}"
     textColor: "{colors.ink-light}"
     rounded: "{rounded.sheet}"
-  route-card:
-    textColor: "{colors.ink-light}"
-    rounded: "{rounded.row}"
 ---
 
 # Design System: OSCP Master Checklist
@@ -157,13 +154,13 @@ command groups, a short signal to recognize, and an exact next link. The
 retained task pages keep the original procedure sheets and their full decision
 record. A detailed retained task has:
 
-- a header row with its call number and place in the module;
+- a compact module link and place in the module;
 - the verbatim source title;
 - a module tab note that always stays expanded;
 - dark command plates with marked blanks;
 - ruled result tables or outcome rows;
-- an explanations band;
-- a route sheet at the foot.
+- a quiet explanations note;
+- the source-order pager.
 
 The reader is mid-box with a terminal open on the other half of the screen.
 The default loop is: scan one recognizable category, copy its commands, notice
@@ -191,8 +188,8 @@ WCAG AA (4.5:1) in both themes; a test computes them from `tokens.css`.
 | **Stop slab**: a stop state, never a link | Ink slab, paper text | Inverted | Filled square glyph |
 | Command plate / header bar | `#161b22` / `#1f2630` | `#0c1016` / `#161c24` | — |
 
-**Neutral bands** (desk tone with an ink rule) hold module context, IMPORTANT,
-and the Enter when and Question cues. Pressed controls (Wrap lines, the
+**Neutral bands** (desk tone with an ink rule) hold module-page context and
+IMPORTANT. Task context and cues use quiet ruled rows. Pressed controls (Wrap lines, the
 directory layout toggle) use neutral ink, never cobalt. In light mode the
 blank's fill differs little from paper (1.21:1), so the dashed underline is
 its required non-colour cue.
@@ -211,7 +208,7 @@ Sans Mono (Kali's default) and Liberation Mono. Ligatures are off in all code.
 
 - **Display** 2.5rem: home title only.
 - **Headline** 2rem: framing pages.
-- **Task title** 1.75rem: the verbatim source heading.
+- **Task title** 2rem: the verbatim source heading.
 - **Title** 1.375rem: level-two sections under a 2px ink rule.
 - **Section** 1.15rem and **subsection** 1.05rem.
 - **Body** 16px / 1.65 at every width, prose capped at 74ch.
@@ -225,16 +222,15 @@ Sans Mono (Kali's default) and Liberation Mono. Ligatures are off in all code.
 The VitePress shell is kept:
 
 - a 304px sidebar;
-- an 820px reading column (prose 74ch; plates and tables full width);
-- a 224px aside from 1280px, holding "On this page" and then the task rail;
+- a 900px task reading column (prose 74ch; plates and tables full width);
+- no right aside on task pages;
 - a 1440px layout maximum, because VitePress sizes the sidebar from it and a
   larger value clips sidebar titles.
 
-Task pages reduce VitePress's top padding to 1.5rem, and the aside moves up to
-match. That keeps WSQL-01's first command line above the fold at 1440×900.
+Task pages reduce VitePress's top padding to 1.5rem. That keeps the first
+command close to the title without adding a local outline.
 
-The operator column has a 900px maximum and the retained-task column an 820px maximum.
-Both shrink to fit beside the sidebar and aside. Guidance uses a label column
+Task pages use a 900px maximum and shrink to fit beside the sidebar. Guidance uses a label column
 and a hanging body column. Linux privilege escalation is one sidebar group
 containing only LPRIV-01 through LPRIV-20. The desktop sidebar can collapse
 without storing state, and the reading column recentres when it does.
@@ -246,8 +242,6 @@ Nothing moves unless the reader asked it to:
 - The nav bar keeps its title column in both sidebar states. The menu control
   sits in a server-rendered slot at the sidebar's seam, so neither it nor
   search moves on hydration or on collapse.
-- Between 960px and 1280px the "On this page" bar is held at full height from
-  the first paint instead of filling in after load.
 - The fold is one motion. The sidebar slides out, the nav bar surface follows
   its edge, and the reading column is carried to its new place by a transform
   (FLIP), all on the `--rb-fold-*` tokens. Hiding takes 220ms and showing
@@ -255,19 +249,17 @@ Nothing moves unless the reader asked it to:
 
 An operator page is one linear document: **Run this when**, an immediately
 visible command group, **Look for** signals, **If found** links, and normal
-continuation. LPRIV-01 through LPRIV-20 share one route rail and sequential
-previous/next controls.
+continuation. LPRIV-01 through LPRIV-20 use sequential previous/next controls.
 
 A detailed task page, top to bottom:
 
-1. The header row (outside `<main>`).
+1. The compact module and position row (outside `<main>`).
 2. The verbatim H1.
 3. Module context. From 1100px wide, contexts of 600 characters or more flow
    into two columns.
 4. The working section.
-5. The explanations band.
-6. The route sheet (outside `<main>`).
-7. The source-order pager.
+5. The explanations note.
+6. The source-order pager.
 
 Below 640px:
 
@@ -275,38 +267,34 @@ Below 640px:
   legend;
 - cue rows stack;
 - command plates extend 12px into the gutters;
-- the explanations band runs edge to edge.
+- the explanations note stays in the reading column.
 
 CSS lives in three files: `tokens.css` (colours, type and layout tokens for
-both themes), `components.css` (plates, marks, header row, route sheet and
-rail, Find task, directory, home sheet and jump, cues, outcome rows) and
+both themes), `components.css` (plates, marks, compact location row, Find
+task, directory, home sheet and jump, cues, outcome rows) and
 `custom.css` (VitePress overrides, document typography, narrow-screen,
 forced-colours and reduced-motion blocks). No stylesheet hides content.
 
 ## Components
 
-### Header row
+### Task location row
 
 On task pages:
 
-- **Left:** Checklist / *Module* / `[ID]` task *n* of *N*. The stamp and its
-  position never wrap apart.
-- **Right:** jump chips for **First command** (the working section's first
-  plate), **Result table** or **Outcomes** (the first decision table before
-  the explanations, otherwise the first outcome list), **Explanations**, and
-  **Routes (n)**.
+- **Left:** the linked module name and optional-task marker.
+- **Right:** task or page *n* of *N*.
 
-The generator writes each jump's target into frontmatter, using the same rules
-the renderer uses (`isDecisionHeaders`, `isOutcomeList`), so a jump never lacks
-a target.
+Task pages have no local outline, landmark chip row, route rail, or route
+appendix. Short procedures keep their navigation in the source decision rows
+and the normal previous/next controls.
 
 Module pages: Checklist / *Module* · *N* tasks, **Box route**, and
 **NET-05: Choose a service to investigate**, named by its exact title.
 
 ### Command plate
 
-- **Row one:** the fence's own language word, **Wrap lines** (`aria-pressed`;
-  off scrolls long lines inside the plate), and an always-visible **Copy**.
+- **Row one:** the fence's own language word, an always-visible **Copy**, and
+  **Wrap lines** only when the block has multiple or long lines.
 - **Row two:** **Fill in** with every distinct blank.
 
 Copy uses a filled neutral control. Wrap stays outlined, with an underline
@@ -344,15 +332,12 @@ so on).
 The binder tab note: a desk band with a 1px border, labelled "*Module* module
 context · Applies to every task in this module". Always expanded.
 
-### Task rail and route sheet
+### Inline routes
 
-- **Rail** (in the aside, under the outline): the stamp and module, then the
-  routes. Up to six show their titles; hub tasks show chips plus a link to the
-  sheet.
-- **Route sheet:** "Recorded routes for *ID*" (`h2#task-routes`, listed in the
-  outline). Cards show the ID and any cross-module tag on top and the exact
-  title below. Then the stop states, and the inbound links (folded into
-  native `<details>` above 12).
+Task routes appear once, where the maintained procedure names them. Decision
+tables, outcome rows, and finding links carry the next action. Derived route
+metadata remains in generated frontmatter for validation, but it does not add
+another navigation surface to the rendered page.
 
 ### Sidebar sections
 
@@ -375,7 +360,9 @@ three-bar mark.
 
 ### Find task (sidebar) and the home jump
 
-Find task is pinned at the top of the desktop sidebar.
+Find task is pinned at the top of the desktop sidebar on framing and directory
+pages. Task pages use the global search control and keep the sidebar focused on
+module navigation.
 
 - An exact or loose ID ("web9") shows "Press Enter to open *ID*: *title*".
 - Other text lists live matches by ID, title word or module.
@@ -417,15 +404,15 @@ The server-rendered default lists all 215 tasks. Nothing is stored.
 - Use cobalt only for navigation, and yellow or amber only for blanks.
 - Keep commands visible and copyable without hover.
 - Derive every title and quote from the parsed source, never by hand.
-- Label derived navigation as derived, and keep it outside `<main>`.
+- Keep derived navigation outside `<main>` and remove it when the source
+  already carries the same route.
 
 ### Don't
 
 - Don't hide anything with `display: none`, `visibility: hidden`, clipping,
   hidden overflow, zero height or off-screen offsets. Tests forbid these in
   every theme stylesheet.
-- Don't collapse source content. Only derived inbound lists may use
-  `<details>`.
+- Don't collapse source content.
 - Don't repeat detailed prerequisites or failure taxonomies on field pages.
 - Don't add progress, completion, success colours, stored state or remote
   assets.

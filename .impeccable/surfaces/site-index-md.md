@@ -23,7 +23,7 @@ OWN-WORLD: Laminated-sheet paper and instrument slate; dark command plates; high
 
 STORY: Run the first scoped command, recognize a signal, then follow one link to the page that owns the next decision.
 
-FIRST VIEWPORT: A concise entry condition and the first command plate. Every Linux page keeps its call number, sequence position, and finding routes.
+FIRST VIEWPORT: A concise entry condition and the first command plate. Task pages keep one location row, no local outline or route appendix, and show finding routes only where the maintained procedure names them.
 
 FORM: Ops runbook binder, candidate 6 of 7 (man page, QRH, gamebook, transit map, field book, runbook binder, RFC); seed 8523243c. Raises: highlighter for the one thing to change (zine); marks by shape, not hue (cutting bench); source vs derived labelled (provenance ribbon).
 

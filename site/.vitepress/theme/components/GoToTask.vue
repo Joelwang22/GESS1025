@@ -7,7 +7,7 @@ import { taskHref } from "../task-links.js";
 
 const RESULT_LIMIT = 12;
 
-const { theme } = useData();
+const { frontmatter, theme } = useData();
 const router = useRouter();
 const value = ref("");
 const input = ref(null);
@@ -56,7 +56,10 @@ function clear() {
 function submit() {
   engaged.value = true;
   if (exact.value) return go(exact.value);
-  if (matches.value.length) return go(matches.value[0].id);
+  if (matches.value.length) {
+    message.value = "Choose a matching task below, or type an exact task ID.";
+    return;
+  }
   message.value = value.value.trim()
     ? `No task matches "${value.value.trim()}". Try an ID such as NET-01 or a word such as smb.`
     : "Type a task ID such as NET-01, or a word from a task title.";
@@ -69,6 +72,7 @@ function leave(event) {
 
 <template>
   <form
+    v-if="!frontmatter.taskId"
     class="goto"
     role="search"
     aria-label="Find a task by ID or title"
@@ -102,7 +106,7 @@ function leave(event) {
         <template v-if="engaged && message">{{ message }}</template>
         <template v-else-if="engaged && exact">Press Enter to open {{ exact }}: {{ exactTitle }}</template>
         <template v-else-if="engaged && listing">
-          {{ matches.length }} {{ matches.length === 1 ? "match" : "matches" }}<template v-if="matches.length > RESULT_LIMIT">, first {{ RESULT_LIMIT }} shown. Keep typing to narrow</template>. Enter opens the first.
+          {{ matches.length }} {{ matches.length === 1 ? "match" : "matches" }}<template v-if="matches.length > RESULT_LIMIT">, first {{ RESULT_LIMIT }} shown. Keep typing to narrow</template>.
         </template>
       </p>
       <ol v-if="engaged && listing" class="goto-results">

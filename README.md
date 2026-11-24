@@ -3,7 +3,7 @@
 A command-first website for use beside a terminal. Thirty-three modules cover
 enumeration, web, Active Directory (including ADCS, relay, delegation and
 password attacks), host privilege escalation, pivoting and the common services.
-Linux privilege escalation is one authored 15-page operator module.
+Linux privilege escalation is one authored 20-page operator module.
 
 The retained edition is `2026-11-21.working.132`. The snapshot is now
 maintained in place for this site; its hash, task count and the LPRIV pages

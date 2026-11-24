@@ -14,7 +14,7 @@ const checklist = parseChecklist(bytes.toString("utf8"));
 const hash = createHash("sha256").update(bytes).digest("hex");
 
 const retired = new Set(["linux", "linux_privilege"]);
-const operatorTasks = 15;
+const operatorTasks = 20;
 const sourceTasks = checklist.tasks.length;
 const publishedTasks = sourceTasks - checklist.tasks.filter(({ moduleId }) => retired.has(moduleId)).length + operatorTasks;
 const sourceModules = checklist.modules.length;

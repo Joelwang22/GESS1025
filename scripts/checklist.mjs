@@ -56,6 +56,8 @@ const MODULE_DISPLAY_NAMES = new Map([
   ["ad_abuse", "AD abuse"],
   ["password_attacks", "Password attacks"],
   ["pivoting", "Pivoting"],
+  ["metasploit", "Metasploit"],
+  ["payloads", "Payloads"],
   ["web_advanced", "Advanced web"],
   ["other_services", "Other services"],
   ["database", "Database"],
@@ -81,7 +83,7 @@ const SIDEBAR_SECTIONS = [
   { title: "Enumeration", ids: ["network", "file_services", "remote_access", "dns_nfs", "snmp", "other_services"] },
   { title: "Web", ids: ["http", "web_input", "web_upload", "web_editor", "web_advanced", "command_continuation", "command_shell", "sql_continuation"] },
   { title: "Windows and Active Directory", ids: ["windows_ad", "adcs", "ad_abuse", "password_attacks", "windows_privilege", "mssql"] },
-  { title: "Host and access", ids: ["database", "mail_rdp", "access", "shell_transfer", "pivoting", "local_artifact", "ftp_write", "ftp_tls", "smb_write", "redis", "redis_exploitation", "ssh_knock"] },
+  { title: "Host and access", ids: ["database", "mail_rdp", "access", "shell_transfer", "metasploit", "payloads", "pivoting", "local_artifact", "ftp_write", "ftp_tls", "smb_write", "redis", "redis_exploitation", "ssh_knock"] },
   { title: "Linux", ids: ["linux_privilege"] },
 ];
 
@@ -672,11 +674,11 @@ async function loadOperatorModule(sourceRoot) {
   const names = (await readdir(directory))
     .filter((name) => /^lpriv-\d{2}\.md$/.test(name))
     .sort();
-  const expected = Array.from({ length: 15 }, (_, index) =>
+  const expected = Array.from({ length: 20 }, (_, index) =>
     `lpriv-${String(index + 1).padStart(2, "0")}.md`,
   );
   if (JSON.stringify(names) !== JSON.stringify(expected)) {
-    throw new Error("Linux privilege operator source must contain exactly LPRIV-01 through LPRIV-15");
+    throw new Error("Linux privilege operator source must contain exactly LPRIV-01 through LPRIV-20");
   }
 
   const tasks = [];

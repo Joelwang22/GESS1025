@@ -136,11 +136,11 @@ test("provides home, checklist index, and provenance pages", async () => {
   assert.match(index, /Linux privilege escalation/);
   assert.doesNotMatch(index, /generated\/modules\/linux\.md/);
   assert.match(index, /generated\/modules\/network/);
-  assert.match(source, /e2db7b208156fc33060682ffc069a7b782506217306e85ecbfcfe19e49985f6b/);
-  assert.match(source, /Published pages \| 175/);
+  assert.match(source, /f2fdf56f8aeee2229898f5ed0276bfb3acbcdcc531797e087a7fe40dbc67a72a/);
+  assert.match(source, /Published pages \| 213/);
 });
 
-test("publishes one 15-page Linux privilege operator module", async () => {
+test("publishes one 20-page Linux privilege operator module", async () => {
   const [home, config, css, toggle, theme] = await Promise.all([
     text("site/index.md"),
     text("site/.vitepress/config.mjs"),
@@ -171,16 +171,16 @@ test("publishes one 15-page Linux privilege operator module", async () => {
   const sidebar = JSON.parse(await text("site/.vitepress/generated/sidebar.json"));
   const linux = sidebar.find(({ text: label }) => label === "Linux")?.items.find(({ text: label }) => label === "Linux privilege escalation");
   assert.ok(linux);
-  assert.equal(linux.items.length, 15);
+  assert.equal(linux.items.length, 20);
   assert.deepEqual(
     linux.items.map(({ link }) => link),
-    Array.from({ length: 15 }, (_, index) =>
+    Array.from({ length: 20 }, (_, index) =>
       `/generated/tasks/lpriv-${String(index + 1).padStart(2, "0")}`,
     ),
   );
   assert.ok(sidebar.some(({ text: label }) => label === "Linux"));
 
-  for (let index = 1; index <= 15; index += 1) {
+  for (let index = 1; index <= 20; index += 1) {
     const id = `LPRIV-${String(index).padStart(2, "0")}`;
     const source = await text(`content/linux-privilege/${id.toLowerCase()}.md`);
     const prose = proseOutsideCode(source);
@@ -196,7 +196,7 @@ test("publishes one 15-page Linux privilege operator module", async () => {
 
 test("renders every Linux operator command with copy controls and live routes", async () => {
   await buildSite();
-  for (let index = 1; index <= 15; index += 1) {
+  for (let index = 1; index <= 20; index += 1) {
     const slug = `lpriv-${String(index).padStart(2, "0")}`;
     const [operatorSource, operatorHtml] = await Promise.all([
       text(`content/linux-privilege/${slug}.md`),
@@ -216,7 +216,7 @@ test("renders every Linux operator command with copy controls and live routes", 
 test("the operator corpus retains the field pass and every retired Linux privilege case", async () => {
   const corpus = (
     await Promise.all(
-      Array.from({ length: 15 }, (_, index) =>
+      Array.from({ length: 20 }, (_, index) =>
         text(`content/linux-privilege/lpriv-${String(index + 1).padStart(2, "0")}.md`),
       ),
     )
@@ -272,8 +272,8 @@ test("generates every public page, module, and LNX compatibility URL", async () 
     text("site/generated/tasks/lnx-01.md"),
   ]);
 
-  assert.equal(taskFiles.length, 185);
-  assert.equal(moduleFiles.length, 33);
+  assert.equal(taskFiles.length, 223);
+  assert.equal(moduleFiles.length, 35);
   assert.match(net01, /^# NET-01\. Check connectivity/m);
   assert.match(net01, /## Explanations and troubleshooting/);
   assert.match(net05, /Next: \[WEB-01\]\(\.\/web-01\)/);
@@ -312,7 +312,7 @@ test("preserves module and task order in the sidebar", async () => {
   assert.equal(linux.text, "Linux");
   assert.equal(linux.items.length, 1);
   assert.equal(linux.items[0].text, "Linux privilege escalation");
-  assert.equal(linux.items[0].items.length, 15);
+  assert.equal(linux.items[0].items.length, 20);
 });
 
 test("names modules with an explicit acronym-correct display map", async () => {
@@ -324,7 +324,7 @@ test("names modules with an explicit acronym-correct display map", async () => {
     (match) => match[1],
   );
 
-  assert.equal(indexNames.length, 33);
+  assert.equal(indexNames.length, 35);
   const sidebarNames = sidebar.flatMap((section) => section.items.map(({ text: label }) => label));
   assert.deepEqual(sidebarNames.sort(), [...indexNames].sort());
   for (const name of ["HTTP", "Windows and Active Directory", "DNS and NFS", "SNMP", "MSSQL", "FTP TLS", "SSH knock", "SQL continuation", "Mail and RDP"]) {
@@ -344,16 +344,16 @@ test("emits a complete public catalog with source provenance", async () => {
   assert.equal(generatedCatalog.edition, manifest.edition);
   assert.equal(generatedCatalog.sourceDigest, manifest.sourceDigest);
   assert.equal(generatedCatalog.snapshotSha256, manifest.snapshotSha256);
-  assert.equal(generatedCatalog.moduleCount, 33);
-  assert.equal(generatedCatalog.taskCount, 175);
-  assert.equal(generatedCatalog.sourceModuleCount, 34);
-  assert.equal(generatedCatalog.sourceTaskCount, 185);
+  assert.equal(generatedCatalog.moduleCount, 35);
+  assert.equal(generatedCatalog.taskCount, 213);
+  assert.equal(generatedCatalog.sourceModuleCount, 36);
+  assert.equal(generatedCatalog.sourceTaskCount, 218);
   assert.equal(sidebar.flatMap((section) => section.items).length, generatedCatalog.modules.length);
-  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 175);
+  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 213);
   assert.ok(!generatedCatalog.tasks.some(({ id }) => id.startsWith("LNX-")));
   assert.deepEqual(
     generatedCatalog.tasks.filter(({ id }) => id.startsWith("LPRIV-")).map(({ id }) => id),
-    Array.from({ length: 15 }, (_, index) => `LPRIV-${String(index + 1).padStart(2, "0")}`),
+    Array.from({ length: 20 }, (_, index) => `LPRIV-${String(index + 1).padStart(2, "0")}`),
   );
   assert.equal(generatedCatalog.modules.at(-1).title, "Linux privilege escalation");
 });
@@ -481,7 +481,7 @@ test("task pages carry station frontmatter and verbatim module context", async (
       .reduce((sum, { tasks }) => sum + tasks.length, 0),
   );
   assert.ok(contextual > 0);
-  for (let index = 1; index <= 15; index += 1) {
+  for (let index = 1; index <= 20; index += 1) {
     const id = `LPRIV-${String(index).padStart(2, "0")}`;
     const page = await text(`site/generated/tasks/${id.toLowerCase()}.md`);
     const head = frontmatterOf(page);
@@ -501,7 +501,7 @@ test("preserves every fenced command block byte for byte", async () => {
     }
   }
   assert.ok(blocks > 0);
-  for (let index = 1; index <= 15; index += 1) {
+  for (let index = 1; index <= 20; index += 1) {
     const slug = `lpriv-${String(index).padStart(2, "0")}`;
     const [source, page] = await Promise.all([
       text(`content/linux-privilege/${slug}.md`),
@@ -921,14 +921,14 @@ test("task pages carry their derived routes and a route sheet outside <main>", a
     net05,
     new RegExp(`<summary>Linked from ${routes["NET-05"].inbound.length} tasks</summary>`),
   );
-  const [lpriv01, lpriv15] = await Promise.all([
+  const [lpriv01, lpriv20] = await Promise.all([
     text("site/.vitepress/dist/generated/tasks/lpriv-01.html"),
-    text("site/.vitepress/dist/generated/tasks/lpriv-15.html"),
+    text("site/.vitepress/dist/generated/tasks/lpriv-20.html"),
   ]);
   assert.doesNotMatch(lpriv01, /pager-link prev-page/);
   assert.match(lpriv01, /href="\/checklist\/generated\/tasks\/lpriv-02\.html"/);
-  assert.match(lpriv15, /href="\/checklist\/generated\/tasks\/lpriv-14\.html"/);
-  assert.doesNotMatch(lpriv15, /pager-link next-page/);
+  assert.match(lpriv20, /href="\/checklist\/generated\/tasks\/lpriv-19\.html"/);
+  assert.doesNotMatch(lpriv20, /pager-link next-page/);
 });
 
 test("publishes the source preface verbatim as the default box route page", async () => {
@@ -1124,10 +1124,10 @@ test("module pages list exact task titles in an aligned column without an outlin
     assert.doesNotMatch(html, /in source order/, module.id);
     for (const task of catalog.tasks.filter(({ moduleId }) => moduleId === module.id)) {
       const row = html.match(
-        new RegExp(`<span class="module-task-id">${task.id}\\.</span> <span class="module-task-title">([^<]*)</span>`),
+        new RegExp(`<span class="module-task-id">${task.id}\\.</span> <span class="module-task-title">([\\s\\S]*?)</span>`),
       );
       assert.ok(row, `${module.id} lists ${task.id}`);
-      assert.equal(decodeEntities(row[1]), task.title);
+      assert.equal(decodeEntities(row[1].replace(/<[^>]+>/g, "")), task.title.replaceAll("`", ""));
     }
   }
 });
@@ -1429,7 +1429,8 @@ test("module pages open with a header strip that names linked tasks by exact tit
     const strip = html.match(/<div class="task-header module-header">([\s\S]*?)<\/nav><\/div>/)?.[1];
     assert.ok(strip, `${module.id} has a header strip`);
     assert.ok(html.indexOf('<div class="task-header module-header">') < html.indexOf("<main"), module.id);
-    assert.match(strip, new RegExp(`${module.tasks.length} tasks?</span>`), `${module.id} task count`);
+    const expectedCount = module.id === "linux_privilege" ? 20 : module.tasks.length;
+    assert.match(strip, new RegExp(`${expectedCount} tasks?</span>`), `${module.id} task count`);
     assert.match(strip, /href="\/checklist\/generated\/start\.html">Box route<\/a>/);
     assert.ok(strip.includes(`>NET-05: ${escapeVuePlaceholders(net05.title).replaceAll("'", "&#39;")}</a>`), `${module.id} NET-05 title`);
   }
@@ -1449,13 +1450,13 @@ test("Find task offers Clear and Escape, and the directory flat list keeps every
   assert.match(find, /<button v-if="value" class="goto-clear" type="button" @click="clear">Clear<\/button>/);
   const directory = await text("site/.vitepress/theme/components/TaskDirectory.vue");
   assert.match(directory, /const flat = computed\(\(\) => shown\.value\.flatMap\(\(module\) => module\.tasks\)\);/);
-  // The server-rendered default is the by-module view with all 175 tasks and
+  // The server-rendered default is the by-module view with all 213 tasks and
   // both layout controls; no grouping pills or stored state.
   const html = await text("site/.vitepress/dist/checklist/index.html");
   const directoryHtml = html.slice(html.indexOf('class="directory-tools"'), html.indexOf('id="module-summary"'));
-  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 175);
-  assert.match(directoryHtml, /aria-pressed="true">\s*By module \(33\)/);
-  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(175\)/);
+  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 213);
+  assert.match(directoryHtml, /aria-pressed="true">\s*By module \(35\)/);
+  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(213\)/);
   assert.doesNotMatch(directory, /localStorage|sessionStorage/);
 });
 

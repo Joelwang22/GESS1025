@@ -236,12 +236,12 @@ match. That keeps WSQL-01's first command line above the fold at 1440×900.
 The operator column has a 900px maximum and the retained-task column an 820px maximum.
 Both shrink to fit beside the sidebar and aside. Guidance uses a label column
 and a hanging body column. Linux privilege escalation is one sidebar group
-containing only LPRIV-01 through LPRIV-15. The desktop sidebar can collapse
+containing only LPRIV-01 through LPRIV-20. The desktop sidebar can collapse
 without storing state, and the reading column recentres when it does.
 
 An operator page is one linear document: **Run this when**, an immediately
 visible command group, **Look for** signals, **If found** links, and normal
-continuation. LPRIV-01 through LPRIV-15 share one route rail and sequential
+continuation. LPRIV-01 through LPRIV-20 share one route rail and sequential
 previous/next controls.
 
 A detailed task page, top to bottom:
@@ -375,8 +375,8 @@ After a route change, the active sidebar item scrolls into view on desktop.
 `/checklist/` has a filter by ID, title or module; Escape and Clear reset it.
 The module summary below it is grouped into Enumeration, Web, Windows and Active
 Directory, Host and access, and Linux. Both directory views stay available:
-**By module (33)** in printed-index columns and **Flat list (175)** in one table.
-The server-rendered default lists all 175 tasks. Nothing is stored.
+**By module (35)** in printed-index columns and **Flat list (213)** in one table.
+The server-rendered default lists all 213 tasks. Nothing is stored.
 
 ## Do's and don'ts
 

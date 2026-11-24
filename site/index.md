@@ -41,7 +41,7 @@ Search the published checklist by ID or title.
 1. Start Linux privilege escalation at LPRIV-01.
 2. Read the short **Look for** note under each command group.
 3. When you find something, follow **If found** to the exact page.
-4. Re-enumerate at LPRIV-15 after the identity changes.
+4. Re-enumerate at LPRIV-20 after the identity changes.
 
 Every command block has an always-visible **Copy** control. Highlighted values
 such as `<IP_ADDRESS>` are blanks to replace before running the command.

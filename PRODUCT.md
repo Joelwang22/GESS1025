@@ -20,14 +20,14 @@ consult the master checklist while working through a box.
 
 Give an operator command-first pages beside a live terminal. Success means one
 page answers the current decision, from enumeration through web, AD, host
-privilege and access, with the Linux privilege pass as one deliberate 15-page
+privilege and access, with the Linux privilege pass as one deliberate 20-page
 path.
 
 ## Positioning
 
 Thirty-three modules are grouped as Enumeration, Web, Windows and Active
 Directory, Host and access, and Linux. Linux privilege escalation is one visible
-module with LPRIV-01 through LPRIV-15. Retired LNX URLs redirect into it and
+module with LPRIV-01 through LPRIV-20. Retired LNX URLs redirect into it and
 existing LPRIV URLs stay stable.
 
 ## Operating context
@@ -41,7 +41,7 @@ search.
 ## Capabilities and constraints
 
 - Static GitHub Pages output with local search and grouped navigation.
-- A 15-page Linux privilege escalation module with scoped-first commands,
+- A 20-page Linux privilege escalation module with scoped-first commands,
   short signals, direct finding links, and sequential previous/next controls.
 - Stable task URLs, route links, previous and next navigation, and code copying.
 - Exact maintained-source wording, task IDs, commands, routes, version, and

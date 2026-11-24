@@ -13,12 +13,12 @@ checkout. `pnpm stamp` re-pins the hash and counts after an intentional edit.
 | Field | Value |
 | --- | --- |
 | Edition | `2026-11-21.working.132` |
-| Imported snapshot tasks | 185 |
-| Imported snapshot modules | 34 |
-| Published pages | 175 |
-| Published modules | 33 |
+| Imported snapshot tasks | 218 |
+| Imported snapshot modules | 36 |
+| Published pages | 213 |
+| Published modules | 35 |
 | Imported | 2026-11-23 |
-| Snapshot SHA-256 | `e2db7b208156fc33060682ffc069a7b782506217306e85ecbfcfe19e49985f6b` |
+| Snapshot SHA-256 | `f2fdf56f8aeee2229898f5ed0276bfb3acbcdcc531797e087a7fe40dbc67a72a` |
 | Printed source digest | `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731` |
 
 The snapshot's edition heading carries this note, reproduced exactly:
@@ -38,12 +38,12 @@ The generator publishes the snapshot's non-retired modules and its opening
 section, "How to use this edition" with the default box route. It replaces the
 snapshot's old Linux and narrow Linux-privilege modules with one authored
 [Linux privilege escalation](../generated/modules/linux_privilege.md) module.
-The replacement has exactly LPRIV-01 through LPRIV-15. The retired task bodies
+The replacement has exactly LPRIV-01 through LPRIV-20. The retired task bodies
 are not published as an archive. Generation also adds:
 
 - Links on recognized route marks: `Next: TASK-ID` destinations, bold task IDs
   such as `**NET-02**`, compound and abbreviated forms such as
-  `**WEB-06/08**`, ranges such as `**LPRIV-01 through LPRIV-15**`, and
+  `**WEB-06/08**`, ranges such as `**LPRIV-01 through LPRIV-20**`, and
   arrow-joined runs such as `**SSH-01 → SSH-02**`. Terminal states such as
   `PAUSE-ROUTE` stay unlinked.
 - The module's context on every task in that module, always expanded.
@@ -64,5 +64,5 @@ tables, the "Enter when" and "Question" cues, and outcome lists. Copy writes
 each command block's text exactly as the snapshot gives it.
 
 Generation stops if the edition, source digest, snapshot hash, imported task
-count, explanation coverage, task IDs, route destinations, or 15-page operator
+count, explanation coverage, task IDs, route destinations, or 20-page operator
 contract drifts from the expected structure.

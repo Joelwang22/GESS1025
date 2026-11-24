@@ -50,6 +50,7 @@ const hub = computed(() => {
       <span class="task-id-pair">
         <span class="task-stamp">{{ frontmatter.taskId }}</span>
         <span v-if="position" class="task-position">{{ isOperatorPage ? "page" : "task" }} {{ position.index }} of {{ position.total }}</span>
+        <span v-if="frontmatter.optional" class="task-optional">Optional</span>
       </span>
     </nav>
     <nav class="task-jumps" aria-label="Jump to a part of this task">

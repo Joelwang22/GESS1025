@@ -432,8 +432,7 @@ samp {
   flex: 1;
 }
 
-.sb-section {
-  flex: 1;
+.sb-section {  flex: 1;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.06em;

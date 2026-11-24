@@ -136,7 +136,7 @@ test("provides home, checklist index, and provenance pages", async () => {
   assert.match(index, /Linux privilege escalation/);
   assert.doesNotMatch(index, /generated\/modules\/linux\.md/);
   assert.match(index, /generated\/modules\/network/);
-  assert.match(source, /f2fdf56f8aeee2229898f5ed0276bfb3acbcdcc531797e087a7fe40dbc67a72a/);
+  assert.match(source, /6c366b367019d460bf53be583b4fb3164f9e18496adc7c85b5d7dd007d90e4a8/);
   assert.match(source, /Published pages \| 213/);
 });
 
@@ -457,6 +457,8 @@ test("task pages carry station frontmatter and verbatim module context", async (
       const page = await text(`site/generated/tasks/${task.id.toLowerCase()}.md`);
       const head = frontmatterOf(page);
       assert.match(head, new RegExp(`^taskId: "${task.id}"$`, "m"));
+      if (task.id === "VNC-01") assert.match(head, /^optional: true$/m);
+      if (task.id === "NET-01") assert.doesNotMatch(head, /^optional:/m);
       assert.match(head, new RegExp(`^moduleId: "${module.id}"$`, "m"));
       assert.match(head, new RegExp(`^moduleTitle: ${JSON.stringify(titles.get(module.id))}$`, "m"));
       if (!module.context) {
@@ -867,7 +869,7 @@ test("routes, stop states, and decision tables carry distinct marks", async () =
   assert.match(net01, /<h1 id="net-01-check-connectivity" tabindex="-1">NET-01\. Check connectivity <a class="header-anchor"/);
   const header = net01.indexOf('<div class="task-header">');
   assert.ok(header >= 0 && header < net01.indexOf("<main"), "header row precedes <main>");
-  assert.match(net01, /<span class="task-id-pair"><span class="task-stamp">NET-01<\/span><span class="task-position">task 1 of 5<\/span><\/span>/);
+  assert.match(net01, /<span class="task-id-pair"><span class="task-stamp">NET-01<\/span><span class="task-position">task 1 of 5<\/span>(?:<!---->)?<\/span>/);
   assert.match(net01, /<span class="sb-id">NET-01<\/span> <span class="sb-title">Check connectivity<\/span>/);
 
   const terminalStates = new Set(manifest.terminalStates);
@@ -1447,6 +1449,7 @@ test("Find task offers Clear and Escape, and the directory flat list keeps every
   await buildSite();
   const find = await text("site/.vitepress/theme/components/GoToTask.vue");
   assert.match(find, /@keydown\.esc\.prevent="clear"/);
+  assert.match(find, /for \(const group of section\.items \?\? \[\]\)/);
   assert.match(find, /<button v-if="value" class="goto-clear" type="button" @click="clear">Clear<\/button>/);
   const directory = await text("site/.vitepress/theme/components/TaskDirectory.vue");
   assert.match(directory, /const flat = computed\(\(\) => shown\.value\.flatMap\(\(module\) => module\.tasks\)\);/);

@@ -781,6 +781,17 @@
   color: var(--rb-ink-2);
 }
 
+.task-optional {
+  padding: 0 0.4rem;
+  border: 1px solid var(--rb-ink-3);
+  border-radius: var(--rb-radius-s);
+  color: var(--rb-ink-2);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .task-jumps {
   display: flex;
   flex-wrap: wrap;

@@ -1,4 +1,4 @@
-# LPRIV-12. Custom software and installed packages
+# LPRIV-12. Delegated service wrapper to shell
 
 **Run this when:** a process, service, SUID file, or writable path points to nonstandard or version-sensitive software.
 

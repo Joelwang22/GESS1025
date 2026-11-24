@@ -1,4 +1,4 @@
-# LPRIV-03. Sudo delegation and executable escapes
+# LPRIV-03. Writable privileged scheduler
 
 **Run this when:** `sudo -n -l` or `sudo -l` lists an allowed command, run-as identity, or fixed argument rule.
 

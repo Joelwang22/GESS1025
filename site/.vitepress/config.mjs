@@ -24,8 +24,6 @@ function escapeHtml(value) {
 // The generated sidebar keeps "ID · Title" labels. The rendered sidebar sets
 // the call number in its own column so long titles hang beside it.
 const moduleByTitle = new Map(catalog.modules.map((module) => [module.title, module]));
-const SECTIONS = new Set(["Enumeration", "Web", "Windows and Active Directory", "Host and access", "Linux"]);
-
 function renderGroup(group, isSection = false) {
   const module = isSection ? null : moduleByTitle.get(group.text);
   if (isSection || !module) {

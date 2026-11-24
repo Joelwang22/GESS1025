@@ -1,4 +1,4 @@
-# LPRIV-14. Execute and verify one privilege path
+# LPRIV-14. Delegated append to account transition
 
 **Run this when:** one earlier page produced a complete technique with an exact executable or path, verified identity, known trigger, and supported cleanup.
 

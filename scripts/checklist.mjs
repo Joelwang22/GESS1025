@@ -726,12 +726,14 @@ async function loadOperatorModule(sourceRoot) {
 // Returns frontmatter fields; the header renders outside <main>.
 function taskLandmarks(task, module) {
   const beforeExplanations = [module.context, task.working].join("\n");
+  const optional = /^\*\*Optional\.\*\*/m.test(task.working) || /\(optional\)$/.test(task.title);
   return {
     modulePosition: {
       index: module.tasks.findIndex(({ id }) => id === task.id) + 1,
       total: module.tasks.length,
     },
     firstCommand: fenceCount(task.working) > 0 ? `cmd-${fenceCount(module.context) + 1}` : null,
+    ...(optional ? { optional: true } : {}),
     resultsKind: tableHeaderRows(beforeExplanations).some(isDecisionHeaders)
       ? "table"
       : bulletLists(beforeExplanations).some(isOutcomeList)

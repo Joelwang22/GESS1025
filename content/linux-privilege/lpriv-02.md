@@ -1,4 +1,4 @@
-# LPRIV-02. Users, homes, and normal-user pivots
+# LPRIV-02. SUID or capability identity change
 
 **Run this when:** the current identity is an application account, or you need to identify normal users and account-specific files.
 

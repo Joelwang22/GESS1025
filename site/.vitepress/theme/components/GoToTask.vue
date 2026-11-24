@@ -13,13 +13,18 @@ const value = ref("");
 const input = ref(null);
 const message = ref("");
 
-const tasks = computed(() =>
-  (theme.value.sidebar ?? []).flatMap((group) =>
-    (group.items ?? [])
-      .filter((item) => item.taskId)
-      .map((item) => ({ id: item.taskId, title: item.taskTitle, module: group.moduleTitle })),
-  ),
-);
+const tasks = computed(() => {
+  const result = [];
+  for (const section of theme.value.sidebar ?? []) {
+    for (const group of section.items ?? []) {
+      if (!group.moduleTitle) continue;
+      for (const item of group.items ?? []) {
+        if (item.taskId) result.push({ id: item.taskId, title: item.taskTitle, module: group.moduleTitle });
+      }
+    }
+  }
+  return result;
+});
 const ids = computed(() => new Set(tasks.value.map(({ id }) => id)));
 const exact = computed(() => {
   const id = normalizeTaskId(value.value);

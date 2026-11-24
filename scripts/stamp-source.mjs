@@ -40,8 +40,8 @@ await edit("content/source.json", [
   [/"expectedTaskCount": \d+/, `"expectedTaskCount": ${sourceTasks}`],
 ]);
 await edit("site/about/source.md", [
-  [/Imported snapshot tasks \| \d+/, `Imported snapshot tasks | ${sourceTasks}`],
-  [/Imported snapshot modules \| \d+/, `Imported snapshot modules | ${sourceModules}`],
+  [/Snapshot tasks \| \d+/, `Snapshot tasks | ${sourceTasks}`],
+  [/Snapshot modules \| \d+/, `Snapshot modules | ${sourceModules}`],
   [/Published pages \| \d+/, `Published pages | ${publishedTasks}`],
   [/Published modules \| \d+/, `Published modules | ${publishedModules}`],
   [/Snapshot SHA-256 \| `[a-f0-9]{64}`/, `Snapshot SHA-256 | \`${hash}\``],

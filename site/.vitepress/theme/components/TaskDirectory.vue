@@ -70,7 +70,7 @@ const total = computed(() => modules.value.reduce((sum, { tasks }) => sum + task
     </div>
     <p class="directory-status" role="status" aria-live="polite">
       <template v-if="query.trim()">{{ shownCount }} of {{ total }} tasks match "{{ query.trim() }}".</template>
-      <template v-else>All {{ total }} tasks, in source order.</template>
+      <template v-else>All {{ total }} tasks, in phase order.</template>
     </p>
   </div>
   <div v-if="mode === 'module'" class="directory">
@@ -89,7 +89,7 @@ const total = computed(() => modules.value.reduce((sum, { tasks }) => sum + task
       </ol>
     </section>
   </div>
-  <ol v-else class="directory-flat" aria-label="All tasks in source order">
+  <ol v-else class="directory-flat" aria-label="All tasks in phase order">
     <li v-for="task in flat" :key="task.id">
       <a :href="task.link">
         <span class="directory-id">{{ task.id }}</span>

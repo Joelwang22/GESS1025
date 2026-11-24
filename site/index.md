@@ -1,56 +1,38 @@
 ---
-title: OSCP checklist
-description: A practical OSCP checklist for live boxes and deeper troubleshooting.
+title: Checklist modules
+description: Published modules and operator pages in the OSCP checklist.
 outline: false
 aside: false
-pageClass: home-page
+pageClass: index-page
 prev: false
 next: false
 ---
 
-# OSCP checklist
+# Checklist modules
 
-**Commands first. Follow a lead when you find one.** {.edition-line}
+Browse the published pages when you know an ID, need a result table, or need the
+prerequisites and recovery notes for a finding.
 
-Use the checklist beside your terminal. Start with the page that matches your
-current position, then follow the linked task when a finding needs more work.
+The summary follows the box's phase order: enumeration, services, web, session,
+host, Windows and domain, Linux privilege, movement. Open one lane at a time; a
+failed lead returns to the service it came from rather than moving forward.
 
-> [!IMPORTANT]
-> Use this site only for an assigned lab or another authorized target. Start
-> with the smallest check that answers the current question and stop sweeping
-> when you have a credible lead.
+For a Linux shell, start at
+[LPRIV-01](./generated/tasks/lpriv-01.md).
 
-[Open Linux privilege escalation checklist](./generated/tasks/lpriv-01.md){.action .action-primary} [Start a new box](./generated/tasks/net-01.md){.action} {.home-actions}
+[Default box route](./generated/start.md){.action} [Module summary](#module-summary){.action}
 
-## Choose your situation
+## Every task
 
-| You have | Start here |
-| --- | --- |
-| A Linux shell | [Start at LPRIV-01 and establish context](./generated/tasks/lpriv-01.md). |
-| A new target with no foothold | [Begin with connectivity and service discovery](./generated/tasks/net-01.md). |
-| A specific service, task ID, or finding | Search the checklist below. |
+Every published page in phase order, grouped by module or as one flat list.
 
-## Find a task
+<TaskDirectory />
 
-Search the published checklist by ID or title.
+## Module summary
 
-<HomeJump />
+Each module page lists its tasks, after the module context when the source
+gives one. The sections follow the box's phase order and are generated from the
+same phase list as the sidebar.
 
-## How to use it
+<!--@include: ./.vitepress/generated/module-directory.md-->
 
-1. Start Linux privilege escalation at LPRIV-01.
-2. Read the short **Look for** note under each command group.
-3. When you find something, follow **If found** to the exact page.
-4. Re-enumerate at LPRIV-20 after the identity changes.
-
-Every command block has an always-visible **Copy** control. Highlighted values
-such as `<IP_ADDRESS>` are blanks to replace before running the command.
-
-## Box route
-
-The original finding-driven entry table remains available in the
-[default box route](./generated/start.md). You can also browse the
-[module directory](./checklist/).
-
-The site does not execute commands, store targets or credentials, or replace
-your notes.

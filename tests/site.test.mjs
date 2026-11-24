@@ -122,20 +122,27 @@ before(async () => {
   catalog = JSON.parse(await text("site/.vitepress/generated/catalog.json"));
 });
 
-test("provides home, checklist index, and provenance pages", async () => {
-  const [home, index, source] = await Promise.all([
+test("the home page is the module directory; the old directory URL forwards to it", async () => {
+  const [home, moved, source, directory] = await Promise.all([
     text("site/index.md"),
     text("site/checklist/index.md"),
     text("site/about/source.md"),
+    text("site/.vitepress/generated/module-directory.md"),
   ]);
 
-  assert.match(home, /OSCP checklist/);
-  assert.match(home, /generated\/tasks\/lpriv-01/);
-  assert.doesNotMatch(home, /field\/linux-privilege/);
-  assert.match(home, /generated\/tasks\/net-01/);
-  assert.match(index, /Linux privilege escalation/);
-  assert.doesNotMatch(index, /generated\/modules\/linux\.md/);
-  assert.match(index, /generated\/modules\/network/);
+  assert.match(home, /^# Checklist modules$/m);
+  assert.match(home, /<TaskDirectory \/>/);
+  assert.match(home, /\]\(\.\/generated\/tasks\/lpriv-01\.md\)/);
+  assert.doesNotMatch(home, /field\/linux-privilege|\]\(\.\.\//);
+  assert.match(home, /@include: \.\/\.vitepress\/generated\/module-directory\.md/);
+  assert.match(directory, /Linux privilege escalation/);
+  assert.doesNotMatch(home, /generated\/modules\/linux\.md/);
+  assert.match(directory, /\]\(\.\.\/\.\.\/generated\/modules\/network\.md\)/);
+  // Bookmarks to /checklist/checklist/ land on the home page.
+  assert.match(moved, /http-equiv: refresh\s+content: "0; url=\.\.\/"/);
+  assert.match(moved, /\[home page\]\(\.\.\/\)/);
+  assert.match(moved, /search: false/);
+  assert.doesNotMatch(moved, /<TaskDirectory/);
   assert.match(source, /7f8d39b823ca61a9de2cf42be0d299c8640db3f42af388def7d6479754a776c6/);
   assert.match(source, /Published pages \| 215/);
 });
@@ -149,10 +156,10 @@ test("publishes one 20-page Linux privilege operator module", async () => {
     text("site/.vitepress/theme/index.js"),
   ]);
 
-  assert.match(home, /Open Linux privilege escalation/);
+  assert.match(home, /For a Linux shell, start at\s+\[LPRIV-01\]/);
   assert.ok(
-    home.indexOf("generated/tasks/lpriv-01") < home.indexOf("generated/tasks/net-01"),
-    "LPRIV-01 is the first home action",
+    home.indexOf("generated/tasks/lpriv-01") < home.indexOf("generated/start.md"),
+    "LPRIV-01 is the first home link",
   );
   assert.doesNotMatch(config, /field\/linux-privilege|Privilege escalation checklist/);
   assert.match(config, /nav: \[\]/);
@@ -167,7 +174,7 @@ test("publishes one 20-page Linux privilege operator module", async () => {
   assert.match(css, /html\.sidebar-collapsed \.Layout \.VPSidebar/);
 
   const sidebar = JSON.parse(await text("site/.vitepress/generated/sidebar.json"));
-  const linux = sidebar.find(({ text: label }) => label === "Linux")?.items.find(({ text: label }) => label === "Linux privilege escalation");
+  const linux = sidebar.find(({ text: label }) => label === "Linux privilege")?.items.find(({ text: label }) => label === "Linux privilege escalation");
   assert.ok(linux);
   assert.equal(linux.items.length, 20);
   assert.deepEqual(
@@ -176,7 +183,7 @@ test("publishes one 20-page Linux privilege operator module", async () => {
       `/generated/tasks/lpriv-${String(index + 1).padStart(2, "0")}`,
     ),
   );
-  assert.ok(sidebar.some(({ text: label }) => label === "Linux"));
+  assert.ok(sidebar.some(({ text: label }) => label === "Linux privilege"));
 
   for (let index = 1; index <= 20; index += 1) {
     const id = `LPRIV-${String(index).padStart(2, "0")}`;
@@ -285,7 +292,7 @@ test("preserves module and task order in the sidebar", async () => {
     await text("site/.vitepress/generated/sidebar.json"),
   );
 
-  assert.equal(sidebar.length, 5);
+  assert.equal(sidebar.length, 8);
   assert.equal(sidebar[0].text, "Enumeration");
   const network = sidebar[0].items.find(({ text: label }) => label === "Network");
   assert.ok(network);
@@ -306,19 +313,81 @@ test("preserves module and task order in the sidebar", async () => {
       },
     ],
   );
-  const linux = sidebar.at(-1);
-  assert.equal(linux.text, "Linux");
+  const linux = sidebar.at(-2);
+  assert.equal(linux.text, "Linux privilege");
   assert.equal(linux.items.length, 1);
   assert.equal(linux.items[0].text, "Linux privilege escalation");
   assert.equal(linux.items[0].items.length, 20);
+  const movement = sidebar.at(-1);
+  assert.equal(movement.text, "Movement");
+  assert.deepEqual(
+    movement.items.map(({ text: label }) => label),
+    ["Pivoting"],
+  );
+});
+
+test("orders sections by box phase, with every service lane ahead of the session", async () => {
+  const sidebar = JSON.parse(
+    await text("site/.vitepress/generated/sidebar.json"),
+  );
+
+  assert.deepEqual(
+    sidebar.map(({ text: label }) => label),
+    [
+      "Enumeration",
+      "Services",
+      "Web",
+      "Session",
+      "Host",
+      "Windows and domain",
+      "Linux privilege",
+      "Movement",
+    ],
+  );
+
+  const order = sidebar.flatMap((section) => section.items.map(({ text: label }) => label));
+  const position = (label) => order.indexOf(label);
+  // A shared step sits in its own phase, never beside a service that reaches it.
+  assert.ok(position("Network") < position("File services"));
+  assert.ok(position("Payloads") < position("Access"));
+  assert.ok(position("Access") < position("Shell transfer"));
+  assert.ok(position("Local artifact") < position("Pivoting"));
+  // A service keeps its read and write tasks in the same section.
+  assert.equal(
+    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "File services")),
+    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "FTP write")),
+  );
+  assert.equal(
+    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "SSH knock")),
+    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "Remote access")),
+  );
+});
+
+test("generates the home directory from the sidebar phase list", async () => {
+  const [directory, sidebar] = await Promise.all([
+    text("site/.vitepress/generated/module-directory.md"),
+    text("site/.vitepress/generated/sidebar.json").then(JSON.parse),
+  ]);
+
+  const headings = [...directory.matchAll(/^### (.+)$/gm)].map((match) => match[1]);
+  assert.deepEqual(headings, sidebar.map(({ text: label }) => label));
+
+  const names = [...directory.matchAll(/^\| \[([^\]]+)\]\(\.\.\/\.\.\/generated\/modules\//gm)].map(
+    (match) => match[1],
+  );
+  assert.deepEqual(
+    names,
+    sidebar.flatMap((section) => section.items.map(({ text: label }) => label)),
+  );
+  assert.match(await text("site/index.md"), /@include: \.\/\.vitepress\/generated\/module-directory\.md/);
 });
 
 test("names modules with an explicit acronym-correct display map", async () => {
   const [sidebar, index] = await Promise.all([
     text("site/.vitepress/generated/sidebar.json").then(JSON.parse),
-    text("site/checklist/index.md"),
+    text("site/.vitepress/generated/module-directory.md"),
   ]);
-  const indexNames = [...index.matchAll(/^\| \[([^\]]+)\]\(\.\.\/generated\/modules\//gm)].map(
+  const indexNames = [...index.matchAll(/^\| \[([^\]]+)\]\(\.\.\/\.\.\/generated\/modules\//gm)].map(
     (match) => match[1],
   );
 
@@ -353,7 +422,12 @@ test("emits a complete public catalog with source provenance", async () => {
     generatedCatalog.tasks.filter(({ id }) => id.startsWith("LPRIV-")).map(({ id }) => id),
     Array.from({ length: 20 }, (_, index) => `LPRIV-${String(index + 1).padStart(2, "0")}`),
   );
-  assert.equal(generatedCatalog.modules.at(-1).title, "Linux privilege escalation");
+  assert.equal(generatedCatalog.modules.at(-1).title, "Pivoting");
+  // The catalog, the sidebar and the home directory carry one phase order.
+  assert.deepEqual(
+    generatedCatalog.modules.map(({ title }) => title),
+    sidebar.flatMap((section) => section.items.map(({ text }) => text)),
+  );
 });
 
 test("emits route data keyed by task with outbound, terminal, and inbound tracings", async () => {
@@ -365,7 +439,7 @@ test("emits route data keyed by task with outbound, terminal, and inbound tracin
   const terminalStates = new Set(manifest.terminalStates);
   const moduleById = new Map(catalog.modules.map((module) => [module.id, module]));
 
-  assert.deepEqual(Object.keys(routes), taskIds);
+  assert.deepEqual(Object.keys(routes).sort(), [...taskIds].sort());
   const expectedInbound = new Map(taskIds.map((id) => [id, []]));
   for (const task of catalog.tasks) {
     const route = routes[task.id];
@@ -902,9 +976,9 @@ test("task pages keep route metadata without duplicating routes outside the proc
     assert.deepEqual(field("routesIn"), routes[task.id].inbound.map(brief), task.id);
     assert.deepEqual(field("routeStops"), routes[task.id].terminalStates, task.id);
     if (task.id.startsWith("LPRIV-")) {
-      assert.equal(head.includes("sourcePosition:"), false);
+      assert.equal(head.includes("position:"), false);
     } else {
-      assert.deepEqual(field("sourcePosition"), { index: index + 1, total: catalog.tasks.length });
+      assert.deepEqual(field("position"), { index: index + 1, total: catalog.tasks.length });
     }
   }
   const net01 = await text("site/.vitepress/dist/generated/tasks/net-01.html");
@@ -1104,14 +1178,13 @@ test("both light and dark browser chrome colours ship, and the layout keeps the 
   assert.match(css, /--vp-layout-max-width: 1440px;/);
 });
 
-test("the compact home keeps the full generated box route available as reference", async () => {
+test("the home page keeps the full generated box route available as reference", async () => {
   await buildSite();
   const [home, route] = await Promise.all([
     text("site/.vitepress/dist/index.html"),
     text("site/.vitepress/dist/generated/start.html"),
   ]);
-  assert.match(home, /Linux privilege escalation checklist/);
-  assert.match(home, /href="\.\/generated\/start\.html">default box route<\/a>/);
+  assert.match(home, /href="\.\/generated\/start\.html"[^>]*>Default box route<\/a>/);
   assert.match(route, /id="default-box-route"/);
   assert.match(
     decodeEntities(route.replace(/<[^>]+>/g, "")).replace(/\s+/g, " "),
@@ -1119,17 +1192,27 @@ test("the compact home keeps the full generated box route available as reference
   );
 });
 
-test("the home page offers task lookup inside the task section", async () => {
+test("the old directory URL forwards to the home page, and task crumbs point home", async () => {
   await buildSite();
-  const home = await text("site/.vitepress/dist/index.html");
-  const jump = home.indexOf('<form class="home-jump"');
-  assert.ok(
-    jump > home.indexOf('id="find-a-task"') &&
-      jump < home.indexOf('id="how-to-use-it"'),
-    "the jump box stays inside the task section",
-  );
-  assert.match(home, /<button class="home-jump-search" type="button">\s*Full-text search <kbd>\/<\/kbd><\/button>/);
-  assert.match(home, /<input id="home-jump-input"/);
+  const moved = await text("site/.vitepress/dist/checklist/index.html");
+  assert.match(moved, /<meta http-equiv="refresh" content="0; url=\.\.\/">/);
+  assert.match(moved, /<link rel="canonical" href="\.\.\/">/);
+  const header = await text("site/.vitepress/theme/components/TaskHeader.vue");
+  assert.match(header, /const checklistLink = withBase\("\/"\);/);
+});
+
+test("pages without an outline reserve no empty aside, and the column reaches 1120px", async () => {
+  const net03 = await text("site/generated/tasks/net-03.md");
+  assert.match(net03, /^outline: false\naside: false$/m);
+  const module = await text("site/generated/modules/network.md");
+  assert.match(module, /^aside: false$/m);
+  const rules = await allThemeRules();
+  const column = rules.find((rule) => rule.media === null && rule.selectors.includes(".Layout .VPDoc .content-container"));
+  assert.equal(declaration(column.body, "max-width"), "1120px");
+  // No page type narrows the column again.
+  for (const rule of rules.filter((candidate) => candidate.selectors.some((selector) => /\.content-container$/.test(selector)))) {
+    assert.ok(["1120px", undefined].includes(declaration(rule.body, "max-width")), rule.selectors.join(", "));
+  }
 });
 
 // Ported from design/gemini (Slate & Signal), selectors adapted to this theme.
@@ -1403,7 +1486,7 @@ test("the directory flat list keeps every task", async () => {
   assert.match(directory, /const flat = computed\(\(\) => shown\.value\.flatMap\(\(module\) => module\.tasks\)\);/);
   // The server-rendered default is the by-module view with all 215 tasks and
   // both layout controls; no grouping pills or stored state.
-  const html = await text("site/.vitepress/dist/checklist/index.html");
+  const html = await text("site/.vitepress/dist/index.html");
   const directoryHtml = html.slice(html.indexOf('class="directory-tools"'), html.indexOf('id="module-summary"'));
   assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 215);
   assert.match(directoryHtml, /aria-pressed="true">\s*By module \(35\)/);

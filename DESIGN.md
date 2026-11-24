@@ -160,7 +160,7 @@ record. A detailed retained task has:
 - dark command plates with marked blanks;
 - ruled result tables or outcome rows;
 - a quiet explanations note;
-- the source-order pager.
+- the phase-order pager.
 
 The reader is mid-box with a terminal open on the other half of the screen.
 The default loop is: scan one recognizable category, copy its commands, notice
@@ -265,7 +265,7 @@ A detailed task page, top to bottom:
    into two columns.
 4. The working section.
 5. The explanations note.
-6. The source-order pager.
+6. The phase-order pager.
 
 Below 640px:
 
@@ -345,13 +345,51 @@ tables, outcome rows, and finding links carry the next action. Derived route
 metadata remains in generated frontmatter for validation, but it does not add
 another navigation surface to the rendered page.
 
+### Module order
+
+The sections are the box's phases, in the one direction a box moves that cannot
+be undone: Enumeration, Services, Web, Session, Host, Windows and domain, Linux
+privilege, Movement. Each phase answers one question and has an entry condition;
+it ends either forward or back at the service that produced it. An exhausted
+lead returns to Services rather than padding the next phase. Enumeration owns
+connectivity, the port scan and the service choice together; the word does not
+claim an exhaustive sweep. Web owns a phase of its own only because it is the one
+service family long enough to need one; it follows the same lane rules as the
+rest.
+
+Four rules place a module:
+
+1. A module sits in the phase where it is first entered, not where its output
+   is later useful. Payloads stay in Session, so choosing an exploit never
+   jumps back up the tree.
+2. A service keeps its whole lane in one section, including its write, TLS and
+   knock steps. File services owns FTP-01 through FTP-04 and SMB-01 through
+   SMB-03.
+3. A shared step lives in the phase that owns it. Session proof, shell transfer
+   and session setup are not repeated beside every service that reaches them.
+4. Credential work sits where it is consumed: password attacks follow domain
+   discovery and precede the privilege paths that use the credential.
+5. A new service module joins Services in impact order — the services that can
+   yield a file, an execution or a shell first, the informational ones last —
+   and keeps its whole lane there.
+
+Windows is the one module that spans three phases, so it opens its own section:
+`WIN-01` and `WIN-16` establish Windows host context, the `AD-*` tasks carry
+domain discovery and object abuse, and password attacks, Windows privilege,
+ADCS and AD abuse follow in consumption order. Splitting `windows_ad` across
+sections is the next structural gain and needs the sidebar to group by task
+range.
+
+Linux is its own phase after the Windows section rather than a child of Host:
+the two host lanes have different lengths, and nesting them would put either
+LPRIV or WIN at the wrong end of the other.
+
 ### Sidebar sections
 
-The sidebar groups its 33 modules under five collapsible sections: Enumeration,
-Web, Windows and Active Directory, Host and access, and Linux. Sections use
+The sidebar groups its 35 modules under eight collapsible sections. Sections use
 uppercase micro-type, modules keep their counts, and tasks sit one level beneath
-their module. The grouping is generated from the same section list as the
-checklist index.
+their module. Sidebar order and the home directory are generated from the same
+phase list, and generation fails on a missing or duplicated module.
 
 A module row keeps its name and its count, flush right in mono, on one line.
 Carets sit on the label's centre line. Task rows use a 4.75rem call-number
@@ -361,8 +399,9 @@ never re-wraps its title or moves the rows below. Its marker sits on its
 module's guide line.
 
 On desktop the tree scrolls on its own, below the nav bar, so rows never pass
-under the site title. Its scrollbar is thin and its gutter always reserved, so
-opening a module never brings a scrollbar in or moves a caret. While the reader
+under the site title. It has no visible scrollbar and no gutter; it scrolls by
+wheel, touch, trackpad and keyboard. Opening a module never brings a scrollbar
+in or moves a caret. While the reader
 is in the sidebar, an opened list fades in with a short drop as its caret turns.
 Its height arrives at once, because animating height would need clipping,
 which the theme does not use.
@@ -398,10 +437,11 @@ After a route change, the active sidebar item scrolls into view on desktop.
 ### Directory
 
 `/checklist/` has a filter by ID, title or module; Escape and Clear reset it.
-The module summary below it is grouped into Enumeration, Web, Windows and Active
-Directory, Host and access, and Linux. Both directory views stay available:
-**By module (35)** in printed-index columns and **Flat list (215)** in one table.
-The server-rendered default lists all 215 tasks. Nothing is stored.
+The module summary below it is grouped by the same eight box phases as the
+sidebar, from Reach through Movement, so the directory and the navigation never
+disagree. Both directory views stay available: **By module (35)** in
+printed-index columns and **Flat list (215)** in one table. The server-rendered
+default lists all 215 tasks. Nothing is stored.
 
 ## Do's and don'ts
 

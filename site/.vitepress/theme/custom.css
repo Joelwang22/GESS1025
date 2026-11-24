@@ -142,18 +142,21 @@ html {
     transition: transform var(--rb-fold-show-duration) var(--rb-fold-show-easing);
   }
 
-  /* The tree scrolls on its own, below the nav bar: rows never slide under
-     the site title, and the scrollbar starts under the bar's rule instead of
-     beside the title. The gutter is always reserved and thin, so opening a
-     module never brings a scrollbar in. The groups keep their width, and
-     the carets stay clear of the gutter at every scrollbar size. */
+  /* The tree scrolls on its own, below the nav bar, so rows never slide
+     under the site title. It scrolls by wheel, touch, trackpad and keyboard
+     with no visible scrollbar and no gutter: opening a module never brings
+     a bar in, and the groups keep their width, so no caret moves. */
   .Layout .VPSidebar .nav {
     height: 100%;
     padding-block-end: 3rem;
     overflow-y: auto;
     overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+  }
+
+  /* Safari before 18.2 ignores scrollbar-width. */
+  .Layout .VPSidebar .nav::-webkit-scrollbar {
+    width: 0;
   }
 
   :root .Layout .VPNavBar.has-sidebar {
@@ -237,13 +240,11 @@ samp {
 
 /* Reading column */
 
+/* Every page uses the width beside the sidebar up to 1120px. Prose keeps its
+   74ch measure; plates, tables and the directory take the rest. */
 .Layout .VPDoc .content-container,
 .Layout .VPDoc.has-aside .content-container {
-  max-width: 820px;
-}
-
-.Layout.task-page .VPDoc .content-container {
-  max-width: 900px;
+  max-width: 1120px;
 }
 
 @media (min-width: 960px) {
@@ -360,11 +361,6 @@ samp {
 }
 
 /* Field checklists: one quick scan, with detail linked only after a signal. */
-
-.Layout.field-page .VPDoc .content-container,
-.Layout.field-page .VPDoc.has-aside .content-container {
-  max-width: 900px;
-}
 
 .field-page .vp-doc h1 {
   margin-bottom: 0.65rem;
@@ -823,48 +819,9 @@ samp {
   color: var(--rb-paper);
 }
 
-/* Home */
-
-.home-page .vp-doc .home-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.6rem;
-  max-width: none;
-}
-
-.home-page .vp-doc .home-actions .action {
-  justify-content: center;
-  margin: 0;
-  text-align: center;
-}
-
-.home-page .vp-doc .home-actions .action-primary {
-  border-color: var(--rb-ink);
-}
-
-.home-page .vp-doc h1 {
-  font-size: 2.5rem;
-  letter-spacing: -0.03em;
-}
-
-.home-page .vp-doc .edition-line {
-  margin-top: 0.5rem;
-  font-size: 15px;
-  color: var(--rb-ink-2);
-}
-
-.home-page .vp-doc .edition-line strong {
-  font-weight: 600;
-}
-
-
 /* Narrow screens */
 
 @media (max-width: 640px) {
-  .home-page .vp-doc .home-actions {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .field-page .vp-doc :is(p.field-look, p.field-next) {
     grid-template-columns: 4.3rem minmax(0, 1fr);
     column-gap: 0.5rem;
@@ -872,10 +829,6 @@ samp {
   }
   .vp-doc h1 {
     font-size: 1.65rem;
-  }
-
-  .home-page .vp-doc h1 {
-    font-size: 2rem;
   }
 
   .vp-doc div.cmd-plate {

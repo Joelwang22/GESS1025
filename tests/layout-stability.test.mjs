@@ -115,9 +115,9 @@ test("collapsing the sidebar leaves the nav bar's layout alone", async () => {
   assert.equal(declaration(surface.body, "--vp-nav-col-offset"), "var(--rb-rail-width)");
 });
 
-test("the sidebar tree scrolls below the nav bar on a reserved, thin gutter", async () => {
+test("the sidebar tree scrolls below the nav bar with no visible scrollbar", async () => {
   const rules = await themeRules();
-  // The panel itself never scrolls; its tree does, so the scrollbar starts
+  // The panel itself never scrolls; its tree does, so the scroll area starts
   // under the nav bar's rule and rows never pass under the site title.
   const panel = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes(":root .Layout .VPSidebar"));
   assert.equal(declaration(panel.body, "overflow"), "visible");
@@ -125,9 +125,12 @@ test("the sidebar tree scrolls below the nav bar on a reserved, thin gutter", as
   const tree = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes(".Layout .VPSidebar .nav"));
   assert.equal(declaration(tree.body, "overflow-y"), "auto");
   assert.equal(declaration(tree.body, "height"), "100%");
-  // Opening a module never brings a scrollbar in or moves a caret.
-  assert.equal(declaration(tree.body, "scrollbar-gutter"), "stable");
-  assert.equal(declaration(tree.body, "scrollbar-width"), "thin");
+  // The tree's scrollbar is invisible and takes no space, so opening a
+  // module never brings a bar in or moves a caret.
+  assert.equal(declaration(tree.body, "scrollbar-width"), "none");
+  assert.equal(declaration(tree.body, "scrollbar-gutter"), undefined);
+  const webkit = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes(".Layout .VPSidebar .nav::-webkit-scrollbar"));
+  assert.equal(declaration(webkit.body, "width"), "0");
 });
 
 test("selecting a sidebar row never changes its box", async () => {

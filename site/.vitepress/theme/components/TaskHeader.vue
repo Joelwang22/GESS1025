@@ -11,7 +11,7 @@ const isTask = computed(() => Boolean(frontmatter.value.taskId));
 const isModule = computed(() => frontmatter.value.pageClass === "module-page");
 const isOperatorPage = computed(() => Boolean(frontmatter.value.operatorPage));
 const moduleLink = computed(() => withBase(`/generated/modules/${frontmatter.value.moduleId}.html`));
-const checklistLink = withBase("/checklist/index.html");
+const checklistLink = withBase("/");
 const boxRouteLink = withBase("/generated/start.html");
 
 const position = computed(() => frontmatter.value.modulePosition ?? null);

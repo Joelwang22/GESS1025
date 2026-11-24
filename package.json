@@ -15,6 +15,7 @@
     "build": "pnpm generate && vitepress build site"
   },
   "devDependencies": {
-    "vitepress": "2.0.0-alpha.21"
+    "vitepress": "2.0.0-alpha.21",
+    "vue": "3.5.46"
   }
 }

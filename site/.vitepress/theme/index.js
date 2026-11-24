@@ -2,7 +2,6 @@ import { h } from "vue";
 import { inBrowser } from "vitepress";
 import DefaultTheme from "vitepress/theme";
 
-import HomeJump from "./components/HomeJump.vue";
 import SidebarToggle from "./components/SidebarToggle.vue";
 import TaskDirectory from "./components/TaskDirectory.vue";
 import TaskHeader from "./components/TaskHeader.vue";
@@ -23,7 +22,6 @@ export default {
   },
   enhanceApp({ app, router }) {
     app.component("TaskDirectory", TaskDirectory);
-    app.component("HomeJump", HomeJump);
     if (inBrowser) {
       installCopy();
       installSidebarScroll(router);

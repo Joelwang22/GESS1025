@@ -64,7 +64,7 @@ await edit("tests/site.test.mjs", [
   [/Published pages \\\| \d+/, `Published pages \\| ${publishedTasks}`],
   [/taskFiles\.length, \d+/, `taskFiles.length, ${publishedTasks + 10}`],
   [/moduleFiles\.length, \d+/, `moduleFiles.length, ${publishedModules}`],
-  [/sidebar\.length, \d+/, `sidebar.length, 5`],
+  [/sidebar\.length, \d+/, `sidebar.length, 8`],
   [/indexNames\.length, \d+/, `indexNames.length, ${publishedModules}`],
   [/generatedCatalog\.moduleCount, \d+/, `generatedCatalog.moduleCount, ${publishedModules}`],
   [/generatedCatalog\.taskCount, \d+/, `generatedCatalog.taskCount, ${publishedTasks}`],

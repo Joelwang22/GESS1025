@@ -135,8 +135,31 @@ html {
      the panel never drift away from the corner control. */
   :root .Layout .VPSidebar {
     padding-inline-start: var(--rb-sidebar-inset);
+    padding-inline-end: 0;
+    padding-block-end: 0;
+    overflow: visible;
     width: var(--vp-sidebar-width);
     transition: transform var(--rb-fold-show-duration) var(--rb-fold-show-easing);
+  }
+
+  /* The tree scrolls on its own, below the nav bar: rows never slide under
+     the site title, and the scrollbar starts under the bar's rule instead of
+     beside the title. The gutter is always reserved and thin, so opening a
+     module never brings a scrollbar in. The groups keep their width, and
+     the carets stay clear of the gutter at every scrollbar size. */
+  .Layout .VPSidebar .nav {
+    height: 100%;
+    padding-block-end: 3rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+
+  /* The active row's highlight reaches 0.5rem past the module's guide line;
+     its marker stays on that line. */
+  .Layout .VPSidebar .VPSidebarItem.level-2.is-active > .item > .indicator {
+    inset-inline-start: calc(-0.5rem - 1px);
   }
 
   :root .Layout .VPNavBar.has-sidebar {
@@ -172,7 +195,6 @@ html {
   html.sidebar-collapsed .Layout .VPSidebar {
     pointer-events: none;
     transform: translateX(calc((var(--rb-rail-width) - 100%) * var(--vp-direction-multiplier)));
-    scrollbar-width: none;
     transition: transform var(--rb-fold-hide-duration) var(--rb-fold-hide-easing);
   }
 
@@ -557,6 +579,23 @@ samp {
 
 .VPSidebar .VPSidebarItem.collapsed.level-0.collapsed {
   padding-bottom: 4px;
+}
+
+/* An opened section or module settles in as its caret turns, instead of
+   snapping in at full strength. Only opacity and a short drop move: the
+   list keeps its height from the first frame, so nothing overlaps. Only
+   while the reader is in the sidebar: a page load shows its lists at once. */
+.VPSidebar:is(:hover, :focus-within) .VPSidebarItem > .items {
+  transition:
+    opacity 200ms ease-out,
+    translate 250ms var(--rb-fold-show-easing);
+}
+
+@starting-style {
+  .VPSidebar .VPSidebarItem > .items {
+    opacity: 0;
+    translate: 0 -0.375rem;
+  }
 }
 
 .VPSidebar .nav .group + .group {

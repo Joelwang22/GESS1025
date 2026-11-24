@@ -355,7 +355,15 @@ checklist index.
 
 A module row keeps its name and its count, flush right in mono, on one line.
 Carets sit on the label's centre line. Task rows use a 4.75rem call-number
-column, sized to the longest ID (JENKINS-01).
+column, sized to the longest ID (JENKINS-01). The active task's marker sits
+on its module's guide line.
+
+On desktop the tree scrolls on its own, below the nav bar, so rows never pass
+under the site title. Its scrollbar is thin and its gutter always reserved, so
+opening a module never brings a scrollbar in or moves a caret. While the reader
+is in the sidebar, an opened list fades in with a short drop as its caret turns.
+Its height arrives at once, because animating height would need clipping,
+which the theme does not use.
 
 The menu control is a 36px outlined square (44px on coarse pointers), centred
 in the rail's top square. The site title sits beside it, and the sidebar's

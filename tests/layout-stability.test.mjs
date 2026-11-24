@@ -115,6 +115,33 @@ test("collapsing the sidebar leaves the nav bar's layout alone", async () => {
   assert.equal(declaration(surface.body, "--vp-nav-col-offset"), "var(--rb-rail-width)");
 });
 
+test("the sidebar tree scrolls below the nav bar on a reserved, thin gutter", async () => {
+  const rules = await themeRules();
+  // The panel itself never scrolls; its tree does, so the scrollbar starts
+  // under the nav bar's rule and rows never pass under the site title.
+  const panel = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes(":root .Layout .VPSidebar"));
+  assert.equal(declaration(panel.body, "overflow"), "visible");
+  assert.equal(declaration(panel.body, "padding-inline-end"), "0");
+  const tree = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes(".Layout .VPSidebar .nav"));
+  assert.equal(declaration(tree.body, "overflow-y"), "auto");
+  assert.equal(declaration(tree.body, "height"), "100%");
+  // Opening a module never brings a scrollbar in or moves a caret.
+  assert.equal(declaration(tree.body, "scrollbar-gutter"), "stable");
+  assert.equal(declaration(tree.body, "scrollbar-width"), "thin");
+  // The active marker stays on the module's guide line under the highlight.
+  const marker = rules.find((rule) => rule.selectors.includes(".Layout .VPSidebar .VPSidebarItem.level-2.is-active > .item > .indicator"));
+  assert.equal(declaration(marker.body, "inset-inline-start"), "calc(-0.5rem - 1px)");
+});
+
+test("an opened sidebar list settles in without animating its height", async () => {
+  const css = await read("custom.css");
+  const opened = (await themeRules()).find((rule) => rule.selectors.includes(".VPSidebar:is(:hover, :focus-within) .VPSidebarItem > .items"));
+  assert.ok(opened, "opened lists transition only while the reader is in the sidebar");
+  assert.doesNotMatch(opened.body, /height|max-height|grid-template-rows/);
+  assert.match(opened.body, /opacity/);
+  assert.match(css, /@starting-style\s*\{\s*\.VPSidebar \.VPSidebarItem > \.items\s*\{\s*opacity: 0;/);
+});
+
 test("the local navigation never forces an empty bar", async () => {
   const rules = await themeRules();
   const band = "@media (min-width: 960px) and (max-width: 1279px)";

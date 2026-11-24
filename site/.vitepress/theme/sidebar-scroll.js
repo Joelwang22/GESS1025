@@ -1,5 +1,5 @@
 // Keeps the active task visible in the desktop sidebar after each page change,
-// so a jump from a route link or Find task also shows where that task sits in
+// so a jump from a route link or a search result also shows where that task sits in
 // its module. Below 960px the sidebar is an off-canvas menu and is left alone.
 // Respects reduced motion.
 

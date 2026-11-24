@@ -2,15 +2,14 @@
 // These checks pin the specific causes that used to move content: the
 // scrollbar gutter, a toggle that mounted after hydration, a nav bar that
 // reflowed on collapse, a control that moved with the fold, a local nav that
-// filled in late, a Find task field that narrowed and results that pushed the
-// tree down, and a fold with no motion between its two layouts.
+// filled in late, and a page column that re-centred when the sidebar folded.
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { parseChecklist } from "../scripts/checklist.mjs";
 
-import { FOLD_FOLLOWERS, toMilliseconds } from "../site/.vitepress/theme/sidebar-fold.js";
+const milliseconds = (time) => Number.parseFloat(time) * (time.trim().endsWith("ms") ? 1 : 1000);
 
 const themeDir = path.resolve(import.meta.dirname, "../site/.vitepress/theme");
 const read = (relative) => readFile(path.join(themeDir, relative), "utf8");
@@ -87,8 +86,19 @@ test("folded, the sidebar leaves a rail of its own width", async () => {
   assert.equal(declaration(panel.body, "opacity"), undefined, "the rail stays painted");
   const contents = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes("html.sidebar-collapsed .Layout .VPSidebar > *"));
   assert.equal(declaration(contents.body, "opacity"), "0");
-  const content = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes("html.sidebar-collapsed .Layout .VPContent.has-sidebar"));
-  assert.equal(declaration(content.body, "padding-inline"), "var(--rb-rail-width)");
+});
+
+test("folding the sidebar never moves the page column", async () => {
+  const [rules, toggle] = await Promise.all([themeRules(), read("components/SidebarToggle.vue")]);
+  // The column keeps the open sidebar's offset: no folded-state rule may
+  // touch the content area, the document, its outline or the local nav.
+  for (const rule of rules.filter((candidate) => candidate.selectors.some((selector) => selector.startsWith("html.sidebar-collapsed")))) {
+    for (const selector of rule.selectors) {
+      assert.doesNotMatch(selector, /VPContent|VPDoc|VPLocalNav|aside/, selector);
+    }
+  }
+  // And nothing carries the column anywhere in script.
+  assert.doesNotMatch(toggle, /animate\(|sidebar-fold/);
 });
 
 test("collapsing the sidebar leaves the nav bar's layout alone", async () => {
@@ -105,24 +115,21 @@ test("collapsing the sidebar leaves the nav bar's layout alone", async () => {
   assert.equal(declaration(surface.body, "--vp-nav-col-offset"), "var(--rb-rail-width)");
 });
 
-test("the local navigation follows the sidebar fold without forcing an empty bar", async () => {
+test("the local navigation never forces an empty bar", async () => {
   const rules = await themeRules();
-  const folded = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes("html.sidebar-collapsed .Layout .VPLocalNav.has-sidebar"));
-  assert.ok(folded, "the local nav keeps only the rail's offset when folded");
-  assert.equal(declaration(folded.body, "padding-inline-start"), "var(--rb-rail-width)");
   const band = "@media (min-width: 960px) and (max-width: 1279px)";
   const empty = rules.find((rule) => rule.media === band && rule.selectors.includes(".Layout .VPLocalNav.has-sidebar.empty"));
   assert.equal(empty, undefined, "task pages do not reserve space for an empty outline bar");
 });
 
-test("the fold moves sidebar, nav surface and column on one shared timing", async () => {
-  const [tokens, rules, fold] = await Promise.all([read("tokens.css"), themeRules(), read("sidebar-fold.js")]);
+test("the fold moves sidebar and nav surface on one shared timing", async () => {
+  const [tokens, rules] = await Promise.all([read("tokens.css"), themeRules()]);
   for (const name of ["show-duration", "show-easing", "hide-duration", "hide-easing"]) {
     assert.match(tokens, new RegExp(`--rb-fold-${name}:`), name);
   }
   // Hiding is an exit and must be quicker than showing.
-  const show = toMilliseconds(tokens.match(/--rb-fold-show-duration:\s*([^;]+);/)[1]);
-  const hide = toMilliseconds(tokens.match(/--rb-fold-hide-duration:\s*([^;]+);/)[1]);
+  const show = milliseconds(tokens.match(/--rb-fold-show-duration:\s*([^;]+);/)[1]);
+  const hide = milliseconds(tokens.match(/--rb-fold-hide-duration:\s*([^;]+);/)[1]);
   assert.ok(hide > 0 && hide < show, `hide ${hide}ms < show ${show}ms`);
 
   const sidebar = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes("html.sidebar-collapsed .Layout .VPSidebar"));
@@ -133,23 +140,6 @@ test("the fold moves sidebar, nav surface and column on one shared timing", asyn
   assert.match(css, /--vp-nav-col-offset var\(--rb-fold-show-duration\)/);
   assert.match(css, /--vp-nav-col-offset var\(--rb-fold-hide-duration\)/);
   assert.match((await read("custom.css")), /@property --vp-nav-col-offset/);
-
-  // The column follows by transform (FLIP), never by animating layout.
-  assert.match(fold, /element\.animate\(\[\{ transform: `translateX\(\$\{offset\}px\)` \}/);
-  assert.match(fold, /prefers-reduced-motion: reduce/);
-  for (const selector of [".VPDoc .container > .content", ".VPDoc .aside-container", ".VPLocalNav .container"]) {
-    assert.ok(FOLD_FOLLOWERS.includes(selector), selector);
-  }
-});
-
-test("fold durations survive the minifier's unit rewrite", () => {
-  assert.equal(toMilliseconds("220ms"), 220);
-  assert.equal(toMilliseconds(".22s"), 220);
-  assert.equal(toMilliseconds("0.32s"), 320);
-  assert.equal(toMilliseconds(" 320ms "), 320);
-  assert.equal(toMilliseconds("0s"), 0);
-  assert.equal(toMilliseconds(""), 0);
-  assert.equal(toMilliseconds(undefined), 0);
 });
 
 test("the menu control is an accessible button whose bars fold into an arrow", async () => {
@@ -167,23 +157,6 @@ test("the menu control is an accessible button whose bars fold into an arrow", a
   }
   const reduced = rules.find((rule) => /prefers-reduced-motion: reduce/.test(rule.media ?? "") && rule.selectors.includes(".sidebar-toggle"));
   assert.equal(declaration(reduced.body, "animation"), "none");
-});
-
-test("Find task never narrows its field or pushes the tree while typing", async () => {
-  const [find, rules] = await Promise.all([read("components/GoToTask.vue"), themeRules()]);
-  // Clear lives inside the field, over end padding the input always keeps.
-  assert.match(find, /<div class="goto-field">\s*<input[\s\S]*?\/>\s*<button v-if="value" class="goto-clear"/);
-  const clear = rules.find((rule) => rule.media === null && rule.selectors.includes(".goto-clear"));
-  assert.equal(declaration(clear.body, "position"), "absolute");
-  const input = rules.find((rule) => rule.media === null && rule.selectors.includes(".goto-input"));
-  const endPadding = declaration(input.body, "padding").split(/\s+/)[1];
-  assert.match(endPadding, /^[1-9][\d.]*rem$/, "the input reserves room for Clear");
-  // Status and results open over the tree instead of in its flow.
-  assert.match(find, /<div class="goto-panel" :class="\{ 'is-open': open \}"/);
-  const panel = rules.find((rule) => rule.media === null && rule.selectors.includes(".goto-panel"));
-  assert.equal(declaration(panel.body, "position"), "absolute");
-  const form = rules.find((rule) => rule.media === null && rule.selectors.includes(".goto"));
-  assert.equal(declaration(form.body, "position"), "relative");
 });
 
 test("module rows keep name and count on one line; task IDs fit their column", async () => {

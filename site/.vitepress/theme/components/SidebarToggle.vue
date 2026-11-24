@@ -1,8 +1,6 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref } from "vue";
 
-import { cancelFold, foldWithMotion } from "../sidebar-fold.js";
-
 const collapsed = ref(false);
 const desktop = ref(false);
 let media;
@@ -18,18 +16,16 @@ function applyState() {
   }
 }
 
+// Only the sidebar, the title and the nav bar surface change; the page
+// column keeps its place in both states, so nothing else needs to move.
 function toggle() {
-  const hiding = !collapsed.value;
-  foldWithMotion(() => {
-    collapsed.value = hiding;
-    applyState();
-  }, hiding);
+  collapsed.value = !collapsed.value;
+  applyState();
 }
 
 function syncViewport(event) {
   desktop.value = event.matches;
   if (!desktop.value && collapsed.value) {
-    cancelFold();
     collapsed.value = false;
     applyState();
   }
@@ -44,7 +40,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   media?.removeEventListener("change", syncViewport);
-  cancelFold();
   collapsed.value = false;
   applyState();
 });

@@ -165,8 +165,6 @@ test("publishes one 20-page Linux privilege operator module", async () => {
   assert.match(toggle, /aria-expanded="String\(!collapsed\)"/);
   assert.match(toggle, /toggleAttribute\("inert", collapsed\.value\)/);
   assert.match(css, /html\.sidebar-collapsed \.Layout \.VPSidebar/);
-  assert.match(css, /html\.sidebar-collapsed \.Layout \.VPContent\.has-sidebar/);
-  assert.match(css, /\.VPDoc\.has-aside \.container::before/);
 
   const sidebar = JSON.parse(await text("site/.vitepress/generated/sidebar.json"));
   const linux = sidebar.find(({ text: label }) => label === "Linux")?.items.find(({ text: label }) => label === "Linux privilege escalation");
@@ -1399,12 +1397,8 @@ test("outcome lists are recognised by a slug on every item, shared by generator 
   assert.ok(!isOutcomeList(["reply: a single word is not a slug", "no_reply: two words"]));
 });
 
-test("Find task offers Clear and Escape, and the directory flat list keeps every task", async () => {
+test("the directory flat list keeps every task", async () => {
   await buildSite();
-  const find = await text("site/.vitepress/theme/components/GoToTask.vue");
-  assert.match(find, /@keydown\.esc\.prevent="clear"/);
-  assert.match(find, /for \(const group of section\.items \?\? \[\]\)/);
-  assert.match(find, /<button v-if="value" class="goto-clear" type="button" @click="clear">Clear<\/button>/);
   const directory = await text("site/.vitepress/theme/components/TaskDirectory.vue");
   assert.match(directory, /const flat = computed\(\(\) => shown\.value\.flatMap\(\(module\) => module\.tasks\)\);/);
   // The server-rendered default is the by-module view with all 215 tasks and
@@ -1491,23 +1485,11 @@ test("the compact task location row keeps its position separate from the source 
   assert.equal(declaration(position.body, "margin-left"), "auto");
 });
 
-test("the pinned Find task masks the full sidebar width while rows scroll beneath it", async () => {
-  // The theme pads the sidebar by the rail inset at its start and VitePress
-  // pads 2rem at its end; fixed-width groups and their carets run into those
-  // gutters, and the mask covers the same span.
-  const sidebar = await text("node_modules/vitepress/dist/client/theme-default/components/VPSidebar.vue");
-  assert.match(sidebar, /\.VPSidebar \{[^}]*padding: 2rem 2rem 6rem;/);
-  const desktop = (await allThemeRules()).filter((rule) => rule.media === "@media (min-width: 960px)");
-  const form = desktop.find((rule) => rule.selectors.includes(".goto"));
-  assert.equal(declaration(form.body, "position"), "sticky");
-  assert.equal(declaration(form.body, "background"), "var(--rb-desk)");
-  const mask = desktop.find((rule) => rule.selectors.includes(".goto::before"));
-  assert.ok(mask, "the Find task form has a gutter mask");
-  assert.equal(declaration(mask.body, "position"), "absolute");
-  assert.equal(declaration(mask.body, "inset-block"), "0");
-  assert.equal(declaration(mask.body, "inset-inline"), "calc(-1 * var(--rb-sidebar-inset)) -2rem");
-  const panel = desktop.find((rule) => rule.selectors.includes(":root .Layout .VPSidebar"));
+test("the sidebar has no search of its own; search lives in the nav bar", async () => {
+  const [index, rules] = await Promise.all([text("site/.vitepress/theme/index.js"), allThemeRules()]);
+  assert.doesNotMatch(index, /sidebar-nav-before|GoToTask/);
+  assert.ok(!rules.some((rule) => rule.selectors.some((selector) => /\.goto\b/.test(selector))));
+  // The sidebar's text starts at the rail inset, under the menu glyph's bars.
+  const panel = rules.find((rule) => rule.media === "@media (min-width: 960px)" && rule.selectors.includes(":root .Layout .VPSidebar"));
   assert.equal(declaration(panel.body, "padding-inline-start"), "var(--rb-sidebar-inset)");
-  assert.equal(declaration(mask.body, "z-index"), "-1");
-  assert.equal(declaration(mask.body, "background"), "var(--rb-desk)");
 });

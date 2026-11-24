@@ -2,7 +2,6 @@ import { h } from "vue";
 import { inBrowser } from "vitepress";
 import DefaultTheme from "vitepress/theme";
 
-import GoToTask from "./components/GoToTask.vue";
 import HomeJump from "./components/HomeJump.vue";
 import SidebarToggle from "./components/SidebarToggle.vue";
 import TaskDirectory from "./components/TaskDirectory.vue";
@@ -19,7 +18,6 @@ export default {
   Layout() {
     return h(DefaultTheme.Layout, null, {
       "nav-bar-content-before": () => h(SidebarToggle),
-      "sidebar-nav-before": () => h(GoToTask),
       "doc-before": () => h(TaskHeader),
     });
   },

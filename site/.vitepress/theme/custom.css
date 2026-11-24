@@ -192,15 +192,9 @@ html {
     transition: --vp-nav-col-offset var(--rb-fold-hide-duration) var(--rb-fold-hide-easing);
   }
 
-  /* Equal insets keep the reading column on the viewport centreline. */
-  html.sidebar-collapsed .Layout .VPContent.has-sidebar {
-    margin-inline: auto;
-    padding-inline: var(--rb-rail-width);
-  }
-
-  html.sidebar-collapsed .Layout .VPLocalNav.has-sidebar {
-    padding-inline-start: var(--rb-rail-width);
-  }
+  /* The page column, its outline and the local nav keep the open sidebar's
+     offset in both states: folding uncovers empty paper on the left and
+     never moves what the reader is reading. */
 }
 
 /* Search joins the controls at the bar's end, so the bar's start belongs to
@@ -209,24 +203,6 @@ html {
 @media (min-width: 768px) {
   .Layout .VPNavBar .content-body > .menu {
     order: -1;
-  }
-}
-
-@media (min-width: 1280px) {
-  /* The right outline used to pull the document left once the sidebar was
-     removed. An equal flex spacer keeps the reading column on the viewport
-     centreline while preserving the outline. The spacer already clears the
-     rail, so the content area gives back the rail's insets. */
-  html.sidebar-collapsed .Layout .VPContent.has-sidebar {
-    padding-inline: 0;
-  }
-
-  html.sidebar-collapsed .Layout .VPDoc.has-aside .container::before {
-    content: "";
-    flex: 0 0 16rem;
-    order: 0;
-    width: 100%;
-    max-width: 16rem;
   }
 }
 
@@ -700,7 +676,6 @@ samp {
   .Layout .VPSidebar .caret,
   .Layout .VPSidebar .level-0 > .item,
   .Layout .VPNavBarSearchButton,
-  .Layout :is(.goto-input, .goto-button, .goto-clear),
   .Layout .task-jumps a {
     min-height: 44px;
   }

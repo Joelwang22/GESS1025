@@ -58,8 +58,8 @@
   --rb-radius: 8px;
 
   /* Sidebar fold. Hiding is an exit and runs faster than showing. The
-     sidebar, the nav bar surface and the reading column share these values,
-     so they move as one sheet; SidebarToggle.vue reads them for its FLIP. */
+     sidebar and the nav bar surface share these values, so they move as one
+     sheet; the page column does not move. */
   --rb-fold-show-duration: 320ms;
   --rb-fold-show-easing: cubic-bezier(0.16, 1, 0.3, 1);
   --rb-fold-hide-duration: 220ms;

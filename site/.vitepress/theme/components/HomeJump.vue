@@ -5,8 +5,8 @@ import { useData, useRouter } from "vitepress";
 import { matchTasks, normalizeTaskId } from "../task-id.js";
 import { taskHref } from "../task-links.js";
 
-// Home quick jump: the same matching as Find task in the sidebar, for phones
-// where the sidebar sits behind a menu. "Full-text search" opens VitePress's
+// Home quick jump: find a task by exact or loose ID, or by title word or
+// module, from the first viewport. "Full-text search" opens VitePress's
 // own local search, which "/" also opens from any page.
 
 const RESULT_LIMIT = 8;

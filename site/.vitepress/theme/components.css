@@ -1,5 +1,5 @@
 /*
- * Components: command plates, marks, Find task, directories, cue rows and
+ * Components: command plates, marks, the home jump, directories, cue rows and
  * outcome rows. Loaded after tokens.css and before
  * custom.css, which holds VitePress overrides and narrow-screen adjustments.
  */
@@ -290,141 +290,13 @@
 }
 
 
-/* Go to task ID */
-
-/* Find task stays pinned at the top of the desktop sidebar, so it remains
-   in reach after the sidebar scrolls to the active task. */
-.goto {
-  position: relative;
-  z-index: 2;
-  margin: 1rem 0 0.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--rb-rule);
-}
-
+/* After a route change the active task scrolls into view in the desktop
+   sidebar; a little margin keeps it off the sidebar's edges. */
 @media (min-width: 960px) {
-  .goto {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    margin-top: 0;
-    padding-top: 1rem;
-    background: var(--rb-desk);
-  }
-
-  /* VitePress gives sidebar groups a fixed width that exceeds the nav once
-     scrollbars take their share, and carets overhang their row. This panel
-     carries the mask across the sidebar's gutters, as VitePress's own
-     curtain does, so rows scrolling beneath are covered for sight and for
-     clicks, without moving the form or its content-width rule. */
-  .goto::before {
-    content: "";
-    position: absolute;
-    inset-block: 0;
-    inset-inline: calc(-1 * var(--rb-sidebar-inset)) -2rem;
-    z-index: -1;
-    background: var(--rb-desk);
-  }
-
   .VPSidebar .VPSidebarItem .item {
-    scroll-margin-top: 9rem;
+    scroll-margin-top: 1rem;
     scroll-margin-bottom: 1rem;
   }
-}
-
-.goto-label {
-  display: block;
-  margin-bottom: 0.35rem;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--rb-ink);
-}
-
-.goto-row {
-  display: flex;
-  gap: 0.4rem;
-}
-
-/* Clear sits inside the field's end, over padding the field always keeps,
-   so typing the first character never narrows the field or moves Go. */
-.goto-field {
-  position: relative;
-  display: flex;
-  flex: 1;
-  min-width: 0;
-}
-
-.goto-input {
-  flex: 1;
-  width: 100%;
-  min-width: 0;
-  min-height: 38px;
-  padding: 0 3.4rem 0 0.6rem;
-  border: 1px solid var(--rb-rule-strong);
-  border-radius: var(--rb-radius-s);
-  background: var(--rb-paper);
-  color: var(--rb-ink);
-  font-family: var(--vp-font-family-mono);
-  font-size: 14px;
-}
-
-.goto-input::placeholder {
-  color: var(--rb-ink-3);
-}
-
-.goto-input:hover {
-  border-color: var(--rb-ink-3);
-}
-
-.goto-button {
-  min-width: 3rem;
-  min-height: 38px;
-  padding: 0 0.85rem;
-  border: 1px solid var(--rb-ink);
-  border-radius: var(--rb-radius-s);
-  background: var(--rb-ink);
-  color: var(--rb-paper);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.goto-button:hover {
-  background: var(--rb-ink-2);
-  border-color: var(--rb-ink-2);
-}
-
-/* Status and matches open as a sheet over the tree, anchored under the
-   form's rule, instead of pushing every module down while typing. */
-.goto-panel {
-  position: absolute;
-  top: 100%;
-  /* Wide enough to cover the carets and active marker that overhang the
-     tree's column; the inner padding keeps text on the field's edge. */
-  inset-inline: -0.75rem;
-  max-height: min(28rem, calc(100dvh - 12rem));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.goto-panel.is-open {
-  margin-top: 0.4rem;
-  padding: 0.5rem 0.4rem;
-  border: 1px solid var(--rb-rule-strong);
-  border-radius: var(--rb-radius);
-  background: var(--rb-paper);
-  box-shadow: 0 10px 24px -12px rgba(16, 20, 27, 0.45);
-}
-
-.goto-message {
-  margin: 0;
-  font-size: 12.5px;
-  line-height: 1.4;
-  color: var(--rb-ink-2);
-}
-
-.goto-panel.is-open .goto-message:not(:empty) {
-  padding: 0.1rem 0.35rem 0.35rem;
 }
 
 
@@ -707,45 +579,6 @@
   font-weight: 700;
 }
 
-/* Find task results in the sidebar */
-.goto-results {
-  display: grid;
-  gap: 1px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.goto-results a {
-  display: grid;
-  grid-template-columns: 4.75rem minmax(0, 1fr);
-  column-gap: 0.45rem;
-  padding: 0.3rem 0.35rem;
-  border-radius: var(--rb-radius-s);
-  color: var(--rb-ink);
-  font-size: 13px;
-  line-height: 1.35;
-  text-decoration: none;
-}
-
-.goto-results a:hover,
-.goto-results a:focus-visible {
-  background: var(--rb-route-soft);
-}
-
-.goto-result-id {
-  font-family: var(--vp-font-family-mono);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--rb-route);
-}
-
-.goto-result-module {
-  grid-column: 2;
-  font-size: 12px;
-  color: var(--rb-ink-2);
-}
-
 /* Directory filter on /checklist/ */
 .directory-tools {
   margin: 1rem 0 0.5rem;
@@ -903,7 +736,7 @@
   color: var(--rb-route);
 }
 
-/* Home quick jump: the sidebar's Find task, in the first viewport. */
+/* Home quick jump: find a task by ID or keyword, in the first viewport. */
 .home-jump {
   margin: 1.5rem 0 1rem;
 }
@@ -1036,28 +869,6 @@
   .home-jump-module {
     grid-column: 2;
   }
-}
-
-/* Find task: Clear sits at the field's end while the field has text. */
-.goto-clear {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-end: 0;
-  min-height: 38px;
-  padding: 0 0.6rem;
-  border: 0;
-  border-radius: 0 var(--rb-radius-s) var(--rb-radius-s) 0;
-  background: transparent;
-  color: var(--rb-ink-2);
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.goto-clear:hover {
-  color: var(--rb-ink);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
 }
 
 /* Directory layout toggle and flat call-number list */

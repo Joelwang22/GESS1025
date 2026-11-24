@@ -405,8 +405,8 @@ After a route change, the active sidebar item scrolls into view on desktop.
 `/checklist/` has a filter by ID, title or module; Escape and Clear reset it.
 The module summary below it is grouped into Enumeration, Web, Windows and Active
 Directory, Host and access, and Linux. Both directory views stay available:
-**By module (35)** in printed-index columns and **Flat list (213)** in one table.
-The server-rendered default lists all 213 tasks. Nothing is stored.
+**By module (35)** in printed-index columns and **Flat list (215)** in one table.
+The server-rendered default lists all 215 tasks. Nothing is stored.
 
 ## Do's and don'ts
 

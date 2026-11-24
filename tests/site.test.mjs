@@ -136,8 +136,8 @@ test("provides home, checklist index, and provenance pages", async () => {
   assert.match(index, /Linux privilege escalation/);
   assert.doesNotMatch(index, /generated\/modules\/linux\.md/);
   assert.match(index, /generated\/modules\/network/);
-  assert.match(source, /6c366b367019d460bf53be583b4fb3164f9e18496adc7c85b5d7dd007d90e4a8/);
-  assert.match(source, /Published pages \| 213/);
+  assert.match(source, /7f8d39b823ca61a9de2cf42be0d299c8640db3f42af388def7d6479754a776c6/);
+  assert.match(source, /Published pages \| 215/);
 });
 
 test("publishes one 20-page Linux privilege operator module", async () => {
@@ -272,7 +272,7 @@ test("generates every public page, module, and LNX compatibility URL", async () 
     text("site/generated/tasks/lnx-01.md"),
   ]);
 
-  assert.equal(taskFiles.length, 223);
+  assert.equal(taskFiles.length, 225);
   assert.equal(moduleFiles.length, 35);
   assert.match(net01, /^# NET-01\. Check connectivity/m);
   assert.match(net01, /## Explanations and troubleshooting/);
@@ -345,11 +345,11 @@ test("emits a complete public catalog with source provenance", async () => {
   assert.equal(generatedCatalog.sourceDigest, manifest.sourceDigest);
   assert.equal(generatedCatalog.snapshotSha256, manifest.snapshotSha256);
   assert.equal(generatedCatalog.moduleCount, 35);
-  assert.equal(generatedCatalog.taskCount, 213);
+  assert.equal(generatedCatalog.taskCount, 215);
   assert.equal(generatedCatalog.sourceModuleCount, 36);
-  assert.equal(generatedCatalog.sourceTaskCount, 218);
+  assert.equal(generatedCatalog.sourceTaskCount, 220);
   assert.equal(sidebar.flatMap((section) => section.items).length, generatedCatalog.modules.length);
-  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 213);
+  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 215);
   assert.ok(!generatedCatalog.tasks.some(({ id }) => id.startsWith("LNX-")));
   assert.deepEqual(
     generatedCatalog.tasks.filter(({ id }) => id.startsWith("LPRIV-")).map(({ id }) => id),
@@ -1273,7 +1273,7 @@ test("every theme stylesheet avoids CSS hiding techniques", async () => {
   const forbidden = [
     /\bdisplay\s*:\s*none\b/i,
     /\bvisibility\s*:\s*hidden\b/i,
-    /\bclip\s*:/i,
+    /(?<![-\w])clip\s*:/i,
     /\bclip-path\s*:/i,
     /\boverflow(?:-[xy])?\s*:\s*(?:hidden|clip)\b/i,
     /-9999px/i,
@@ -1453,13 +1453,13 @@ test("Find task offers Clear and Escape, and the directory flat list keeps every
   assert.match(find, /<button v-if="value" class="goto-clear" type="button" @click="clear">Clear<\/button>/);
   const directory = await text("site/.vitepress/theme/components/TaskDirectory.vue");
   assert.match(directory, /const flat = computed\(\(\) => shown\.value\.flatMap\(\(module\) => module\.tasks\)\);/);
-  // The server-rendered default is the by-module view with all 213 tasks and
+  // The server-rendered default is the by-module view with all 215 tasks and
   // both layout controls; no grouping pills or stored state.
   const html = await text("site/.vitepress/dist/checklist/index.html");
   const directoryHtml = html.slice(html.indexOf('class="directory-tools"'), html.indexOf('id="module-summary"'));
-  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 213);
+  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 215);
   assert.match(directoryHtml, /aria-pressed="true">\s*By module \(35\)/);
-  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(213\)/);
+  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(215\)/);
   assert.doesNotMatch(directory, /localStorage|sessionStorage/);
 });
 

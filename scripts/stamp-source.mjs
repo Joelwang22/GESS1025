@@ -5,7 +5,8 @@ import path from "node:path";
 import { parseChecklist } from "./checklist.mjs";
 
 // Re-pins the maintained snapshot after an intentional content edit.
-// Updates the manifest hash/count and the human-facing count mirrors.
+// --check verifies the pins without writing, so CI catches an unstamped edit.
+const check = process.argv.includes("--check");
 const root = path.resolve(import.meta.dirname, "..");
 const snapshot = path.join(root, "content/master-working-2026-11-21.working.132.md");
 const bytes = await readFile(snapshot);
@@ -19,14 +20,19 @@ const publishedTasks = sourceTasks - checklist.tasks.filter(({ moduleId }) => re
 const sourceModules = checklist.modules.length;
 const publishedModules = sourceModules - [...retired].filter((id) => checklist.modules.some((module) => module.id === id)).length + 1;
 
+const pending = [];
 async function edit(relative, pairs) {
   const file = path.join(root, relative);
-  let text = await readFile(file, "utf8");
+  const original = await readFile(file, "utf8");
+  let text = original;
   for (const [pattern, value] of pairs) {
     if (!pattern.test(text)) throw new Error(`pattern missing in ${relative}: ${pattern}`);
     text = text.replace(pattern, value);
   }
-  await writeFile(file, text);
+  if (text !== original) {
+    pending.push(relative);
+    if (!check) await writeFile(file, text);
+  }
 }
 
 await edit("content/source.json", [
@@ -58,7 +64,7 @@ await edit("tests/site.test.mjs", [
   [/Published pages \\\| \d+/, `Published pages \\| ${publishedTasks}`],
   [/taskFiles\.length, \d+/, `taskFiles.length, ${publishedTasks + 10}`],
   [/moduleFiles\.length, \d+/, `moduleFiles.length, ${publishedModules}`],
-  [/sidebar\.length, \d+/, `sidebar.length, ${publishedModules}`],
+  [/sidebar\.length, \d+/, `sidebar.length, 5`],
   [/indexNames\.length, \d+/, `indexNames.length, ${publishedModules}`],
   [/generatedCatalog\.moduleCount, \d+/, `generatedCatalog.moduleCount, ${publishedModules}`],
   [/generatedCatalog\.taskCount, \d+/, `generatedCatalog.taskCount, ${publishedTasks}`],
@@ -71,4 +77,12 @@ await edit("tests/site.test.mjs", [
   [/assert\.match\(source, \/[a-f0-9]{64}\/\)/, `assert.match(source, /${hash}/)`],
 ]);
 
-process.stdout.write(`Stamped ${sourceTasks} source tasks, ${publishedTasks} published, ${hash}\n`);
+if (check) {
+  if (pending.length) {
+    process.stderr.write(`Unstamped files: ${pending.join(", ")}\nRun pnpm stamp.\n`);
+    process.exit(1);
+  }
+  process.stdout.write(`Pins current: ${sourceTasks} source tasks, ${publishedTasks} published\n`);
+} else {
+  process.stdout.write(`Stamped ${sourceTasks} source tasks, ${publishedTasks} published, ${hash}\n`);
+}

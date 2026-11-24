@@ -30,9 +30,11 @@ const jumps = computed(() => {
 
 // The service-dispatch hub, named by its exact source title.
 const hub = computed(() => {
-  for (const group of theme.value.sidebar ?? []) {
-    const item = (group.items ?? []).find((entry) => entry.taskId === "NET-05");
-    if (item) return { id: item.taskId, title: item.taskTitle, link: withBase(`${item.link}.html`) };
+  for (const section of theme.value.sidebar ?? []) {
+    for (const group of section.items ?? []) {
+      const item = (group.items ?? []).find((entry) => entry.taskId === "NET-05");
+      if (item) return { id: item.taskId, title: item.taskTitle, link: withBase(`${item.link}.html`) };
+    }
   }
   return null;
 });

@@ -48,7 +48,7 @@ gives one.
 | [Web input](../generated/modules/web_input.md) | 4 |
 | [Web upload](../generated/modules/web_upload.md) | 2 |
 | [Web editor](../generated/modules/web_editor.md) | 1 |
-| [Advanced web](../generated/modules/web_advanced.md) | 7 |
+| [Advanced web](../generated/modules/web_advanced.md) | 11 |
 | [Command continuation](../generated/modules/command_continuation.md) | 2 |
 | [Command shell](../generated/modules/command_shell.md) | 2 |
 | [SQL continuation](../generated/modules/sql_continuation.md) | 5 |
@@ -58,10 +58,10 @@ gives one.
 | Module | Tasks |
 | --- | ---: |
 | [Windows and Active Directory](../generated/modules/windows_ad.md) | 37 |
-| [ADCS](../generated/modules/adcs.md) | 4 |
-| [AD abuse](../generated/modules/ad_abuse.md) | 6 |
+| [ADCS](../generated/modules/adcs.md) | 7 |
+| [AD abuse](../generated/modules/ad_abuse.md) | 7 |
 | [Password attacks](../generated/modules/password_attacks.md) | 2 |
-| [Windows privilege](../generated/modules/windows_privilege.md) | 1 |
+| [Windows privilege](../generated/modules/windows_privilege.md) | 6 |
 | [MSSQL](../generated/modules/mssql.md) | 3 |
 
 ### Host and access

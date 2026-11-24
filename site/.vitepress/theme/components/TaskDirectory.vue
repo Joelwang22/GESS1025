@@ -10,22 +10,27 @@ const query = ref("");
 // lists all tasks as one call-number table. Neither choice is stored.
 const mode = ref("module");
 
-const modules = computed(() =>
-  (theme.value.sidebar ?? [])
-    .filter((group) => group.moduleTitle)
-    .map((group) => ({
-      title: group.moduleTitle,
-      link: withBase(`${group.moduleLink}.html`),
-      tasks: group.items
-        .filter((item) => item.taskId)
-        .map((item) => ({
-          id: item.taskId,
-          title: item.taskTitle,
-          module: group.moduleTitle,
-          link: withBase(`${item.link}.html`),
-        })),
-    })),
-);
+const modules = computed(() => {
+  const groups = [];
+  for (const section of theme.value.sidebar ?? []) {
+    for (const group of section.items ?? []) {
+      if (!group.moduleTitle) continue;
+      groups.push({
+        title: group.moduleTitle,
+        link: withBase(`${group.moduleLink}.html`),
+        tasks: group.items
+          .filter((item) => item.taskId)
+          .map((item) => ({
+            id: item.taskId,
+            title: item.taskTitle,
+            module: group.moduleTitle,
+            link: withBase(`${item.link}.html`),
+          })),
+      });
+    }
+  }
+  return groups;
+});
 
 // With no query every module and task is listed, server-rendered, in source
 // order. Typing narrows the list; clearing the field restores all of it.

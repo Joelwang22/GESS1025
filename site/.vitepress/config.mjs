@@ -23,23 +23,36 @@ function escapeHtml(value) {
 
 // The generated sidebar keeps "ID · Title" labels. The rendered sidebar sets
 // the call number in its own column so long titles hang beside it.
-const referenceSidebar = generatedSidebar.map((group, index) => ({
-  text: `<span class="sb-module">${escapeHtml(group.text)}</span><span class="sb-count">${group.items.length}</span>`,
-  collapsed: group.collapsed,
-  moduleTitle: group.text,
-  moduleLink: catalog.modules[index].link,
-  items: group.items.map((item) => {
-    const [id, ...title] = item.text.split(" · ");
-    return {
-      text: `<span class="sb-id">${escapeHtml(id)}</span> <span class="sb-title">${escapeHtml(title.join(" · "))}</span>`,
-      link: item.link,
-      taskId: id,
-      taskTitle: title.join(" · "),
-    };
-  }),
-}));
+const moduleByTitle = new Map(catalog.modules.map((module) => [module.title, module]));
+const SECTIONS = new Set(["Enumeration", "Web", "Windows and Active Directory", "Host and access", "Linux"]);
 
-const sidebar = referenceSidebar;
+function renderGroup(group, isSection = false) {
+  const module = isSection ? null : moduleByTitle.get(group.text);
+  if (isSection || !module) {
+    return {
+      text: `<span class="sb-section">${escapeHtml(group.text)}</span>`,
+      collapsed: group.collapsed,
+      items: group.items.map((item) => renderGroup(item)),
+    };
+  }
+  return {
+    text: `<span class="sb-module">${escapeHtml(group.text)}</span><span class="sb-count">${group.items.length}</span>`,
+    collapsed: group.collapsed,
+    moduleTitle: group.text,
+    moduleLink: module.link,
+    items: group.items.map((item) => {
+      const [id, ...title] = item.text.split(" · ");
+      return {
+        text: `<span class="sb-id">${escapeHtml(id)}</span> <span class="sb-title">${escapeHtml(title.join(" · "))}</span>`,
+        link: item.link,
+        taskId: id,
+        taskTitle: title.join(" · "),
+      };
+    }),
+  };
+}
+
+const sidebar = generatedSidebar.map((group) => renderGroup(group, true));
 
 const markdown = checklistMarkdown({
   terminalStates: new Set(source.terminalStates),

@@ -432,6 +432,15 @@ samp {
   flex: 1;
 }
 
+.sb-section {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rb-ink-3);
+}
+
 .sb-count {
   font-family: var(--vp-font-family-mono);
   font-size: 12px;
@@ -514,14 +523,16 @@ samp {
   line-height: 1.4;
 }
 
-.VPSidebarItem.level-1.is-active > .item {
+.VPSidebarItem.level-1.is-active > .item,
+.VPSidebarItem.level-2.is-active > .item {
   margin-inline: -0.5rem;
   padding-inline: 0.5rem;
   border-radius: var(--rb-radius-s);
   background: var(--rb-route-soft);
 }
 
-.VPSidebarItem.level-1.is-active .sb-id {
+.VPSidebarItem.level-1.is-active .sb-id,
+.VPSidebarItem.level-2.is-active .sb-id {
   color: var(--rb-route);
 }
 

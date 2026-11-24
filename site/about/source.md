@@ -1,24 +1,24 @@
 ---
 title: Source and provenance
-description: Provenance for the imported Operator Workbench master checklist.
+description: Provenance for the maintained checklist snapshot.
 outline: [2, 3]
 ---
 
 # Source and provenance
 
-This website reads one retained Operator Workbench authoring snapshot. The
-snapshot is committed here so the site builds independently of the Workbench
-checkout.
+This website maintains one Operator Workbench-derived snapshot. It is committed
+here and edited in place, so the site builds independently of the Workbench
+checkout. `pnpm stamp` re-pins the hash and counts after an intentional edit.
 
 | Field | Value |
 | --- | --- |
 | Edition | `2026-11-21.working.132` |
-| Imported snapshot tasks | 172 |
+| Imported snapshot tasks | 185 |
 | Imported snapshot modules | 34 |
-| Published pages | 162 |
+| Published pages | 175 |
 | Published modules | 33 |
 | Imported | 2026-11-23 |
-| Snapshot SHA-256 | `aa8856fec20f2c419b81c7f514ebadc2694843121c495adc099a26960eeff138` |
+| Snapshot SHA-256 | `e2db7b208156fc33060682ffc069a7b782506217306e85ecbfcfe19e49985f6b` |
 | Printed source digest | `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731` |
 
 The snapshot's edition heading carries this note, reproduced exactly:
@@ -34,7 +34,7 @@ The snapshot's edition heading carries this note, reproduced exactly:
 
 ## What generation changes
 
-The generator publishes the snapshot's non-Linux modules and its opening
+The generator publishes the snapshot's non-retired modules and its opening
 section, "How to use this edition" with the default box route. It replaces the
 snapshot's old Linux and narrow Linux-privilege modules with one authored
 [Linux privilege escalation](../generated/modules/linux_privilege.md) module.
@@ -59,7 +59,7 @@ are not published as an archive. Generation also adds:
   new LPRIV operator page. Existing LPRIV URLs keep their paths.
 
 The site's build step then marks presentation without changing text: command
-blanks such as `<IP_ADDRESS>`, route and stop marks, plain task IDs, decision
+blank such as `<TARGET_IP>`, route and stop marks, plain task IDs, decision
 tables, the "Enter when" and "Question" cues, and outcome lists. Copy writes
 each command block's text exactly as the snapshot gives it.
 

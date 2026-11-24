@@ -340,6 +340,14 @@ context · Applies to every task in this module". Always expanded.
   title below. Then the stop states, and the inbound links (folded into
   native `<details>` above 12).
 
+### Sidebar sections
+
+The sidebar groups its 33 modules under five collapsible sections: Enumeration,
+Web, Windows and Active Directory, Host and access, and Linux. Sections use
+uppercase micro-type, modules keep their counts, and tasks sit one level beneath
+their module. The grouping is generated from the same section list as the
+checklist index.
+
 ### Find task (sidebar) and the home jump
 
 Find task is pinned at the top of the desktop sidebar.
@@ -367,8 +375,8 @@ After a route change, the active sidebar item scrolls into view on desktop.
 `/checklist/` has a filter by ID, title or module; Escape and Clear reset it.
 The module summary below it is grouped into Enumeration, Web, Windows and Active
 Directory, Host and access, and Linux. Both directory views stay available:
-**By module (33)** in printed-index columns and **Flat list (162)** in one table.
-The server-rendered default lists all 162 tasks. Nothing is stored.
+**By module (33)** in printed-index columns and **Flat list (175)** in one table.
+The server-rendered default lists all 175 tasks. Nothing is stored.
 
 ## Do's and don'ts
 

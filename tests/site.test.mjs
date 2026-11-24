@@ -136,8 +136,8 @@ test("provides home, checklist index, and provenance pages", async () => {
   assert.match(index, /Linux privilege escalation/);
   assert.doesNotMatch(index, /generated\/modules\/linux\.md/);
   assert.match(index, /generated\/modules\/network/);
-  assert.match(source, /aa8856fec20f2c419b81c7f514ebadc2694843121c495adc099a26960eeff138/);
-  assert.match(source, /Published pages \| 162/);
+  assert.match(source, /e2db7b208156fc33060682ffc069a7b782506217306e85ecbfcfe19e49985f6b/);
+  assert.match(source, /Published pages \| 175/);
 });
 
 test("publishes one 15-page Linux privilege operator module", async () => {
@@ -169,7 +169,7 @@ test("publishes one 15-page Linux privilege operator module", async () => {
   assert.match(css, /\.VPDoc\.has-aside \.container::before/);
 
   const sidebar = JSON.parse(await text("site/.vitepress/generated/sidebar.json"));
-  const linux = sidebar.find(({ text: label }) => label === "Linux privilege escalation");
+  const linux = sidebar.find(({ text: label }) => label === "Linux")?.items.find(({ text: label }) => label === "Linux privilege escalation");
   assert.ok(linux);
   assert.equal(linux.items.length, 15);
   assert.deepEqual(
@@ -178,7 +178,7 @@ test("publishes one 15-page Linux privilege operator module", async () => {
       `/generated/tasks/lpriv-${String(index + 1).padStart(2, "0")}`,
     ),
   );
-  assert.ok(!sidebar.some(({ text: label }) => label === "Linux"));
+  assert.ok(sidebar.some(({ text: label }) => label === "Linux"));
 
   for (let index = 1; index <= 15; index += 1) {
     const id = `LPRIV-${String(index).padStart(2, "0")}`;
@@ -272,7 +272,7 @@ test("generates every public page, module, and LNX compatibility URL", async () 
     text("site/generated/tasks/lnx-01.md"),
   ]);
 
-  assert.equal(taskFiles.length, 172);
+  assert.equal(taskFiles.length, 185);
   assert.equal(moduleFiles.length, 33);
   assert.match(net01, /^# NET-01\. Check connectivity/m);
   assert.match(net01, /## Explanations and troubleshooting/);
@@ -287,10 +287,12 @@ test("preserves module and task order in the sidebar", async () => {
     await text("site/.vitepress/generated/sidebar.json"),
   );
 
-  assert.equal(sidebar.length, 33);
-  assert.equal(sidebar[0].text, "Network");
+  assert.equal(sidebar.length, 5);
+  assert.equal(sidebar[0].text, "Enumeration");
+  const network = sidebar[0].items.find(({ text: label }) => label === "Network");
+  assert.ok(network);
   assert.deepEqual(
-    sidebar[0].items.slice(0, 3).map(({ text: label, link }) => ({ label, link })),
+    network.items.slice(0, 3).map(({ text: label, link }) => ({ label, link })),
     [
       {
         label: "NET-01 · Check connectivity",
@@ -306,8 +308,11 @@ test("preserves module and task order in the sidebar", async () => {
       },
     ],
   );
-  assert.equal(sidebar.at(-1).text, "Linux privilege escalation");
-  assert.equal(sidebar.at(-1).items.length, 15);
+  const linux = sidebar.at(-1);
+  assert.equal(linux.text, "Linux");
+  assert.equal(linux.items.length, 1);
+  assert.equal(linux.items[0].text, "Linux privilege escalation");
+  assert.equal(linux.items[0].items.length, 15);
 });
 
 test("names modules with an explicit acronym-correct display map", async () => {
@@ -320,7 +325,8 @@ test("names modules with an explicit acronym-correct display map", async () => {
   );
 
   assert.equal(indexNames.length, 33);
-  assert.deepEqual(sidebar.map(({ text: label }) => label).sort(), [...indexNames].sort());
+  const sidebarNames = sidebar.flatMap((section) => section.items.map(({ text: label }) => label));
+  assert.deepEqual(sidebarNames.sort(), [...indexNames].sort());
   for (const name of ["HTTP", "Windows and Active Directory", "DNS and NFS", "SNMP", "MSSQL", "FTP TLS", "SSH knock", "SQL continuation", "Mail and RDP"]) {
     assert.ok(indexNames.includes(name), name);
   }
@@ -339,11 +345,11 @@ test("emits a complete public catalog with source provenance", async () => {
   assert.equal(generatedCatalog.sourceDigest, manifest.sourceDigest);
   assert.equal(generatedCatalog.snapshotSha256, manifest.snapshotSha256);
   assert.equal(generatedCatalog.moduleCount, 33);
-  assert.equal(generatedCatalog.taskCount, 162);
+  assert.equal(generatedCatalog.taskCount, 175);
   assert.equal(generatedCatalog.sourceModuleCount, 34);
-  assert.equal(generatedCatalog.sourceTaskCount, 172);
-  assert.equal(sidebar.length, generatedCatalog.modules.length);
-  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 162);
+  assert.equal(generatedCatalog.sourceTaskCount, 185);
+  assert.equal(sidebar.flatMap((section) => section.items).length, generatedCatalog.modules.length);
+  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 175);
   assert.ok(!generatedCatalog.tasks.some(({ id }) => id.startsWith("LNX-")));
   assert.deepEqual(
     generatedCatalog.tasks.filter(({ id }) => id.startsWith("LPRIV-")).map(({ id }) => id),
@@ -1443,13 +1449,13 @@ test("Find task offers Clear and Escape, and the directory flat list keeps every
   assert.match(find, /<button v-if="value" class="goto-clear" type="button" @click="clear">Clear<\/button>/);
   const directory = await text("site/.vitepress/theme/components/TaskDirectory.vue");
   assert.match(directory, /const flat = computed\(\(\) => shown\.value\.flatMap\(\(module\) => module\.tasks\)\);/);
-  // The server-rendered default is the by-module view with all 162 tasks and
+  // The server-rendered default is the by-module view with all 175 tasks and
   // both layout controls; no grouping pills or stored state.
   const html = await text("site/.vitepress/dist/checklist/index.html");
   const directoryHtml = html.slice(html.indexOf('class="directory-tools"'), html.indexOf('id="module-summary"'));
-  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 162);
+  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 175);
   assert.match(directoryHtml, /aria-pressed="true">\s*By module \(33\)/);
-  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(162\)/);
+  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(175\)/);
   assert.doesNotMatch(directory, /localStorage|sessionStorage/);
 });
 

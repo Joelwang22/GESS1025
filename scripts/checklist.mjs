@@ -77,6 +77,14 @@ const MODULE_DISPLAY_NAMES = new Map([
   ["linux_privilege", OPERATOR_MODULE_TITLE],
 ]);
 
+const SIDEBAR_SECTIONS = [
+  { title: "Enumeration", ids: ["network", "file_services", "remote_access", "dns_nfs", "snmp", "other_services"] },
+  { title: "Web", ids: ["http", "web_input", "web_upload", "web_editor", "web_advanced", "command_continuation", "command_shell", "sql_continuation"] },
+  { title: "Windows and Active Directory", ids: ["windows_ad", "adcs", "ad_abuse", "password_attacks", "windows_privilege", "mssql"] },
+  { title: "Host and access", ids: ["database", "mail_rdp", "access", "shell_transfer", "pivoting", "local_artifact", "ftp_write", "ftp_tls", "smb_write", "redis", "redis_exploitation", "ssh_knock"] },
+  { title: "Linux", ids: ["linux_privilege"] },
+];
+
 function normalizeLines(markdown) {
   return markdown.replaceAll("\r\n", "\n").replaceAll("\r", "\n").split("\n");
 }
@@ -1104,14 +1112,25 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
     );
   }
 
-  const sidebar = publicModules.map((module) => ({
+  const moduleGroup = (module) => ({
     text: displayName(module.id),
     collapsed: true,
     items: module.tasks.map(({ id, title }) => ({
       text: `${id} · ${title}`,
       link: `/generated/tasks/${id.toLowerCase()}`,
     })),
+  });
+  const sidebar = SIDEBAR_SECTIONS.map((section) => ({
+    text: section.title,
+    collapsed: true,
+    items: publicModules
+      .filter((module) => section.ids.includes(module.id))
+      .map(moduleGroup),
   }));
+  const grouped = new Set(sidebar.flatMap((section) => section.items.map((group) => group.text)));
+  for (const module of publicModules) {
+    if (!grouped.has(displayName(module.id))) throw new Error(`Sidebar section missing ${module.id}`);
+  }
   const contentManifest = {
     edition: checklist.edition,
     sourceDigest: checklist.sourceDigest,

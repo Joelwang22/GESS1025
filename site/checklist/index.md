@@ -29,38 +29,60 @@ Every published page in checklist order, grouped by module or as one flat list.
 Each module page lists its tasks, after the module context when the source
 gives one.
 
+### Enumeration
+
 | Module | Tasks |
 | --- | ---: |
 | [Network](../generated/modules/network.md) | 5 |
 | [File services](../generated/modules/file_services.md) | 4 |
 | [Remote access](../generated/modules/remote_access.md) | 2 |
+| [DNS and NFS](../generated/modules/dns_nfs.md) | 6 |
+| [SNMP](../generated/modules/snmp.md) | 2 |
+| [Other services](../generated/modules/other_services.md) | 6 |
+
+### Web
+
+| Module | Tasks |
+| --- | ---: |
 | [HTTP](../generated/modules/http.md) | 11 |
+| [Web input](../generated/modules/web_input.md) | 4 |
+| [Web upload](../generated/modules/web_upload.md) | 2 |
+| [Web editor](../generated/modules/web_editor.md) | 1 |
+| [Advanced web](../generated/modules/web_advanced.md) | 7 |
+| [Command continuation](../generated/modules/command_continuation.md) | 2 |
+| [Command shell](../generated/modules/command_shell.md) | 2 |
+| [SQL continuation](../generated/modules/sql_continuation.md) | 5 |
+
+### Windows and Active Directory
+
+| Module | Tasks |
+| --- | ---: |
 | [Windows and Active Directory](../generated/modules/windows_ad.md) | 37 |
 | [ADCS](../generated/modules/adcs.md) | 4 |
 | [AD abuse](../generated/modules/ad_abuse.md) | 6 |
 | [Password attacks](../generated/modules/password_attacks.md) | 2 |
-| [Redis](../generated/modules/redis.md) | 4 |
-| [Redis exploitation](../generated/modules/redis_exploitation.md) | 4 |
-| [SSH knock](../generated/modules/ssh_knock.md) | 1 |
 | [Windows privilege](../generated/modules/windows_privilege.md) | 1 |
-| [DNS and NFS](../generated/modules/dns_nfs.md) | 6 |
-| [SNMP](../generated/modules/snmp.md) | 2 |
-| [Database](../generated/modules/database.md) | 5 |
 | [MSSQL](../generated/modules/mssql.md) | 3 |
+
+### Host and access
+
+| Module | Tasks |
+| --- | ---: |
+| [Database](../generated/modules/database.md) | 5 |
 | [Mail and RDP](../generated/modules/mail_rdp.md) | 5 |
-| [Other services](../generated/modules/other_services.md) | 6 |
-| [Web input](../generated/modules/web_input.md) | 4 |
-| [FTP write](../generated/modules/ftp_write.md) | 1 |
-| [FTP TLS](../generated/modules/ftp_tls.md) | 1 |
-| [SMB write](../generated/modules/smb_write.md) | 1 |
-| [Command continuation](../generated/modules/command_continuation.md) | 2 |
-| [Command shell](../generated/modules/command_shell.md) | 2 |
-| [SQL continuation](../generated/modules/sql_continuation.md) | 5 |
-| [Web upload](../generated/modules/web_upload.md) | 2 |
-| [Web editor](../generated/modules/web_editor.md) | 1 |
-| [Advanced web](../generated/modules/web_advanced.md) | 7 |
 | [Access](../generated/modules/access.md) | 3 |
 | [Shell transfer](../generated/modules/shell_transfer.md) | 4 |
 | [Pivoting](../generated/modules/pivoting.md) | 3 |
 | [Local artifact](../generated/modules/local_artifact.md) | 3 |
+| [FTP write](../generated/modules/ftp_write.md) | 1 |
+| [FTP TLS](../generated/modules/ftp_tls.md) | 1 |
+| [SMB write](../generated/modules/smb_write.md) | 1 |
+| [Redis](../generated/modules/redis.md) | 4 |
+| [Redis exploitation](../generated/modules/redis_exploitation.md) | 4 |
+| [SSH knock](../generated/modules/ssh_knock.md) | 1 |
+
+### Linux
+
+| Module | Tasks |
+| --- | ---: |
 | [Linux privilege escalation](../generated/modules/linux_privilege.md) | 15 |

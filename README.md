@@ -1,12 +1,13 @@
 # OSCP checklist
 
-A command-first website for use beside a terminal. Linux privilege escalation
-is one 15-page operator module, while the remaining Operator Workbench tasks
-stay searchable in the same checklist.
+A command-first website for use beside a terminal. Thirty-three modules cover
+enumeration, web, Active Directory (including ADCS, relay, delegation and
+password attacks), host privilege escalation, pivoting and the common services.
+Linux privilege escalation is one authored 15-page operator module.
 
-The retained reference is edition `2026-11-21.working.132`. Its hash-pinned
-snapshot remains the provenance source. Generation publishes the non-Linux
-reference tasks plus the authored LPRIV-01 through LPRIV-15 operator pages.
+The retained edition is `2026-11-21.working.132`. The snapshot is now
+maintained in place for this site; its hash, task count and the LPRIV pages
+are pinned by generation.
 
 ## Local use
 
@@ -42,7 +43,7 @@ does not assert that a tool result proves access or completion.
 
 ## Source provenance
 
-The exact imported snapshot is
+The snapshot is
 `content/master-working-2026-11-21.working.132.md`. `content/source.json` pins
 its edition, printed source digest, expected task count, exact SHA-256, and the
 three local supporting references used by the snapshot.
@@ -60,9 +61,11 @@ and provenance details are also published at `/checklist/about/source.html`.
 
 Both are ignored by Git and replaced on every generation. Do not edit them.
 Edit authored operator pages under `content/linux-privilege/`, framing pages
-under `site/`, generator logic under `scripts/`, or imported content under
-`content/` as appropriate. Operator copy is maintained separately from the
-imported snapshot so an edit cannot silently change the retained source.
+under `site/`, generator logic under `scripts/`, or the maintained task snapshot
+under `content/`.
+
+The snapshot is edited directly. Operator copy still stays separate so a page
+edit cannot silently change a task.
 
 ## Design
 
@@ -74,21 +77,19 @@ Vue components) and build-time Markdown presentation in
 
 ## Refreshing the checklist
 
-Refreshes are deliberate because the website must identify the exact checklist
-edition it publishes.
+The snapshot is the working source now. Edit it in place, then re-pin and verify:
 
-1. Copy the new retained Workbench snapshot into `content/` without changing
-   its bytes.
-2. Update the snapshot path, edition, printed digest, SHA-256, expected task
-   count, and import date in `content/source.json` and `scripts/checklist.mjs`.
-3. Reimport and hash any supporting local files that the snapshot links.
-4. Reconcile the published architecture and provenance notes on
-   `site/about/source.md`.
-5. Run `pnpm test` and `pnpm build`. Commit the new source and lockfile only
-   after both commands pass.
+1. Edit task bodies in `content/master-working-2026-11-21.working.132.md`. Keep
+   the heading shape, one explanation per task, and only real route IDs.
+2. Run `pnpm stamp`. It recomputes the SHA-256 and task count and updates the
+   manifest, provenance page, design counts and test expectations.
+3. Add or update the module row in `site/checklist/index.md` and the display name
+   in `scripts/checklist.mjs` when the module itself changed.
+4. Run `pnpm test` and `pnpm build`. Commit only after both pass.
 
-Do not edit an earlier imported snapshot in place. Add the new edition and
-remove the old edition only in the same reviewed refresh.
+To import a genuinely new Workbench edition instead, replace the snapshot path,
+edition and printed digest in `content/source.json` and `scripts/checklist.mjs`,
+then run the same steps. Do not edit the three supporting references in place.
 
 ## GitHub Pages
 

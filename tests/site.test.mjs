@@ -136,7 +136,7 @@ test("provides home, checklist index, and provenance pages", async () => {
   assert.match(index, /Linux privilege escalation/);
   assert.doesNotMatch(index, /generated\/modules\/linux\.md/);
   assert.match(index, /generated\/modules\/network/);
-  assert.match(source, /a286bcb3a25038add369db4bddeb6bd89235d9d5f6a3d6fd6ca9dbbefdc91af9/);
+  assert.match(source, /aa8856fec20f2c419b81c7f514ebadc2694843121c495adc099a26960eeff138/);
   assert.match(source, /Published pages \| 162/);
 });
 
@@ -320,7 +320,7 @@ test("names modules with an explicit acronym-correct display map", async () => {
   );
 
   assert.equal(indexNames.length, 33);
-  assert.deepEqual(sidebar.map(({ text: label }) => label), indexNames);
+  assert.deepEqual(sidebar.map(({ text: label }) => label).sort(), [...indexNames].sort());
   for (const name of ["HTTP", "Windows and Active Directory", "DNS and NFS", "SNMP", "MSSQL", "FTP TLS", "SSH knock", "SQL continuation", "Mail and RDP"]) {
     assert.ok(indexNames.includes(name), name);
   }
@@ -1182,12 +1182,12 @@ test("placeholders are marked without altering text or matching literals", async
     text("site/.vitepress/dist/generated/tasks/wupload-02.html"),
     text("site/.vitepress/dist/generated/references/make-lab-upload-proof.html"),
   ]);
-  assert.match(net01, /class="blank">&lt;IP_ADDRESS&gt;<\/span>/);
+  assert.match(net01, /class="blank">&lt;TARGET_IP&gt;<\/span>/);
   assert.doesNotMatch(mail02, /class="blank">&lt;0\.4096&gt;/);
   assert.doesNotMatch(wupload02, /class="blank">&lt;\?php/);
   // The Fill in strip is exposed to assistive technology, and Python source
   // (the local helper reference) never gets blank marks.
-  assert.match(net01, /<p class="cmd-fill"><span class="cmd-fill-label">Fill in<\/span> <code class="blank">&lt;IP_ADDRESS&gt;<\/code><\/p>/);
+  assert.match(net01, /<p class="cmd-fill"><span class="cmd-fill-label">Fill in<\/span> <code class="blank">&lt;TARGET_IP&gt;<\/code><\/p>/);
   assert.doesNotMatch(net01, /cmd-fill[^>]*aria-hidden/);
   assert.doesNotMatch(uploadProof, /class="blank"/);
 });

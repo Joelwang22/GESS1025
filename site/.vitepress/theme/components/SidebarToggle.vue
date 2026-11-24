@@ -7,13 +7,15 @@ const collapsed = ref(false);
 const desktop = ref(false);
 let media;
 
+// Folded, the sidebar shows only as the rail and the site title fades out;
+// both leave the tab order and the accessibility tree with their paint.
 function applyState() {
   document.documentElement.classList.toggle("sidebar-collapsed", collapsed.value);
-  const sidebar = document.querySelector(".VPSidebar");
-  if (!sidebar) return;
-  sidebar.toggleAttribute("inert", collapsed.value);
-  if (collapsed.value) sidebar.setAttribute("aria-hidden", "true");
-  else sidebar.removeAttribute("aria-hidden");
+  for (const element of document.querySelectorAll(".VPSidebar, .VPNavBar.has-sidebar .VPNavBarTitle")) {
+    element.toggleAttribute("inert", collapsed.value);
+    if (collapsed.value) element.setAttribute("aria-hidden", "true");
+    else element.removeAttribute("aria-hidden");
+  }
 }
 
 function toggle() {
@@ -49,25 +51,22 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- The slot is server-rendered and holds the control's width from the
-       first paint, so the search field beside it never moves when the button
-       mounts after hydration. -->
-  <span class="sidebar-toggle-slot">
-    <button
-      v-if="desktop"
-      class="sidebar-toggle"
-      type="button"
-      aria-label="Sidebar navigation"
-      aria-controls="VPSidebarNav"
-      :aria-expanded="String(!collapsed)"
-      :title="collapsed ? 'Show navigation' : 'Hide navigation'"
-      @click="toggle"
-    >
-      <span class="sidebar-toggle-glyph" aria-hidden="true">
-        <span class="sidebar-toggle-bar" />
-        <span class="sidebar-toggle-bar" />
-        <span class="sidebar-toggle-bar" />
-      </span>
-    </button>
-  </span>
+  <!-- On desktop the button is fixed in the rail's top square, out of the nav
+       bar's flow, so mounting it after hydration moves nothing. -->
+  <button
+    v-if="desktop"
+    class="sidebar-toggle"
+    type="button"
+    aria-label="Sidebar navigation"
+    aria-controls="VPSidebarNav"
+    :aria-expanded="String(!collapsed)"
+    :title="collapsed ? 'Show navigation' : 'Hide navigation'"
+    @click="toggle"
+  >
+    <span class="sidebar-toggle-glyph" aria-hidden="true">
+      <span class="sidebar-toggle-bar" />
+      <span class="sidebar-toggle-bar" />
+      <span class="sidebar-toggle-bar" />
+    </span>
+  </button>
 </template>

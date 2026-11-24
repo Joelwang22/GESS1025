@@ -65,6 +65,13 @@
   --rb-fold-hide-duration: 220ms;
   --rb-fold-hide-easing: cubic-bezier(0.4, 0, 0.2, 1);
   --rb-toggle-size: 36px;
+  /* The rail the sidebar folds into: one nav-height square at the top-left
+     corner holding the menu control, continuing as a strip down the edge.
+     The glyph centres in the rail, and the sidebar's text starts where the
+     glyph's bars do. */
+  --rb-rail-width: 4rem;
+  --rb-toggle-glyph: 18px;
+  --rb-sidebar-inset: calc((var(--rb-rail-width) - var(--rb-toggle-glyph)) / 2);
 
   --vp-c-bg: var(--rb-paper);
   --vp-c-bg-alt: var(--rb-desk);

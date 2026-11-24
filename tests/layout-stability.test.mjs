@@ -1,9 +1,9 @@
 // Layout stability: the page must not shift when the reader interacts with it.
 // These checks pin the specific causes that used to move content: the
 // scrollbar gutter, a toggle that mounted after hydration, a nav bar that
-// reflowed on collapse, a local nav that filled in late, a Find task field
-// that narrowed and results that pushed the tree down, and a fold with no
-// motion between its two layouts.
+// reflowed on collapse, a control that moved with the fold, a local nav that
+// filled in late, a Find task field that narrowed and results that pushed the
+// tree down, and a fold with no motion between its two layouts.
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -61,40 +61,55 @@ test("the root reserves the scrollbar gutter on every page", async () => {
   assert.equal(declaration(html.body, "scrollbar-gutter"), "stable");
 });
 
-test("the sidebar toggle's slot is server-rendered and holds its width", async () => {
-  const toggle = await read("components/SidebarToggle.vue");
-  const template = toggle.slice(toggle.indexOf("<template>"));
-  // The slot wraps the button and carries no condition of its own; only the
-  // button waits for the desktop media query after hydration.
-  assert.match(template, /<span class="sidebar-toggle-slot">\s*<button\s+v-if="desktop"/);
-  assert.doesNotMatch(template, /<span class="sidebar-toggle-slot"[^>]*v-(?:if|show)/);
-  const slot = (await themeRules()).find((rule) => rule.media === DESKTOP && rule.selectors.includes(".sidebar-toggle-slot"));
-  assert.ok(slot, "desktop rule for the toggle slot");
-  assert.equal(declaration(slot.body, "min-width"), "var(--rb-toggle-size)");
-  const button = (await themeRules()).find((rule) => rule.media === null && rule.selectors.includes(".sidebar-toggle"));
+test("the menu control is fixed in the rail's top square in both states", async () => {
+  const [toggle, rules, tokens] = await Promise.all([read("components/SidebarToggle.vue"), themeRules(), read("tokens.css")]);
+  // Only the button waits for the desktop media query after hydration, and
+  // it mounts out of the nav bar's flow, so nothing beside it moves.
+  assert.match(toggle.slice(toggle.indexOf("<template>")), /<template>\s*(?:<!--[\s\S]*?-->\s*)?<button\s+v-if="desktop"/);
+  const button = rules.find((rule) => rule.media === null && rule.selectors.includes(".sidebar-toggle"));
   assert.equal(declaration(button.body, "width"), "var(--rb-toggle-size)");
   assert.equal(declaration(button.body, "height"), "var(--rb-toggle-size)");
+  const placed = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes(".sidebar-toggle"));
+  assert.equal(declaration(placed.body, "position"), "fixed");
+  assert.equal(declaration(placed.body, "inset-inline-start"), "calc((var(--rb-rail-width) - var(--rb-toggle-size)) / 2)");
+  // No collapsed-state rule may move or resize the control.
+  for (const rule of rules.filter((candidate) => candidate.selectors.some((selector) => selector.startsWith("html.sidebar-collapsed")))) {
+    assert.ok(!rule.selectors.some((selector) => /sidebar-toggle(?!-bar)/.test(selector)), rule.selectors.join(", "));
+  }
+  // The sidebar's text starts where the glyph's bars do.
+  assert.match(tokens, /--rb-sidebar-inset: calc\(\(var\(--rb-rail-width\) - var\(--rb-toggle-glyph\)\) \/ 2\);/);
+});
+
+test("folded, the sidebar leaves a rail of its own width", async () => {
+  const rules = await themeRules();
+  const panel = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes("html.sidebar-collapsed .Layout .VPSidebar"));
+  assert.equal(declaration(panel.body, "transform"), "translateX(calc((var(--rb-rail-width) - 100%) * var(--vp-direction-multiplier)))");
+  assert.equal(declaration(panel.body, "opacity"), undefined, "the rail stays painted");
+  const contents = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes("html.sidebar-collapsed .Layout .VPSidebar > *"));
+  assert.equal(declaration(contents.body, "opacity"), "0");
+  const content = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes("html.sidebar-collapsed .Layout .VPContent.has-sidebar"));
+  assert.equal(declaration(content.body, "padding-inline"), "var(--rb-rail-width)");
 });
 
 test("collapsing the sidebar leaves the nav bar's layout alone", async () => {
   const collapsed = (await themeRules()).filter((rule) => rule.selectors.some((selector) => selector.startsWith("html.sidebar-collapsed")));
   for (const rule of collapsed) {
     for (const selector of rule.selectors.filter((s) => /VPNavBar/.test(s))) {
-      // Only the surface offset may change in the bar: no title column,
-      // search or control may resize or move.
-      assert.doesNotMatch(selector, /\.title|VPNavBarTitle|search|content/, selector);
-      assert.doesNotMatch(rule.body, /(?:min-|max-)?width|margin|padding/, selector);
+      // Only the surface offset and paint may change in the bar: the title
+      // fades, but no title column, search or control may resize or move.
+      assert.doesNotMatch(selector, /\.title|search|content/, selector);
+      assert.doesNotMatch(rule.body, /(?:^|;)\s*(?:(?:min-|max-)?width|margin[\w-]*|padding[\w-]*|transform|inset[\w-]*)\s*:/, selector);
     }
   }
   const surface = collapsed.find((rule) => rule.selectors.includes("html.sidebar-collapsed .Layout .VPNavBar.has-sidebar"));
-  assert.equal(declaration(surface.body, "--vp-nav-col-offset"), "0px");
+  assert.equal(declaration(surface.body, "--vp-nav-col-offset"), "var(--rb-rail-width)");
 });
 
 test("the local navigation follows the sidebar fold without forcing an empty bar", async () => {
   const rules = await themeRules();
   const folded = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes("html.sidebar-collapsed .Layout .VPLocalNav.has-sidebar"));
-  assert.ok(folded, "the local nav drops the sidebar offset when folded");
-  assert.equal(declaration(folded.body, "padding-inline-start"), "0");
+  assert.ok(folded, "the local nav keeps only the rail's offset when folded");
+  assert.equal(declaration(folded.body, "padding-inline-start"), "var(--rb-rail-width)");
   const band = "@media (min-width: 960px) and (max-width: 1279px)";
   const empty = rules.find((rule) => rule.media === band && rule.selectors.includes(".Layout .VPLocalNav.has-sidebar.empty"));
   assert.equal(empty, undefined, "task pages do not reserve space for an empty outline bar");

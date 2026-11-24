@@ -24,11 +24,12 @@ html {
   outline-offset: 2px;
 }
 
-/* Sidebar fold: the desktop sidebar steps out of the way without turning the
-   document into a second layout. The menu control sits in the top bar at the
-   sidebar's seam, in a slot that never moves, so the same spot restores it.
-   The nav bar keeps its title column in both states; only paint changes
-   there, so the search field and the control stay put under the pointer. */
+/* Sidebar fold: on desktop the sidebar folds into a rail at the left edge
+   instead of leaving the page. The rail's top square holds the menu control
+   in both states, so the button that hid the sidebar is the one that brings
+   it back, under the same pointer. The sidebar is pinned to the viewport's
+   left edge at every desktop width, like an application shell; the reading
+   column takes the rest. */
 
 /* Registered so the nav bar surface can follow the sidebar's edge instead of
    snapping. Unsupported browsers keep the instant change. */
@@ -36,12 +37,6 @@ html {
   syntax: "<length-percentage>";
   inherits: true;
   initial-value: 0px;
-}
-
-.sidebar-toggle-slot {
-  display: flex;
-  flex: none;
-  align-items: center;
 }
 
 .sidebar-toggle {
@@ -64,7 +59,7 @@ html {
 
 .sidebar-toggle:hover {
   border-color: var(--rb-ink-2);
-  background: var(--rb-desk);
+  background: var(--rb-panel);
   color: var(--rb-ink);
 }
 
@@ -79,7 +74,7 @@ html {
    menu mark. */
 .sidebar-toggle-glyph {
   position: relative;
-  width: 18px;
+  width: var(--rb-toggle-glyph);
   height: 14px;
   scale: var(--vp-direction-multiplier) 1;
 }
@@ -87,7 +82,7 @@ html {
 .sidebar-toggle-bar {
   position: absolute;
   inset-inline-start: 0;
-  width: 18px;
+  width: var(--rb-toggle-glyph);
   height: 2px;
   border-radius: 1px;
   background: currentColor;
@@ -120,26 +115,72 @@ html {
 }
 
 @media (min-width: 960px) {
-  /* The glyph's bars line up with the reading column's left edge. */
-  .sidebar-toggle-slot {
-    min-width: var(--rb-toggle-size);
-    margin-inline: calc(2rem - (var(--rb-toggle-size) - 18px) / 2) 0.75rem;
+  /* The control is fixed in the rail's top square, out of the bar's flow,
+     so its arrival after hydration moves nothing and the fold never moves
+     it. */
+  .sidebar-toggle {
+    position: fixed;
+    top: calc(var(--vp-layout-top-height, 0px) + (var(--vp-nav-height) - var(--rb-toggle-size)) / 2);
+    inset-inline-start: calc((var(--rb-rail-width) - var(--rb-toggle-size)) / 2);
   }
 
+  /* The site title sits beside the control; the sidebar's text starts
+     under the control's bars. */
+  .Layout .VPNavBar.has-sidebar .container > .title {
+    padding-inline-start: calc(var(--rb-rail-width) - 2rem);
+  }
+
+  /* VitePress centres a 1440px layout on wide screens. The shell stays
+     pinned to the left edge at every desktop width instead, so the rail and
+     the panel never drift away from the corner control. */
   :root .Layout .VPSidebar {
-    transition:
-      transform var(--rb-fold-show-duration) var(--rb-fold-show-easing),
-      opacity 0s;
+    padding-inline-start: var(--rb-sidebar-inset);
+    width: var(--vp-sidebar-width);
+    transition: transform var(--rb-fold-show-duration) var(--rb-fold-show-easing);
   }
 
+  :root .Layout .VPNavBar.has-sidebar {
+    --vp-nav-col-offset: var(--vp-sidebar-width);
+  }
+
+  :root .Layout .VPNavBar.has-sidebar .container {
+    max-width: none;
+  }
+
+  :root .Layout .VPContent.has-sidebar {
+    padding-inline: var(--vp-sidebar-width) 0;
+  }
+
+  .Layout .VPSidebar .group {
+    width: calc(var(--vp-sidebar-width) - var(--rb-sidebar-inset) - 2rem);
+  }
+
+  :root .Layout .VPNavBar.has-sidebar .divider::before {
+    inset-inline-start: calc(var(--vp-nav-col-offset) - var(--vp-sidebar-width) + var(--rb-sidebar-inset));
+    width: calc(var(--vp-sidebar-width) - var(--rb-sidebar-inset) - 2rem);
+  }
+
+  /* What folds away fades in after the panel has started to arrive, and
+     fades out before it has gone, so nothing slides under the control. */
+  .Layout .VPSidebar > *,
+  .Layout .VPNavBar.has-sidebar .VPNavBarTitle,
+  :root .Layout .VPNavBar.has-sidebar .divider::before {
+    transition: opacity calc(var(--rb-fold-show-duration) * 0.6) ease-out calc(var(--rb-fold-show-duration) * 0.25);
+  }
+
+  /* Folded, the panel slides back until only the rail's width shows. */
   html.sidebar-collapsed .Layout .VPSidebar {
-    opacity: 0;
     pointer-events: none;
-    transform: translateX(calc(-100% * var(--vp-direction-multiplier)));
-    /* Stays opaque while it slides, then drops out once off screen. */
-    transition:
-      transform var(--rb-fold-hide-duration) var(--rb-fold-hide-easing),
-      opacity 0s linear var(--rb-fold-hide-duration);
+    transform: translateX(calc((var(--rb-rail-width) - 100%) * var(--vp-direction-multiplier)));
+    scrollbar-width: none;
+    transition: transform var(--rb-fold-hide-duration) var(--rb-fold-hide-easing);
+  }
+
+  html.sidebar-collapsed .Layout .VPSidebar > *,
+  html.sidebar-collapsed .Layout .VPNavBar.has-sidebar .VPNavBarTitle,
+  html.sidebar-collapsed .Layout .VPNavBar.has-sidebar .divider::before {
+    opacity: 0;
+    transition: opacity calc(var(--rb-fold-hide-duration) * 0.5) linear;
   }
 
   .Layout .VPNavBar {
@@ -147,24 +188,39 @@ html {
   }
 
   html.sidebar-collapsed .Layout .VPNavBar.has-sidebar {
-    --vp-nav-col-offset: 0px;
+    --vp-nav-col-offset: var(--rb-rail-width);
     transition: --vp-nav-col-offset var(--rb-fold-hide-duration) var(--rb-fold-hide-easing);
   }
 
+  /* Equal insets keep the reading column on the viewport centreline. */
   html.sidebar-collapsed .Layout .VPContent.has-sidebar {
     margin-inline: auto;
-    padding-inline: 0;
+    padding-inline: var(--rb-rail-width);
   }
 
   html.sidebar-collapsed .Layout .VPLocalNav.has-sidebar {
-    padding-inline-start: 0;
+    padding-inline-start: var(--rb-rail-width);
+  }
+}
+
+/* Search joins the controls at the bar's end, so the bar's start belongs to
+   the rail and the site title alone. The nav menu is empty but grows to fill
+   the bar, so it is drawn ahead of search; the tab order stays as written. */
+@media (min-width: 768px) {
+  .Layout .VPNavBar .content-body > .menu {
+    order: -1;
   }
 }
 
 @media (min-width: 1280px) {
   /* The right outline used to pull the document left once the sidebar was
      removed. An equal flex spacer keeps the reading column on the viewport
-     centreline while preserving the outline. */
+     centreline while preserving the outline. The spacer already clears the
+     rail, so the content area gives back the rail's insets. */
+  html.sidebar-collapsed .Layout .VPContent.has-sidebar {
+    padding-inline: 0;
+  }
+
   html.sidebar-collapsed .Layout .VPDoc.has-aside .container::before {
     content: "";
     flex: 0 0 16rem;

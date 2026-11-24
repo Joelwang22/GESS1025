@@ -314,13 +314,14 @@
 
   /* VitePress gives sidebar groups a fixed width that exceeds the nav once
      scrollbars take their share, and carets overhang their row. This panel
-     carries the mask across the sidebar's 2rem gutters, as VitePress's own
+     carries the mask across the sidebar's gutters, as VitePress's own
      curtain does, so rows scrolling beneath are covered for sight and for
      clicks, without moving the form or its content-width rule. */
   .goto::before {
     content: "";
     position: absolute;
-    inset: 0 -2rem;
+    inset-block: 0;
+    inset-inline: calc(-1 * var(--rb-sidebar-inset)) -2rem;
     z-index: -1;
     background: var(--rb-desk);
   }

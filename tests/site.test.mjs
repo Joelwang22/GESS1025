@@ -1492,8 +1492,9 @@ test("the compact task location row keeps its position separate from the source 
 });
 
 test("the pinned Find task masks the full sidebar width while rows scroll beneath it", async () => {
-  // VitePress pads the sidebar 2rem on each side and lets fixed-width groups
-  // and their carets run into that gutter; the mask covers the same span.
+  // The theme pads the sidebar by the rail inset at its start and VitePress
+  // pads 2rem at its end; fixed-width groups and their carets run into those
+  // gutters, and the mask covers the same span.
   const sidebar = await text("node_modules/vitepress/dist/client/theme-default/components/VPSidebar.vue");
   assert.match(sidebar, /\.VPSidebar \{[^}]*padding: 2rem 2rem 6rem;/);
   const desktop = (await allThemeRules()).filter((rule) => rule.media === "@media (min-width: 960px)");
@@ -1503,7 +1504,10 @@ test("the pinned Find task masks the full sidebar width while rows scroll beneat
   const mask = desktop.find((rule) => rule.selectors.includes(".goto::before"));
   assert.ok(mask, "the Find task form has a gutter mask");
   assert.equal(declaration(mask.body, "position"), "absolute");
-  assert.equal(declaration(mask.body, "inset"), "0 -2rem");
+  assert.equal(declaration(mask.body, "inset-block"), "0");
+  assert.equal(declaration(mask.body, "inset-inline"), "calc(-1 * var(--rb-sidebar-inset)) -2rem");
+  const panel = desktop.find((rule) => rule.selectors.includes(":root .Layout .VPSidebar"));
+  assert.equal(declaration(panel.body, "padding-inline-start"), "var(--rb-sidebar-inset)");
   assert.equal(declaration(mask.body, "z-index"), "-1");
   assert.equal(declaration(mask.body, "background"), "var(--rb-desk)");
 });

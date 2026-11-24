@@ -232,19 +232,25 @@ command close to the title without adding a local outline.
 
 Task pages use a 900px maximum and shrink to fit beside the sidebar. Guidance uses a label column
 and a hanging body column. Linux privilege escalation is one sidebar group
-containing only LPRIV-01 through LPRIV-20. The desktop sidebar can collapse
-without storing state, and the reading column recentres when it does.
+containing only LPRIV-01 through LPRIV-20. The desktop sidebar folds into a
+64px rail at the left edge without storing state, and the reading column
+recentres when it does. The sidebar is pinned to the viewport's left edge at
+every desktop width, like an application shell, rather than following
+VitePress's centred 1440px layout.
 
 Nothing moves unless the reader asked it to:
 
 - The root reserves its scrollbar gutter, so short and long pages share one
   width.
-- The nav bar keeps its title column in both sidebar states. The menu control
-  sits in a server-rendered slot at the sidebar's seam, so neither it nor
-  search moves on hydration or on collapse.
-- The fold is one motion. The sidebar slides out, the nav bar surface follows
-  its edge, and the reading column is carried to its new place by a transform
-  (FLIP), all on the `--rb-fold-*` tokens. Hiding takes 220ms and showing
+- The menu control is fixed in the rail's top square, out of the nav bar's
+  flow, so it never moves on hydration or on collapse. The nav bar keeps its
+  title column in both states; folded, the title only fades. Search sits
+  with the appearance and repository controls at the bar's end, so the
+  fold never moves it.
+- The fold is one motion. The sidebar slides back into the rail, its contents
+  and the site title fade, the nav bar surface follows its edge, and the
+  reading column is carried to its new place by a transform (FLIP), all on
+  the `--rb-fold-*` tokens. Hiding takes 220ms and showing
   takes 320ms. With reduced motion the state changes at once.
 
 An operator page is one linear document: **Run this when**, an immediately
@@ -351,8 +357,9 @@ A module row keeps its name and its count, flush right in mono, on one line.
 Carets sit on the label's centre line. Task rows use a 4.75rem call-number
 column, sized to the longest ID (JENKINS-01).
 
-The menu control is a 36px outlined square (44px on coarse pointers). It has
-no visible label; its accessible name is "Sidebar navigation", with
+The menu control is a 36px outlined square (44px on coarse pointers), centred
+in the rail's top square. The site title sits beside it, and the sidebar's
+text starts where its bars do (`--rb-sidebar-inset`). It has no visible label; its accessible name is "Sidebar navigation", with
 `aria-expanded`. Its three ruled bars fold into a left arrow while the
 sidebar is out, then open back into the menu mark once the sidebar is
 folded away. Below 960px the drawer's **Browse** button uses the same

@@ -355,8 +355,10 @@ checklist index.
 
 A module row keeps its name and its count, flush right in mono, on one line.
 Carets sit on the label's centre line. Task rows use a 4.75rem call-number
-column, sized to the longest ID (JENKINS-01). The active task's marker sits
-on its module's guide line.
+column, sized to the longest ID (JENKINS-01). The active task's highlight is
+painted behind its row and never changes the row's box, so selecting a task
+never re-wraps its title or moves the rows below. Its marker sits on its
+module's guide line.
 
 On desktop the tree scrolls on its own, below the nav bar, so rows never pass
 under the site title. Its scrollbar is thin and its gutter always reserved, so

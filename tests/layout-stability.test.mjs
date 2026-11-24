@@ -128,9 +128,23 @@ test("the sidebar tree scrolls below the nav bar on a reserved, thin gutter", as
   // Opening a module never brings a scrollbar in or moves a caret.
   assert.equal(declaration(tree.body, "scrollbar-gutter"), "stable");
   assert.equal(declaration(tree.body, "scrollbar-width"), "thin");
-  // The active marker stays on the module's guide line under the highlight.
-  const marker = rules.find((rule) => rule.selectors.includes(".Layout .VPSidebar .VPSidebarItem.level-2.is-active > .item > .indicator"));
-  assert.equal(declaration(marker.body, "inset-inline-start"), "calc(-0.5rem - 1px)");
+});
+
+test("selecting a sidebar row never changes its box", async () => {
+  const rules = await themeRules();
+  // VitePress sizes rows at width: 100%, so any margin, padding, border or
+  // weight change on the active row re-wraps its title and moves the rows
+  // below (NET-03 grew a line). The highlight is painted behind instead.
+  for (const rule of rules.filter((candidate) => candidate.selectors.some((selector) => /\.is-active/.test(selector) && /VPSidebar/.test(selector)))) {
+    assert.doesNotMatch(rule.body, /(?:^|;)\s*(?:margin|padding|border(?!-radius)|width|font-weight|font-size|letter-spacing|inset-inline-start)[\w-]*\s*:/, rule.selectors.join(", "));
+  }
+  for (const rule of rules.filter((candidate) => candidate.selectors.some((selector) => /\.is-active > \.item$/.test(selector)))) {
+    assert.fail(`the active row itself is restyled: ${rule.selectors.join(", ")}`);
+  }
+  const highlight = rules.find((rule) => rule.selectors.includes(".VPSidebarItem.level-2.is-active > .item::before"));
+  assert.equal(declaration(highlight.body, "position"), "absolute");
+  assert.equal(declaration(highlight.body, "inset-inline"), "-0.5rem");
+  assert.equal(declaration(highlight.body, "z-index"), "-1");
 });
 
 test("an opened sidebar list settles in without animating its height", async () => {

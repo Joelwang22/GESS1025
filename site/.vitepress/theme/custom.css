@@ -156,12 +156,6 @@ html {
     scrollbar-width: thin;
   }
 
-  /* The active row's highlight reaches 0.5rem past the module's guide line;
-     its marker stays on that line. */
-  .Layout .VPSidebar .VPSidebarItem.level-2.is-active > .item > .indicator {
-    inset-inline-start: calc(-0.5rem - 1px);
-  }
-
   :root .Layout .VPNavBar.has-sidebar {
     --vp-nav-col-offset: var(--vp-sidebar-width);
   }
@@ -743,10 +737,20 @@ samp {
   line-height: 1.4;
 }
 
-.VPSidebarItem.level-1.is-active > .item,
-.VPSidebarItem.level-2.is-active > .item {
-  margin-inline: -0.5rem;
-  padding-inline: 0.5rem;
+/* The active row's highlight is painted behind it, 0.5rem past each side,
+   and never changes the row's box: becoming active never re-wraps a title
+   or moves the rows below. */
+.VPSidebarItem:is(.level-1, .level-2) > .item {
+  isolation: isolate;
+}
+
+.VPSidebarItem.level-1.is-active > .item::before,
+.VPSidebarItem.level-2.is-active > .item::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline: -0.5rem;
+  z-index: -1;
   border-radius: var(--rb-radius-s);
   background: var(--rb-route-soft);
 }

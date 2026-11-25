@@ -425,7 +425,13 @@ Pick one scanner; gobuster is the lighter default.
 gobuster dir -u '<TARGET_URL>/' -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,html,txt,bak,old,zip,conf -t 50 -o gobuster.txt
 ```
 
-Or `feroxbuster -u '<TARGET_URL>/' -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,html,txt,bak,old,zip,conf -t 50`. Establish a false-response baseline first and reduce threads on 429.
+Or feroxbuster, which resumes a stopped run and filters wildcard responses:
+
+```bash
+feroxbuster -u '<TARGET_URL>/' -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,html,txt,bak,old,zip,conf -t 50 -o feroxbuster.txt
+```
+
+Establish a false-response baseline first and reduce threads on 429.
 
 | Result | Next |
 | --- | --- |

@@ -60,7 +60,7 @@ const MODULE_DISPLAY_NAMES = new Map([
   ["metasploit", "Metasploit"],
   ["payloads", "Payloads"],
   ["web_advanced", "Advanced web"],
-  ["database", "Database"],
+  ["database", "SQL session"],
   ["oracle", "Oracle"],
   ["postgresql", "PostgreSQL"],
   ["mysql", "MySQL"],
@@ -101,7 +101,7 @@ const MODULE_DISPLAY_NAMES = new Map([
 // the phase that owns them rather than beside every caller.
 const SIDEBAR_SECTIONS = [
   { title: "Enumeration", ids: ["network"] },
-  { title: "Services", ids: ["ftp", "smb", "remote_access", "mssql", "database", "oracle", "postgresql", "mysql", "mail", "rdp", "redis", "dns", "nfs", "snmp", "smtp", "tftp", "rsync", "docker", "jenkins", "ipmi", "vnc", "ntp", "x11", "squid", "generic"] },
+  { title: "Services", ids: ["ftp", "smb", "remote_access", "database", "mssql", "oracle", "postgresql", "mysql", "mail", "rdp", "redis", "dns", "nfs", "snmp", "smtp", "tftp", "rsync", "docker", "jenkins", "ipmi", "vnc", "ntp", "x11", "squid", "generic"] },
   { title: "Web", ids: ["http", "web_input", "sql_continuation", "web_upload", "web_editor", "command_continuation", "command_shell", "web_advanced"] },
   { title: "Session", ids: ["payloads", "access", "metasploit"] },
   { title: "Host", ids: ["shell", "transfer", "local_artifact"] },

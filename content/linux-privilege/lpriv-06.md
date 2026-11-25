@@ -12,7 +12,7 @@ find /etc/sudoers.d -maxdepth 1 -type f -ls 2>/dev/null
 
 **Look for:** scripts, configuration, unit files, sudoers fragments, service executables, and writable parents consumed by a higher-privileged process.
 
-**If found:** establish the consumer in [LPRIV-07](./lpriv-07). Scheduled consumers route to [LPRIV-05](./lpriv-05). Do not edit a file based on writability alone.
+**If found:** establish the consumer in [LPRIV-07](./lpriv-07). Scheduled consumers route to [LPRIV-05](./lpriv-05). A writable account file (`/etc/passwd`, `/etc/group`) routes to [LPRIV-19](./lpriv-19). Do not edit a file based on writability alone.
 
 ## Widen only when needed
 

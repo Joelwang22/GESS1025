@@ -146,8 +146,8 @@ test("the home page is the module directory; the old directory URL forwards to i
   assert.match(moved, /\[home page\]\(\.\.\/\)/);
   assert.match(moved, /search: false/);
   assert.doesNotMatch(moved, /<TaskDirectory/);
-  assert.match(source, /4f643efe7db1efdbd58af5a24e7cf46764b97945528b567afbe38940d6742697/);
-  assert.match(source, /Published pages \| 215/);
+  assert.match(source, /c5f7d9be201381ed4400328af49e08c53422d41dcdd31f3cc4e6c18641006401/);
+  assert.match(source, /Published pages \| 225/);
 });
 
 test("publishes one 20-page Linux privilege operator module", async () => {
@@ -293,7 +293,7 @@ test("generates every public page, module, and LNX compatibility URL", async () 
     text("site/generated/tasks/lnx-01.md"),
   ]);
 
-  assert.equal(taskFiles.length, 225);
+  assert.equal(taskFiles.length, 235);
   assert.equal(moduleFiles.length, 47);
   assert.match(net01, /^# NET-01\. Check connectivity/m);
   assert.match(net01, /## Explanations and troubleshooting/);
@@ -438,11 +438,11 @@ test("emits a complete public catalog with source provenance", async () => {
   assert.equal(generatedCatalog.sourceDigest, manifest.sourceDigest);
   assert.equal(generatedCatalog.snapshotSha256, manifest.snapshotSha256);
   assert.equal(generatedCatalog.moduleCount, 47);
-  assert.equal(generatedCatalog.taskCount, 215);
+  assert.equal(generatedCatalog.taskCount, 225);
   assert.equal(generatedCatalog.sourceModuleCount, 48);
-  assert.equal(generatedCatalog.sourceTaskCount, 220);
+  assert.equal(generatedCatalog.sourceTaskCount, 230);
   assert.equal(sidebar.flatMap((section) => section.items).length, generatedCatalog.modules.length);
-  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 215);
+  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 225);
   assert.ok(!generatedCatalog.tasks.some(({ id }) => id.startsWith("LNX-")));
   assert.deepEqual(
     generatedCatalog.tasks.filter(({ id }) => id.startsWith("LPRIV-")).map(({ id }) => id),
@@ -1565,7 +1565,7 @@ test("the task list keeps every task without directory controls", async () => {
   // The server-rendered task list keeps every published task in module order.
   const html = await text("site/.vitepress/dist/index.html");
   const directoryHtml = html.slice(html.indexOf('class="directory"'), html.indexOf('id="module-summary"'));
-  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 215);
+  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 225);
   assert.doesNotMatch(directoryHtml, /All 215 tasks|Directory layout|aria-pressed/);
 });
 

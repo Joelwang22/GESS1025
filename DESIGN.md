@@ -386,6 +386,13 @@ several modules (445 reaches SMB, AD, Windows and AD abuse); the index lists the
 in phase order rather than picking a winner. Generation fails on a service module
 without a hint or a malformed port.
 
+Database work is one shared `SQL session` lane (connect, inspect) followed by one
+module per engine. Oracle, PostgreSQL and MySQL share one shape — authenticate,
+inspect, read, write, execute — and take it from the same session, so a new
+engine copies a shape instead of inventing an order. Oracle file steps go through
+directory objects, PostgreSQL through server-file roles, MySQL through
+`secure_file_priv`; the shape survives, the mechanism does not.
+
 Host is mechanics only: `Shell`, `Transfer`, `Local artifact`. Platform work
 starts at Privilege, where two parallel lanes, `Linux` and `Windows`, each carry
 host context and escalation together — the same shape on both platforms. `Windows`

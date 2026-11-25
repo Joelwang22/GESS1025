@@ -80,7 +80,7 @@ async function renderMarkdown(markdown) {
   rendererPromise ??= createMarkdownRenderer(
     path.join(repositoryRoot, "site"),
     {},
-    "/checklist/",
+    "/GESS1025/",
   );
   return (await rendererPromise).render(markdown);
 }
@@ -453,9 +453,9 @@ test("generation is deterministic for identical input", async () => {
     const secondDigest = await digestTree(outputRoot);
 
     assert.equal(first.taskCount, 215);
-    assert.equal(first.moduleCount, 49);
+    assert.equal(first.moduleCount, 47);
     assert.equal(first.sourceTaskCount, 220);
-    assert.equal(first.sourceModuleCount, 50);
+    assert.equal(first.sourceModuleCount, 48);
     assert.deepEqual(second, first);
     assert.equal(secondDigest, firstDigest);
   } finally {

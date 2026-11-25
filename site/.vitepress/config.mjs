@@ -28,7 +28,7 @@ function renderGroup(group, isSection = false) {
   const module = isSection ? null : moduleByTitle.get(group.text);
   if (isSection || !module) {
     return {
-      text: `<span class="sb-section">${escapeHtml(group.text)}</span>`,
+      text: `<span class="sb-section">${escapeHtml(group.text)}</span><span class="sb-count">${group.items.length}</span>`,
       collapsed: group.collapsed,
       items: group.items.map((item) => renderGroup(item)),
     };
@@ -71,7 +71,7 @@ export default defineConfig({
   description:
     "A command-first OSCP checklist with finding-driven operator pages and task detail.",
   lang: "en-US",
-  base: "/checklist/",
+  base: "/GESS1025/",
   cleanUrls: false,
   ignoreDeadLinks: false,
   lastUpdated: false,
@@ -123,7 +123,7 @@ export default defineConfig({
     socialLinks: [
       {
         icon: "github",
-        link: "https://github.com/Joelwang22/checklist",
+        link: "https://github.com/Joelwang22/GESS1025",
         ariaLabel: "Checklist repository on GitHub",
       },
     ],

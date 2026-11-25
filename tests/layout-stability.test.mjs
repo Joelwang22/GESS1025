@@ -219,3 +219,37 @@ test("module rows keep name and count on one line; task IDs fit their column", a
   // 12px mono at up to 0.61em advance, 16px root.
   assert.ok(idColumn * 16 >= longest * 12 * 0.61, `${idColumn}rem holds a ${longest}-character ID`);
 });
+
+test("sections read as binder tabs, with their modules hung from a guide line", async () => {
+  const rules = await themeRules();
+  const band = rules.find((rule) => rule.media === null && rule.selectors.includes(".VPSidebar .VPSidebarItem.level-0 > .item"));
+  assert.equal(declaration(band.body, "background"), "var(--rb-panel)");
+  // The band bleeds past the label on both sides, so the label keeps its
+  // place under the menu control's bars.
+  assert.equal(declaration(band.body, "margin-inline"), "-0.625rem");
+  assert.equal(declaration(band.body, "padding-inline"), "0.625rem 0.5rem");
+  assert.equal(declaration(band.body, "width"), "auto");
+  // The scroller clips at its own edge, so it opens room for that bleed.
+  const tree = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes(".Layout .VPSidebar .nav"));
+  assert.equal(declaration(tree.body, "margin-inline-start"), "-0.75rem");
+  assert.equal(declaration(tree.body, "padding-inline-start"), "0.75rem");
+  // Section labels are the top level, so they are set in full ink.
+  const label = rules.find((rule) => rule.selectors.includes(".sb-section"));
+  assert.equal(declaration(label.body, "color"), "var(--rb-ink)");
+  const modules = rules.find((rule) => rule.selectors.includes(".VPSidebar .VPSidebarItem.level-0 > .items"));
+  assert.match(declaration(modules.body, "border-inline-start"), /^1px solid var\(--rb-rule-strong\)$/);
+  // Tasks take no second indent or guide; the active task's marker moves
+  // onto the section's line: 0.75rem of indent plus the 1px guide.
+  const tasks = rules.find((rule) => rule.selectors.includes(".VPSidebar .VPSidebarItem.level-1 > .items"));
+  assert.equal(declaration(tasks.body, "padding-inline-start"), "0");
+  assert.equal(declaration(tasks.body, "border-inline-start"), "0");
+  const marker = rules.find((rule) => rule.selectors.includes(".VPSidebar .VPSidebarItem.level-2 > .item > .indicator"));
+  assert.equal(declaration(marker.body, "inset-inline-start"), `calc(-${declaration(modules.body, "padding-inline-start")} - 1px)`);
+  // The bands separate sections; no rule is drawn between groups.
+  const between = rules.find((rule) => rule.selectors.includes(".VPSidebar .nav .group + .group"));
+  assert.equal(declaration(between.body, "border-top"), "0");
+  // Section colour stays neutral: no cobalt or blank tone on a section band.
+  assert.doesNotMatch(band.body, /--rb-(?:route|blank)/);
+  const config = await readFile(path.resolve(import.meta.dirname, "../site/.vitepress/config.mjs"), "utf8");
+  assert.match(config, /<span class="sb-section">\$\{escapeHtml\(group\.text\)\}<\/span><span class="sb-count">\$\{group\.items\.length\}<\/span>/);
+});

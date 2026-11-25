@@ -1,14 +1,8 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useData, withBase } from "vitepress";
 
-import { matchTasks } from "../task-id.js";
-
 const { theme } = useData();
-const query = ref("");
-// "module" groups tasks under their module in printed-index columns; "flat"
-// lists all tasks as one call-number table. Neither choice is stored.
-const mode = ref("module");
 
 const modules = computed(() => {
   const groups = [];
@@ -24,7 +18,6 @@ const modules = computed(() => {
           .map((item) => ({
             id: item.taskId,
             title: item.taskTitle,
-            module: group.moduleTitle,
             link: withBase(`${item.link}.html`),
           })),
       });
@@ -32,50 +25,11 @@ const modules = computed(() => {
   }
   return groups;
 });
-
-// With no query every module and task is listed, server-rendered, in source
-// order. Typing narrows the list; clearing the field restores all of it.
-const shown = computed(() => {
-  if (!query.value.trim()) return modules.value;
-  return modules.value
-    .map((module) => ({ ...module, tasks: matchTasks(module.tasks, query.value, module.ports) }))
-    .filter((module) => module.tasks.length);
-});
-const flat = computed(() => shown.value.flatMap((module) => module.tasks));
-const shownCount = computed(() => flat.value.length);
-const total = computed(() => modules.value.reduce((sum, { tasks }) => sum + tasks.length, 0));
 </script>
 
 <template>
-  <div class="directory-tools">
-    <label class="directory-label" for="directory-filter">Filter by ID, title, module or port</label>
-    <div class="directory-row">
-      <input
-        id="directory-filter"
-        v-model="query"
-        class="directory-input"
-        placeholder="e.g. smb, 445, LPRIV"
-        autocomplete="off"
-        spellcheck="false"
-        @keydown.esc.prevent="query = ''"
-      />
-      <button v-if="query" class="directory-clear" type="button" @click="query = ''">Clear</button>
-    </div>
-    <div class="directory-modes" role="group" aria-label="Directory layout">
-      <button type="button" class="directory-mode" :aria-pressed="mode === 'module'" @click="mode = 'module'">
-        By module ({{ modules.length }})
-      </button>
-      <button type="button" class="directory-mode" :aria-pressed="mode === 'flat'" @click="mode = 'flat'">
-        Flat list ({{ total }})
-      </button>
-    </div>
-    <p class="directory-status" role="status" aria-live="polite">
-      <template v-if="query.trim()">{{ shownCount }} of {{ total }} tasks match "{{ query.trim() }}".</template>
-      <template v-else>All {{ total }} tasks, in phase order.</template>
-    </p>
-  </div>
-  <div v-if="mode === 'module'" class="directory">
-    <section v-for="module in shown" :key="module.title" class="directory-module" :aria-label="`${module.title} tasks`">
+  <div class="directory">
+    <section v-for="module in modules" :key="module.title" class="directory-module" :aria-label="`${module.title} tasks`">
       <p class="directory-module-head">
         <a :href="module.link">{{ module.title }}</a>
         <span v-if="module.ports.length" class="directory-ports">{{ module.ports.join(" · ") }}</span>
@@ -91,13 +45,4 @@ const total = computed(() => modules.value.reduce((sum, { tasks }) => sum + task
       </ol>
     </section>
   </div>
-  <ol v-else class="directory-flat" aria-label="All tasks in phase order">
-    <li v-for="task in flat" :key="task.id">
-      <a :href="task.link">
-        <span class="directory-id">{{ task.id }}</span>
-        <span class="directory-title">{{ task.title }}</span>
-        <span class="directory-flat-module">{{ task.module }}</span>
-      </a>
-    </li>
-  </ol>
 </template>

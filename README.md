@@ -1,10 +1,11 @@
 # OSCP checklist
 
-A command-first website for use beside a terminal. Forty-nine modules follow the
-box's phase order from enumeration through service lanes, session, host, Windows
-and domain, Linux privilege and pivoting. Each service owns one module and its
-scan ports, and the home page has a generated port index. Linux privilege
-escalation is one authored 20-page operator module.
+A command-first website for use beside a terminal. Forty-seven modules follow the
+box's phase order from enumeration through service lanes, session, host,
+privilege, domain and pivoting. Each service owns one module and its scan ports,
+and the home page has a generated port index. Linux and Windows are parallel
+Privilege lanes, each with host context; Linux privilege escalation is one
+authored 20-page operator module.
 
 The retained edition is `2026-11-21.working.132`. The snapshot is now
 maintained in place for this site; its hash, task count and the LPRIV pages
@@ -51,7 +52,7 @@ three local supporting references used by the snapshot.
 
 The generator rejects source drift, duplicate task IDs, missing explanations,
 unknown route destinations, hash mismatches, and task-count changes. The source
-and provenance details are also published at `/checklist/about/source.html`.
+and provenance details are also published at `/GESS1025/about/source.html`.
 
 ## Generated-file ownership
 
@@ -98,7 +99,7 @@ then run the same steps. Do not edit the three supporting references in place.
 The workflow in `.github/workflows/pages.yml` tests, builds, uploads, and
 deploys the site when `main` changes. In the repository settings, open
 **Pages**, set **Source** to **GitHub Actions**, and save. The VitePress base is
-`/checklist/`, matching `https://joelwang22.github.io/checklist/`.
+`/GESS1025/`, matching `https://joelwang22.github.io/GESS1025/`.
 
 The workflow grants read-only repository access plus the Pages and identity
 permissions required by the official deployment actions. It does not publish

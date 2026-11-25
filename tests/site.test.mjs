@@ -59,7 +59,7 @@ async function filesBelow(root, suffix = "") {
 }
 
 async function resolveBuiltTarget(distRoot, pathname) {
-  let relative = decodeURIComponent(pathname.slice("/checklist/".length));
+  let relative = decodeURIComponent(pathname.slice("/GESS1025/".length));
   if (!relative || relative.endsWith("/")) relative += "index.html";
   const direct = path.join(distRoot, relative);
   try {
@@ -131,36 +131,33 @@ test("the home page is the module directory; the old directory URL forwards to i
   ]);
 
   assert.match(home, /^# Checklist modules$/m);
+  assert.match(home, /^## Scan results$/m);
+  assert.match(home, /^## Task List$/m);
   assert.match(home, /<TaskDirectory \/>/);
-  assert.match(home, /\]\(\.\/generated\/tasks\/lpriv-01\.md\)/);
+  assert.doesNotMatch(home, /Browse the published pages|For a Linux shell|Default box route/);
   assert.doesNotMatch(home, /field\/linux-privilege|\]\(\.\.\//);
+  assert.match(home, /@include: \.\/\.vitepress\/generated\/port-index\.md/);
   assert.match(home, /@include: \.\/\.vitepress\/generated\/module-directory\.md/);
-  assert.match(directory, /Linux privilege escalation/);
+  assert.match(directory, /\| \[Linux\]\(/);
   assert.doesNotMatch(home, /generated\/modules\/linux\.md/);
   assert.match(directory, /\]\(\.\.\/\.\.\/generated\/modules\/network\.md\)/);
-  // Bookmarks to /checklist/checklist/ land on the home page.
+  // Bookmarks to /GESS1025/checklist/ land on the home page.
   assert.match(moved, /http-equiv: refresh\s+content: "0; url=\.\.\/"/);
   assert.match(moved, /\[home page\]\(\.\.\/\)/);
   assert.match(moved, /search: false/);
   assert.doesNotMatch(moved, /<TaskDirectory/);
-  assert.match(source, /fd2e53cc4d3c23a824d11a733649492b92ea449f06f5e98bb64d98433383795b/);
+  assert.match(source, /4f643efe7db1efdbd58af5a24e7cf46764b97945528b567afbe38940d6742697/);
   assert.match(source, /Published pages \| 215/);
 });
 
 test("publishes one 20-page Linux privilege operator module", async () => {
-  const [home, config, css, toggle, theme] = await Promise.all([
-    text("site/index.md"),
+  const [config, css, toggle, theme] = await Promise.all([
     text("site/.vitepress/config.mjs"),
     text("site/.vitepress/theme/custom.css"),
     text("site/.vitepress/theme/components/SidebarToggle.vue"),
     text("site/.vitepress/theme/index.js"),
   ]);
 
-  assert.match(home, /For a Linux shell, start at\s+\[LPRIV-01\]/);
-  assert.ok(
-    home.indexOf("generated/tasks/lpriv-01") < home.indexOf("generated/start.md"),
-    "LPRIV-01 is the first home link",
-  );
   assert.doesNotMatch(config, /field\/linux-privilege|Privilege escalation checklist/);
   assert.match(config, /nav: \[\]/);
   assert.doesNotMatch(config, /Field checklists|Detailed reference · 28 modules/);
@@ -174,7 +171,7 @@ test("publishes one 20-page Linux privilege operator module", async () => {
   assert.match(css, /html\.sidebar-collapsed \.Layout \.VPSidebar/);
 
   const sidebar = JSON.parse(await text("site/.vitepress/generated/sidebar.json"));
-  const linux = sidebar.find(({ text: label }) => label === "Linux privilege")?.items.find(({ text: label }) => label === "Linux privilege escalation");
+  const linux = sidebar.find(({ text: label }) => label === "Privilege")?.items.find(({ text: label }) => label === "Linux");
   assert.ok(linux);
   assert.equal(linux.items.length, 20);
   assert.deepEqual(
@@ -183,7 +180,7 @@ test("publishes one 20-page Linux privilege operator module", async () => {
       `/generated/tasks/lpriv-${String(index + 1).padStart(2, "0")}`,
     ),
   );
-  assert.ok(sidebar.some(({ text: label }) => label === "Linux privilege"));
+  assert.ok(sidebar.some(({ text: label }) => label === "Privilege"));
 
   for (let index = 1; index <= 20; index += 1) {
     const id = `LPRIV-${String(index).padStart(2, "0")}`;
@@ -209,7 +206,7 @@ test("renders every Linux operator command with copy controls and inline routes"
     ]);
     assert.equal([...operatorHtml.matchAll(/class="cmd-copy"/g)].length, fencedBlocks(operatorSource).length, slug);
     assert.match(operatorHtml, /class="Layout task-page field-page operator-page"/);
-    assert.match(operatorHtml, /class="sb-module">Linux privilege escalation/);
+    assert.match(operatorHtml, /class="sb-module">Linux/);
     assert.doesNotMatch(operatorHtml, /class="(?:route-panel|task-rail|task-jumps)"/);
     assert.doesNotMatch(operatorHtml, /field\/linux-privilege|id="explanations-and-troubleshooting"/);
   }
@@ -278,7 +275,7 @@ test("generates every public page, module, and LNX compatibility URL", async () 
   ]);
 
   assert.equal(taskFiles.length, 225);
-  assert.equal(moduleFiles.length, 49);
+  assert.equal(moduleFiles.length, 47);
   assert.match(net01, /^# NET-01\. Check connectivity/m);
   assert.match(net01, /## Explanations and troubleshooting/);
   assert.match(net05, /Next: \[WEB-01\]\(\.\/web-01\)/);
@@ -313,11 +310,19 @@ test("preserves module and task order in the sidebar", async () => {
       },
     ],
   );
-  const linux = sidebar.at(-2);
-  assert.equal(linux.text, "Linux privilege");
-  assert.equal(linux.items.length, 1);
-  assert.equal(linux.items[0].text, "Linux privilege escalation");
-  assert.equal(linux.items[0].items.length, 20);
+  const privilege = sidebar.at(-3);
+  assert.equal(privilege.text, "Privilege");
+  assert.deepEqual(
+    privilege.items.map(({ text: label }) => label),
+    ["Linux", "Windows"],
+  );
+  assert.equal(privilege.items[0].items.length, 20);
+  const domain = sidebar.at(-2);
+  assert.equal(domain.text, "Domain");
+  assert.deepEqual(
+    domain.items.map(({ text: label }) => label),
+    ["AD", "Password attacks", "ADCS", "AD abuse"],
+  );
   const movement = sidebar.at(-1);
   assert.equal(movement.text, "Movement");
   assert.deepEqual(
@@ -339,8 +344,8 @@ test("orders sections by box phase, with every service lane ahead of the session
       "Web",
       "Session",
       "Host",
-      "Windows and domain",
-      "Linux privilege",
+      "Privilege",
+      "Domain",
       "Movement",
     ],
   );
@@ -357,9 +362,11 @@ test("orders sections by box phase, with every service lane ahead of the session
     sidebar.findIndex(({ items }) => items.some(({ text }) => text === "FTP")),
     sidebar.findIndex(({ items }) => items.some(({ text }) => text === "SMB")),
   );
-  assert.equal(
-    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "SSH knock")),
-    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "SSH")),
+  // SSH knock is the SSH module's third task, not a module of its own.
+  const ssh = sidebar.flatMap(({ items }) => items).find(({ text }) => text === "SSH");
+  assert.deepEqual(
+    ssh.items.map(({ link }) => link.split("/").at(-1)),
+    ["ssh-01", "ssh-02", "ssh-03"],
   );
 });
 
@@ -391,17 +398,17 @@ test("names modules with an explicit acronym-correct display map", async () => {
     (match) => match[1],
   );
 
-  assert.equal(indexNames.length, 49);
+  assert.equal(indexNames.length, 47);
   const sidebarNames = sidebar.flatMap((section) => section.items.map(({ text: label }) => label));
   assert.deepEqual(sidebarNames.sort(), [...indexNames].sort());
-  for (const name of ["HTTP", "AD", "Windows", "DNS", "NFS", "SNMP", "MSSQL", "Oracle", "PostgreSQL", "MySQL", "FTP", "SMB", "SSH", "SSH knock", "Shell", "Transfer", "SQL continuation", "Mail", "RDP", "Docker", "Jenkins", "Generic service"]) {
+  for (const name of ["HTTP", "AD", "Linux", "Windows", "DNS", "NFS", "SNMP", "MSSQL", "Oracle", "PostgreSQL", "MySQL", "FTP", "SMB", "SSH", "Shell", "Transfer", "SQL continuation", "Mail", "RDP", "Docker", "Jenkins", "Generic service"]) {
     assert.ok(indexNames.includes(name), name);
   }
   const httpModule = await text("site/generated/modules/http.md");
   assert.match(httpModule, /^title: "HTTP"$/m);
   assert.match(httpModule, /^# HTTP$/m);
-  assert.ok(indexNames.includes("Linux privilege escalation"));
-  assert.ok(!indexNames.includes("Linux"));
+  assert.ok(indexNames.includes("Linux"));
+  assert.ok(indexNames.includes("Windows"));
 });
 
 test("emits a complete public catalog with source provenance", async () => {
@@ -411,9 +418,9 @@ test("emits a complete public catalog with source provenance", async () => {
   assert.equal(generatedCatalog.edition, manifest.edition);
   assert.equal(generatedCatalog.sourceDigest, manifest.sourceDigest);
   assert.equal(generatedCatalog.snapshotSha256, manifest.snapshotSha256);
-  assert.equal(generatedCatalog.moduleCount, 49);
+  assert.equal(generatedCatalog.moduleCount, 47);
   assert.equal(generatedCatalog.taskCount, 215);
-  assert.equal(generatedCatalog.sourceModuleCount, 50);
+  assert.equal(generatedCatalog.sourceModuleCount, 48);
   assert.equal(generatedCatalog.sourceTaskCount, 220);
   assert.equal(sidebar.flatMap((section) => section.items).length, generatedCatalog.modules.length);
   assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 215);
@@ -560,7 +567,7 @@ test("task pages carry station frontmatter and verbatim module context", async (
     const page = await text(`site/generated/tasks/${id.toLowerCase()}.md`);
     const head = frontmatterOf(page);
     assert.match(head, new RegExp(`^taskId: "${id}"$`, "m"));
-    assert.match(head, /^moduleTitle: "Linux privilege escalation"$/m);
+    assert.match(head, /^moduleTitle: "Linux"$/m);
     assert.match(head, /^operatorPage: true$/m);
   }
 });
@@ -617,7 +624,8 @@ test("ports supporting local references and rewrites their task links", async ()
 test("configures VitePress for GitHub Pages and local search", async () => {
   const config = await text("site/.vitepress/config.mjs");
 
-  assert.match(config, /base:\s*["']\/checklist\/["']/);
+  assert.match(config, /base:\s*["']\/GESS1025\/["']/);
+  assert.match(config, /https:\/\/github\.com\/Joelwang22\/GESS1025/);
   assert.match(config, /provider:\s*["']local["']/);
   assert.match(config, /sidebar/);
   assert.match(config, /outline/);
@@ -630,8 +638,8 @@ test("builds base-aware task, asset, search, and navigation links", async () => 
     text("site/.vitepress/dist/index.html"),
     text("site/.vitepress/dist/generated/tasks/net-01.html"),
   ]);
-  assert.match(home, /\/checklist\/assets\//);
-  assert.match(net01, /\/checklist\/generated\/tasks\/net-02/);
+  assert.match(home, /\/GESS1025\/assets\//);
+  assert.match(net01, /\/GESS1025\/generated\/tasks\/net-02/);
   assert.doesNotMatch(home, /(?:href|src)="\/assets\//);
   assert.doesNotMatch(net01, /href="\/generated\//);
 });
@@ -646,12 +654,12 @@ test("every built local link and search result resolves inside the Pages base", 
   for (const htmlFile of htmlFiles) {
     const html = await readFile(htmlFile, "utf8");
     const pageRelative = path.relative(distRoot, htmlFile).replaceAll("\\", "/");
-    const base = new URL(`https://example.test/checklist/${pageRelative}`);
+    const base = new URL(`https://example.test/GESS1025/${pageRelative}`);
     for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
       const value = match[1];
       if (/^(?:https?:|mailto:|data:|#)/.test(value)) continue;
       const resolved = new URL(value, base);
-      if (!resolved.pathname.startsWith("/checklist/")) {
+      if (!resolved.pathname.startsWith("/GESS1025/")) {
         failures.push(`${pageRelative}: outside base ${value}`);
         continue;
       }
@@ -673,7 +681,7 @@ test("every built local link and search result resolves inside the Pages base", 
   );
   assert.equal(searchFiles.length, 1);
   const searchSource = await readFile(searchFiles[0], "utf8");
-  for (const match of searchSource.matchAll(/\/checklist\/[^"'\\]+/g)) {
+  for (const match of searchSource.matchAll(/\/GESS1025\/[^"'\\]+/g)) {
     const resolved = new URL(match[0], "https://example.test");
     const target = await resolveBuiltTarget(distRoot, resolved.pathname);
     checked += 1;
@@ -746,7 +754,8 @@ test("documents local use, provenance, generation ownership, and Pages setup", a
   assert.match(readme, /generated-file ownership/i);
   assert.match(readme, /refreshing the checklist/i);
   assert.match(readme, /GitHub Actions/i);
-  assert.match(readme, /\/checklist\/about\/source\.html/);
+  assert.match(readme, /\/GESS1025\/about\/source\.html/);
+  assert.match(readme, /https:\/\/joelwang22\.github\.io\/GESS1025\//);
 });
 
 function decodeEntities(value) {
@@ -941,7 +950,7 @@ test("routes, stop states, and decision tables carry distinct marks", async () =
   assert.match(net01, /<h1 id="net-01-check-connectivity" tabindex="-1">NET-01\. Check connectivity <a class="header-anchor"/);
   const header = net01.indexOf('<div class="task-header">');
   assert.ok(header >= 0 && header < net01.indexOf("<main"), "header row precedes <main>");
-  assert.match(net01, /<a href="\/checklist\/generated\/modules\/network\.html">Network<\/a>/);
+  assert.match(net01, /<a href="\/GESS1025\/generated\/modules\/network\.html">Network<\/a>/);
   assert.match(net01, /<span class="task-position">Task 1 of 5<\/span>/);
   assert.doesNotMatch(net01, /class="(?:task-stamp|task-jumps|task-rail|route-panel)"/);
   assert.match(net01, /<span class="sb-id">NET-01<\/span> <span class="sb-title">Check connectivity<\/span>/);
@@ -992,8 +1001,8 @@ test("task pages keep route metadata without duplicating routes outside the proc
     text("site/.vitepress/dist/generated/tasks/lpriv-20.html"),
   ]);
   assert.doesNotMatch(lpriv01, /pager-link prev-page/);
-  assert.match(lpriv01, /href="\/checklist\/generated\/tasks\/lpriv-02\.html"/);
-  assert.match(lpriv20, /href="\/checklist\/generated\/tasks\/lpriv-19\.html"/);
+  assert.match(lpriv01, /href="\/GESS1025\/generated\/tasks\/lpriv-02\.html"/);
+  assert.match(lpriv20, /href="\/GESS1025\/generated\/tasks\/lpriv-19\.html"/);
   assert.doesNotMatch(lpriv20, /pager-link next-page/);
 });
 
@@ -1014,7 +1023,7 @@ test("publishes the source preface verbatim as the default box route page", asyn
     assert.match(html, new RegExp(`href="\\./tasks/${id.toLowerCase()}\\.html" class="route"`), id);
   }
   assert.match(html, /href="\.\/tasks\/lnx-03\.html"/);
-  assert.match(await text("site/index.md"), /generated\/start\.md/);
+  assert.match(await text("site/generated/start.md"), /^title: "How to use this edition"$/m);
 });
 
 test("the go-to box accepts loose task ID spellings", () => {
@@ -1132,7 +1141,7 @@ test("command plates keep Copy visible and add Wrap only when a block needs it",
 test("the find box matches task IDs, title words, modules and scan ports", () => {
   const tasks = [
     { id: "SMB-01", title: "List shares for the current identity", module: "SMB" },
-    { id: "LPRIV-02", title: "Does this reviewed SUID binary change identity?", module: "Linux privilege escalation" },
+    { id: "LPRIV-02", title: "Does this reviewed SUID binary change identity?", module: "Linux" },
     { id: "AD-06", title: "Request one roastable Kerberos ticket", module: "AD" },
   ];
   assert.deepEqual(matchTasks(tasks, "smb").map(({ id }) => id), ["SMB-01"]);
@@ -1160,7 +1169,9 @@ test("every service lane names its scan ports in the sidebar and the port index"
   assert.ok(portsOf("SMB").includes("445"));
   assert.ok(portsOf("MSSQL").includes("1433"));
   assert.ok(portsOf("DNS").includes("53/udp"));
-  for (const label of ["Network", "SSH knock", "Pivoting", "Linux privilege escalation"]) {
+  assert.ok(portsOf("Windows").includes("445"));
+  assert.deepEqual(portsOf("Linux"), []);
+  for (const label of ["Network", "Pivoting", "Linux"]) {
     assert.deepEqual(portsOf(label), [], label);
   }
 
@@ -1174,12 +1185,12 @@ test("every service lane names its scan ports in the sidebar and the port index"
     }
   }
 
-  // The home page shows the ports above the filter and the index, server-rendered.
-  const beforeFilter = home.slice(0, home.indexOf('class="directory-tools"'));
-  assert.match(beforeFilter, /id="from-a-scan-line"/);
-  assert.match(beforeFilter, />445</);
+  // The home page shows the scan results above the task list, server-rendered.
+  const beforeTaskList = home.slice(0, home.indexOf('id="task-list"'));
+  assert.match(beforeTaskList, /id="scan-results"/);
+  assert.match(beforeTaskList, />445</);
   assert.match(home, /class="sb-ports"[^>]*>22</);
-  assert.match(home, /Filter by ID, title, module or port/);
+  assert.doesNotMatch(home, /Filter by ID, title, module or port|From a scan line/);
 });
 
 test("module pages list exact task titles in an aligned column without an outline", async () => {
@@ -1218,13 +1229,13 @@ test("both light and dark browser chrome colours ship, and the layout keeps the 
   assert.match(css, /--vp-layout-max-width: 1440px;/);
 });
 
-test("the home page keeps the full generated box route available as reference", async () => {
+test("the generated box route remains available without a home-page prompt", async () => {
   await buildSite();
   const [home, route] = await Promise.all([
     text("site/.vitepress/dist/index.html"),
     text("site/.vitepress/dist/generated/start.html"),
   ]);
-  assert.match(home, /href="\.\/generated\/start\.html"[^>]*>Default box route<\/a>/);
+  assert.doesNotMatch(home, />Default box route<\/a>/);
   assert.match(route, /id="default-box-route"/);
   assert.match(
     decodeEntities(route.replace(/<[^>]+>/g, "")).replace(/\s+/g, " "),
@@ -1519,7 +1530,7 @@ test("module pages open with a header strip that names linked tasks by exact tit
     assert.ok(html.indexOf('<div class="task-header module-header">') < html.indexOf("<main"), module.id);
     const expectedCount = module.id === "linux_privilege" ? 20 : module.tasks.length;
     assert.match(strip, new RegExp(`${expectedCount} tasks?</span>`), `${module.id} task count`);
-    assert.match(strip, /href="\/checklist\/generated\/start\.html">Box route<\/a>/);
+    assert.match(strip, /href="\/GESS1025\/generated\/start\.html">Box route<\/a>/);
     assert.ok(strip.includes(`>NET-05: ${escapeVuePlaceholders(net05.title).replaceAll("'", "&#39;")}</a>`), `${module.id} NET-05 title`);
   }
 });
@@ -1531,18 +1542,15 @@ test("outcome lists are recognised by a slug on every item, shared by generator 
   assert.ok(!isOutcomeList(["reply: a single word is not a slug", "no_reply: two words"]));
 });
 
-test("the directory flat list keeps every task", async () => {
+test("the task list keeps every task without directory controls", async () => {
   await buildSite();
   const directory = await text("site/.vitepress/theme/components/TaskDirectory.vue");
-  assert.match(directory, /const flat = computed\(\(\) => shown\.value\.flatMap\(\(module\) => module\.tasks\)\);/);
-  // The server-rendered default is the by-module view with all 215 tasks and
-  // both layout controls; no grouping pills or stored state.
+  assert.doesNotMatch(directory, /Filter by ID|By module|Flat list|directory-tools|directory-flat/);
+  // The server-rendered task list keeps every published task in module order.
   const html = await text("site/.vitepress/dist/index.html");
-  const directoryHtml = html.slice(html.indexOf('class="directory-tools"'), html.indexOf('id="module-summary"'));
+  const directoryHtml = html.slice(html.indexOf('class="directory"'), html.indexOf('id="module-summary"'));
   assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 215);
-  assert.match(directoryHtml, /aria-pressed="true">\s*By module \(49\)/);
-  assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(215\)/);
-  assert.doesNotMatch(directory, /localStorage|sessionStorage/);
+  assert.doesNotMatch(directoryHtml, /All 215 tasks|Directory layout|aria-pressed/);
 });
 
 // Flat list of style rules with the at-rule prelude that encloses each one.

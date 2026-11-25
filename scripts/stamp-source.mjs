@@ -46,11 +46,6 @@ await edit("site/about/source.md", [
   [/Published modules \| \d+/, `Published modules | ${publishedModules}`],
   [/Snapshot SHA-256 \| `[a-f0-9]{64}`/, `Snapshot SHA-256 | \`${hash}\``],
 ]);
-await edit("DESIGN.md", [
-  [/By module \(\d+\)/, `By module (${publishedModules})`],
-  [/Flat list \(\d+\)/, `Flat list (${publishedTasks})`],
-  [/lists all \d+/, `lists all ${publishedTasks}`],
-]);
 await edit("tests/checklist.test.mjs", [
   [/tasks\.length, \d+/, `tasks.length, ${sourceTasks}`],
   [/size, \d+/, `size, ${sourceTasks}`],
@@ -71,9 +66,6 @@ await edit("tests/site.test.mjs", [
   [/generatedCatalog\.sourceModuleCount, \d+/, `generatedCatalog.sourceModuleCount, ${sourceModules}`],
   [/generatedCatalog\.sourceTaskCount, \d+/, `generatedCatalog.sourceTaskCount, ${sourceTasks}`],
   [/\.size, \d+/g, `.size, ${publishedTasks}`],
-  [/all \d+ tasks/, `all ${publishedTasks} tasks`],
-  [/By module \\+\(\d+\\+\)/, `By module \\(${publishedModules}\\)`],
-  [/Flat list \\+\(\d+\\+\)/, `Flat list \\(${publishedTasks}\\)`],
   [/assert\.match\(source, \/[a-f0-9]{64}\/\)/, `assert.match(source, /${hash}/)`],
 ]);
 

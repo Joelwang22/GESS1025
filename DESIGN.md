@@ -350,10 +350,10 @@ another navigation surface to the rendered page.
 ### Module order
 
 The sections are the box's phases, in the one direction a box moves that cannot
-be undone: Enumeration, Services, Web, Session, Host, Windows and domain, Linux
-privilege, Movement. Each phase answers one question and has an entry condition;
-it ends either forward or back at the service that produced it. An exhausted
-lead returns to Services rather than padding the next phase. Enumeration owns
+be undone: Enumeration, Services, Web, Session, Host, Privilege, Domain,
+Movement. Each phase answers one question and has an entry condition; it ends
+either forward or back at the service that produced it. An exhausted lead
+returns to Services rather than padding the next phase. Enumeration owns
 connectivity, the port scan and the service choice together; the word does not
 claim an exhaustive sweep. Web owns a phase of its own only because it is the one
 service family long enough to need one; it follows the same lane rules as the
@@ -364,9 +364,9 @@ Four rules place a module:
 1. A module sits in the phase where it is first entered, not where its output
    is later useful. Payloads stay in Session, so choosing an exploit never
    jumps back up the tree.
-2. A service keeps its whole lane in one section, including its write and TLS
-   steps. `FTP` owns FTP-01 through FTP-04 and `SMB` owns SMB-01 through
-   SMB-03. Module names use the service an operator saw on the scan, not the
+2. A service keeps its whole lane in one section, including its write, TLS and
+   knock steps. `FTP` owns FTP-01 through FTP-04, `SMB` owns SMB-01 through
+   SMB-03, and `SSH` owns SSH-01 through SSH-03. Module names use the service an operator saw on the scan, not the
    category that collects it; there is one module per service and no
    "other services" bucket.
 3. A shared step lives in the phase that owns it. Session proof, shell access
@@ -386,31 +386,46 @@ several modules (445 reaches SMB, AD, Windows and AD abuse); the index lists the
 in phase order rather than picking a winner. Generation fails on a service module
 without a hint or a malformed port.
 
-Windows and AD are two modules, not one: `AD` carries AD-01 through AD-21
-(discovery, object abuse, and the domain side of privilege) and `Windows` carries
-WIN-01 through WIN-16 (host context and local privilege). `AD` opens the section
-because it holds the domain discovery a Windows shell enters from; password
-attacks, Windows privilege, ADCS and AD abuse follow in consumption order.
+Host is mechanics only: `Shell`, `Transfer`, `Local artifact`. Platform work
+starts at Privilege, where two parallel lanes, `Linux` and `Windows`, each carry
+host context and escalation together — the same shape on both platforms. `Windows`
+merges the retained WIN host tasks with WPRIV; `Linux` is the authored LPRIV lane,
+which also opens with context.
 
-Linux is its own phase after the Windows section rather than a child of Host:
-the two host lanes have different lengths, and nesting them would put either
-LPRIV or WIN at the wrong end of the other.
+`AD`, password attacks, ADCS and AD abuse sit in Domain, after a host and its
+privilege are understood. A Linux host can reach Domain too, so keeping AD out of
+the Windows lane stops the tree claiming the domain belongs to Windows.
+
+Privilege precedes Domain because the box direction is foothold, local privilege,
+then domain, and an AD route that grants privilege directly still enters through
+Domain.
 
 ### Sidebar sections
 
-The sidebar groups its 49 modules under eight collapsible sections. Sections use
-uppercase micro-type, modules keep their counts, and tasks sit one level beneath
-their module. Sidebar order and the home directory are generated from the same
-phase list, and generation fails on a missing or duplicated module.
+The sidebar groups its 47 modules under eight collapsible sections. Sidebar
+order and the home directory are generated from the same phase list, and
+generation fails on a missing or duplicated module.
+
+Sections are binder tabs: each header is a band in the panel tone with a 1px
+rule edge, its name in full-ink uppercase and its module count flush right.
+The band reaches 0.625rem past the label on each side, so the label still
+starts under the menu control's bars; the desktop scroller opens 0.75rem on
+its start side so the bleed is not clipped. The bands separate the sections,
+with no rule between groups. Section colour stays neutral: phases get no hue
+of their own, because each colour already has one meaning. An open section's
+modules hang from a guide line under its label. Tasks sit flush under their
+module's name, with no second indent or guide, so the section's line is the
+one trail.
 
 A module row keeps its name and its count, flush right in mono, on one line.
-A service module also prints its ports on a second line under the name, in mono,
-clamped to three with the remainder counted; the full list is the row's title.
-Carets sit on the label's centre line. Task rows use a 4.75rem call-number
+A service module also prints its ports on a second line under the name, in
+12px mono, clamped to three with the remainder counted; the full list is the
+row's title. A module's caret sits on its name's line; a section's caret sits
+on the band's centre line. Task rows use a 4.75rem call-number
 column, sized to the longest ID (JENKINS-01). The active task's highlight is
 painted behind its row and never changes the row's box, so selecting a task
-never re-wraps its title or moves the rows below. Its marker sits on its
-module's guide line.
+never re-wraps its title or moves the rows below. Its cobalt marker sits on
+the section's guide line.
 
 On desktop the tree scrolls on its own, below the nav bar, so rows never pass
 under the site title. It has no visible scrollbar and no gutter; it scrolls by
@@ -433,31 +448,26 @@ three-bar mark.
 Search lives only in the nav bar, at its end. The sidebar has no search field
 of its own: it holds module navigation and nothing else.
 
-The home jump box finds a task by exact or loose ID ("web9"), or lists live
-matches by ID, title word or module. It adds **Full-text search /**, which
-opens VitePress's local search. `/` opens it from any page.
+The task list has one filter for ID, title word, module or port, and matches the
+filter's full text as it is typed. `/` opens VitePress's local search from any
+page.
 
 After a route change, the active sidebar item scrolls into view on desktop.
 
 ### Home
 
-1. Title and command-first promise.
-2. Authorization and scoped-first rule.
-3. Primary Linux checklist action and new-box route.
-4. Three situation-based entry choices.
-5. Task search.
-6. The checklist workflow and link to the retained box route.
+1. Title.
+2. Scan results, port to lane.
+3. Task list with the filter.
+4. Module summary by phase.
 
 ### Directory
 
-`/checklist/` has a filter by ID, title, module or port; Escape and Clear reset
-it. A generated **From a scan line** table sits above it, port to the module that
-opens the lane, and the module summary repeats the ports in a column. The
-summary is grouped by the same eight box phases as the sidebar, from Enumeration
-through Movement, so the directory and the navigation never disagree. Both
-directory views stay available: **By module (49)** in printed-index columns and
-**Flat list (215)** in one table. The server-rendered default lists all 215
-tasks. Nothing is stored.
+The home page opens with a generated **Scan results** table, mapping each port
+to the module that opens its lane. The task list then groups every published
+task by module in printed-index columns. The module summary repeats the ports
+and follows the same eight box phases as the sidebar, from Enumeration through
+Movement, so the directory and navigation never disagree.
 
 ## Do's and don'ts
 

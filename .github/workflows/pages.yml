@@ -1,4 +1,4 @@
-name: Deploy checklist to Pages
+name: Deploy GESS1025 to Pages
 
 on:
   push:

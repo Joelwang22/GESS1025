@@ -25,7 +25,7 @@ const TERMINAL_SHAPE = /^(?:PAUSE|GAP)-[A-Z]+(?:-[A-Z]+)*$/;
 const PLAIN_TASK_TOKEN = /\b[A-Z][A-Z0-9]*-\d{2}\b/g;
 const PLAIN_TERMINAL_TOKEN = /\b(?:PAUSE|GAP)-[A-Z]+(?:-[A-Z]+)*\b/g;
 const OPERATOR_MODULE_ID = "linux_privilege";
-const OPERATOR_MODULE_TITLE = "Linux privilege escalation";
+const OPERATOR_MODULE_TITLE = "Linux";
 const RETIRED_MODULE_IDS = new Set(["linux", "linux_privilege"]);
 const LNX_REDIRECTS = new Map([
   ["LNX-01", "LPRIV-01"],
@@ -49,8 +49,7 @@ const MODULE_DISPLAY_NAMES = new Map([
   ["ad", "AD"],
   ["windows", "Windows"],
   ["redis", "Redis"],
-  ["ssh_knock", "SSH knock"],
-  ["windows_privilege", "Windows privilege"],
+  
   ["dns", "DNS"],
   ["nfs", "NFS"],
   ["snmp", "SNMP"],
@@ -90,7 +89,7 @@ const MODULE_DISPLAY_NAMES = new Map([
   ["squid", "Squid"],
   ["generic", "Generic service"],
   ["linux", "Linux"],
-  ["linux_privilege", OPERATOR_MODULE_TITLE],
+  ["linux_privilege", "Linux"],
 ]);
 
 // Module order is a phase order, not a subject order: each section is the
@@ -102,12 +101,12 @@ const MODULE_DISPLAY_NAMES = new Map([
 // the phase that owns them rather than beside every caller.
 const SIDEBAR_SECTIONS = [
   { title: "Enumeration", ids: ["network"] },
-  { title: "Services", ids: ["ftp", "smb", "ssh_knock", "remote_access", "mssql", "database", "oracle", "postgresql", "mysql", "mail", "rdp", "redis", "dns", "nfs", "snmp", "smtp", "tftp", "rsync", "docker", "jenkins", "ipmi", "vnc", "ntp", "x11", "squid", "generic"] },
+  { title: "Services", ids: ["ftp", "smb", "remote_access", "mssql", "database", "oracle", "postgresql", "mysql", "mail", "rdp", "redis", "dns", "nfs", "snmp", "smtp", "tftp", "rsync", "docker", "jenkins", "ipmi", "vnc", "ntp", "x11", "squid", "generic"] },
   { title: "Web", ids: ["http", "web_input", "sql_continuation", "web_upload", "web_editor", "command_continuation", "command_shell", "web_advanced"] },
   { title: "Session", ids: ["payloads", "access", "metasploit"] },
   { title: "Host", ids: ["shell", "transfer", "local_artifact"] },
-  { title: "Windows and domain", ids: ["ad", "windows", "password_attacks", "windows_privilege", "adcs", "ad_abuse"] },
-  { title: "Linux privilege", ids: ["linux_privilege"] },
+  { title: "Privilege", ids: ["linux_privilege", "windows"] },
+  { title: "Domain", ids: ["ad", "password_attacks", "adcs", "ad_abuse"] },
   { title: "Movement", ids: ["pivoting"] },
 ];
 
@@ -153,11 +152,10 @@ const SERVICE_PORTS = new Map([
   ["squid", ["3128"]],
 ]);
 
-// Modules with no single scan port: the scan itself, knock, phases that run
-// after a session exists, and web tasks that inherit the HTTP port.
+// Modules with no single scan port: the scan itself, phases that run after a
+// session exists, and web tasks that inherit the HTTP port.
 const PORT_EXEMPT = new Set([
   "network",
-  "ssh_knock",
   "web_input",
   "web_upload",
   "web_editor",
@@ -169,11 +167,11 @@ const PORT_EXEMPT = new Set([
   "access",
   "shell",
   "transfer",
-  "metasploit",  "payloads",
+  "metasploit",
+  "payloads",
   "pivoting",
   "local_artifact",
   "linux_privilege",
-  "windows_privilege",
   "generic",
 ]);
 

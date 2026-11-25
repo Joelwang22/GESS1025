@@ -2,6 +2,8 @@
 
 **Run this when:** group membership, cgroups, sockets, or permission results suggest a container boundary or an ACL not shown by mode bits.
 
+Container tools and groups:
+
 ```bash
 id
 command -v docker lxc lxd 2>/dev/null
@@ -17,6 +19,8 @@ cat /proc/$$/cgroup 2>/dev/null
 
 ## Confirm namespace and identity boundaries
 
+Namespaces and UID map:
+
 ```bash
 readlink /proc/$$/ns/user /proc/$$/ns/mnt /proc/$$/ns/pid 2>/dev/null
 cat /proc/$$/uid_map 2>/dev/null
@@ -27,6 +31,8 @@ findmnt -T / -o TARGET,SOURCE,FSTYPE,OPTIONS
 No single cgroup or namespace value universally identifies a container. Record what the process can actually reach. Do not treat namespace root as the assigned host's root.
 
 ## Inspect ACLs only on a lead
+
+Path and parent ownership, ACL:
 
 ```bash
 namei -l -- '<ABSOLUTE_OBSERVED_PATH>'

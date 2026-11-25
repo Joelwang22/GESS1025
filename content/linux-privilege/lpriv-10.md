@@ -2,6 +2,8 @@
 
 **Run this when:** a path sits on an unusual filesystem, mount options may affect execution, or the host exposes NFS.
 
+Mounts and filesystems:
+
 ```bash
 mount
 findmnt
@@ -15,6 +17,8 @@ cat /etc/fstab 2>/dev/null
 
 ## Inspect one path's mount
 
+One path's mount and options:
+
 ```bash
 findmnt -T '<ABSOLUTE_OBSERVED_PATH>' -o TARGET,SOURCE,FSTYPE,OPTIONS
 stat -f -c 'filesystem=%T mount-id=%m' -- '<ABSOLUTE_OBSERVED_PATH>' 2>/dev/null
@@ -24,6 +28,8 @@ Use this after a real `Read-only file system`, `Permission denied`, `noexec`, or
 
 ## Review local NFS exports
 
+Exports and options:
+
 ```bash
 cat /etc/exports 2>/dev/null
 exportfs -v 2>/dev/null
@@ -32,6 +38,8 @@ exportfs -v 2>/dev/null
 **Look for:** a writable export, permissive client scope, `no_root_squash`, and an exported path that maps to a useful local directory.
 
 From Kali or another permitted client, confirm the export and protocol version:
+
+Target's export list:
 
 ```bash
 showmount -e '<TARGET_IP>' 2>/dev/null

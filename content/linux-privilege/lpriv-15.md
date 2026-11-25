@@ -2,6 +2,8 @@
 
 **Run this when:** a shell, `su`, sudo rule, container action, or scheduled path gives you a different effective identity.
 
+Host, identity and groups:
+
 ```bash
 hostname
 id
@@ -17,6 +19,8 @@ sudo -n -l
 
 ## Recheck account-specific access
 
+Own home and account files:
+
 ```bash
 find ~ -maxdepth 2 -type f -readable -ls 2>/dev/null
 for f in ~/.bash_history ~/.zsh_history ~/.ssh/config ~/.gitconfig; do
@@ -29,6 +33,8 @@ done
 **If found:** route to [LPRIV-08](./lpriv-08). A normal-user pivot may expose a new delegated rule at [LPRIV-03](./lpriv-03).
 
 ## Recheck changed permission boundaries
+
+Previously blocked path:
 
 ```bash
 namei -l -- '<PREVIOUSLY_BLOCKED_PATH>' 2>/dev/null

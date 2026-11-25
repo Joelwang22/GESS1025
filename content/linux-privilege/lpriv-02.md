@@ -2,6 +2,8 @@
 
 **Run this when:** the current identity is an application account, or you need to identify normal users and account-specific files.
 
+Accounts and home directories:
+
 ```bash
 getent passwd
 getent passwd | awk -F: '$7 ~ /(bash|sh|zsh)$/ {print $1 ":" $6 ":" $7}'
@@ -16,6 +18,8 @@ last -n 20 2>/dev/null
 **If found:** inspect only the matching user's readable files below. Credentials route to [LPRIV-08](./lpriv-08); a changed identity returns to [LPRIV-01](./lpriv-01).
 
 ## Inspect readable home material
+
+Other homes' readable files:
 
 ```bash
 find /home -xdev -maxdepth 3 -type f -readable -ls 2>/dev/null
@@ -34,6 +38,8 @@ Do not sweep `/root` or unrelated homes after a denial. Known-file readability a
 
 Search likely user and application locations before widening to the current filesystem:
 
+Exact name, likely paths:
+
 ```bash
 find /home /opt /var/www /srv -xdev -name '<NAME>' -ls 2>/dev/null
 find / -xdev -name '<NAME>' -ls 2>/dev/null
@@ -42,6 +48,8 @@ find / -xdev -name '<NAME>' -ls 2>/dev/null
 Start a separate search at another mount only when `findmnt` shows that the lead lives there. Avoid broad content searches when an exact filename or directory already answers the question.
 
 ## Start from an application account
+
+Application config and own processes:
 
 ```bash
 id

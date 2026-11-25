@@ -2,6 +2,8 @@
 
 **Run this when:** you need to identify recurring privileged commands or already observed a scheduled consumer.
 
+Cron entries:
+
 ```bash
 cat /etc/crontab 2>/dev/null
 find /etc/cron.d /etc/cron.hourly /etc/cron.daily /etc/cron.weekly /etc/cron.monthly -type f -ls 2>/dev/null
@@ -16,6 +18,8 @@ crontab -l 2>/dev/null
 ## Observe short-lived jobs with pspy
 
 Prepare the matching pspy binary on Kali, then serve only its directory. On the target, use a fresh file on an executable mount.
+
+Stage it, then watch:
 
 ```bash
 # Kali
@@ -56,6 +60,8 @@ For a writable script consumed by a higher-privileged job, record its inode, mod
 For GNU tar wildcard execution, require an observed unquoted `*`, a writable working directory, GNU tar checkpoint support, and the natural trigger. Create fresh `--checkpoint=1`, `--checkpoint-action=exec=...`, and proof-script names, then remove exactly those names after the result.
 
 The retired temporary foreground-shell case copied a verified GNU Bash into a private directory through an already proved root job and applied mode 4755. Keep its `nosuid`, `noexec`, `NoNewPrivs`, backup, natural-trigger, verification, restoration, and exact-file removal checks. Prefer an identity proof file when a shell is unnecessary.
+
+Scheduled path's identity and ACL:
 
 ```bash
 stat -c '%d:%i %a %u:%g %n' -- '<SCHEDULED_SCRIPT_OR_WORKING_DIRECTORY>'

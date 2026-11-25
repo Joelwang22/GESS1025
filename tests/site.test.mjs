@@ -215,6 +215,25 @@ test("renders every Linux operator command with copy controls and inline routes"
   assert.doesNotMatch(lpriv01, /Field checklists|Detailed reference · 28 modules|sb-reference-label/);
 });
 
+test("every Linux operator command group is introduced by its purpose", async () => {
+  for (let index = 1; index <= 20; index += 1) {
+    const id = `LPRIV-${String(index).padStart(2, "0")}`;
+    const lines = (await text(`content/linux-privilege/${id.toLowerCase()}.md`)).split("\n");
+    let inside = false;
+    for (let line = 0; line < lines.length; line += 1) {
+      if (!/^```/.test(lines[line])) continue;
+      if (!inside) {
+        let previous = line - 1;
+        while (previous >= 0 && lines[previous] === "") previous -= 1;
+        const label = lines[previous] ?? "";
+        assert.match(label, /^[A-Z`].*:$/, `${id} line ${line + 1}`);
+        assert.ok(label.split(/\s+/).length <= 5, `${id} line ${line + 1}: ${label}`);
+      }
+      inside = !inside;
+    }
+  }
+});
+
 test("the operator corpus retains the field pass and every retired Linux privilege case", async () => {
   const corpus = (
     await Promise.all(

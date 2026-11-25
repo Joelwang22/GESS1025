@@ -484,6 +484,8 @@ Movement, so the directory and navigation never disagree.
 
 - Keep every source word, command and table in `<main>`, in source order.
 - Keep field sections in the operator's scan order: command, signal, next move.
+- Introduce every command group with one short line saying what it is for,
+  ending in a colon; two to five words, and a bare fence is a bug.
 - Use cobalt only for navigation, yellow or amber only for blanks, and teal
   only for port numbers.
 - Keep commands visible and copyable without hover.

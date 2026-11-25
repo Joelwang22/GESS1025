@@ -2,6 +2,8 @@
 
 **Run this when:** one earlier page produced a complete technique with an exact executable or path, verified identity, known trigger, and supported cleanup.
 
+Host, identity and preconditions:
+
 ```bash
 hostname
 id
@@ -19,6 +21,8 @@ Stop unless the current evidence satisfies every precondition from the source pa
 
 For a file change, preserve bytes and metadata in a private directory. Do not treat a backup as permission to restore.
 
+Recovery copy before changes:
+
 ```bash
 mkdir -m 0700 -- '<NEW_PRIVATE_RECOVERY_DIRECTORY>'
 cp --preserve=all -- '<ABSOLUTE_FILE_YOU_MAY_CHANGE>' '<NEW_PRIVATE_RECOVERY_DIRECTORY>/original'
@@ -31,6 +35,8 @@ If the technique creates an absent file, record the parent, confirm the leaf is 
 ## Execute the documented branch once
 
 Return to the page that established the path and run only its matching command block. Sudo and executable escapes live at [LPRIV-03](./lpriv-03), SUID and capabilities at [LPRIV-04](./lpriv-04), scheduled execution at [LPRIV-05](./lpriv-05), writable paths at [LPRIV-06](./lpriv-06), PATH cases at [LPRIV-09](./lpriv-09), and containers at [LPRIV-11](./lpriv-11).
+
+Proof in the new identity:
 
 ```bash
 # In a new shell or after a proof file appears
@@ -45,6 +51,8 @@ Return to the page that established the path and run only its matching command b
 ## Restore and close
 
 Exit child shells before restoring their launch path. Restore only when the current object matches the expected changed state. On unexpected bytes, inode, ownership, ACL, or concurrent edits, stop and keep the recovery copy.
+
+Exit, clear the sudo cache:
 
 ```bash
 exit 2>/dev/null || true

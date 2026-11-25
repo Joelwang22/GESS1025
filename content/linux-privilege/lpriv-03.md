@@ -2,6 +2,8 @@
 
 **Run this when:** `sudo -n -l` or `sudo -l` lists an allowed command, run-as identity, or fixed argument rule.
 
+The exact rule and path:
+
 ```bash
 sudo -n -l
 command -v '<ALLOWED_EXECUTABLE>'
@@ -14,6 +16,8 @@ Keep the full rule, including tags, run-as user, executable path, arguments, and
 **Look for:** unrestricted delegation, an allowed shell, an executable that can start a child process, a missing delegated script, or an exact protected-file read.
 
 ## Use only a rule that matches
+
+A direct shell rule:
 
 ```bash
 # Direct GNU Bash
@@ -28,6 +32,8 @@ sudo -n -u '<RUN_AS_USER>' -- '<ALLOWED_PERL>' -e 'exec "/bin/bash","/bin/bash",
 
 Run one matching form. A restricted script, editor, fixed argument, or different implementation needs its own reviewed behavior.
 
+Proof in the child:
+
 ```bash
 # In the opened shell
 /usr/bin/id
@@ -40,6 +46,8 @@ Run one matching form. A restricted script, editor, fixed argument, or different
 ## Exact non-shell cases
 
 Delegated Git can read one known small protected text file with `git diff --no-index /dev/null '<FILE>'` only if the exact rule permits it. A delegated MySQL or MariaDB client may support a client shell escape only in known local SQL context. A missing delegated script may be created once only when the exact leaf is absent and its trusted parent is writable. A reviewed service wrapper may start the literal shell path it resolves, but must not receive `start`, `stop`, or guessed service arguments.
+
+Exit, clear the sudo cache:
 
 ```bash
 exit

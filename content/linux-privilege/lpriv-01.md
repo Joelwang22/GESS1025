@@ -2,6 +2,8 @@
 
 **Run this when:** you have a new Linux shell, changed users, or cannot yet attribute the shell to the assigned host.
 
+Identity, host and home:
+
 ```bash
 pwd
 ls -la ~
@@ -23,6 +25,8 @@ Group records use `name:password-placeholder:GID:members`; `id` remains the reli
 
 ## Confirm the operating-system boundary
 
+Kernel and process boundary:
+
 ```bash
 uname -srm
 head -n 15 /etc/os-release 2>/dev/null
@@ -37,6 +41,8 @@ Use the `/proc` checks only when UID 0, container clues, or unexpected execution
 **If found:** record the boundary and continue at [LPRIV-11](./lpriv-11). Operating-system prerequisites for a specific kernel lead belong at [LPRIV-13](./lpriv-13).
 
 ## Recover a restricted shell
+
+Shell and available escape binaries:
 
 ```bash
 printf 'Shell: %s\nFlags: %s\n' "$0" "$-"

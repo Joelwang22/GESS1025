@@ -2,6 +2,8 @@
 
 **Run this when:** sudo has no usable rule, or you need to inventory executable privilege attributes.
 
+SUID, SGID, capabilities in paths:
+
 ```bash
 find /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt -xdev -type f \
   \( -perm -4000 -o -perm -2000 \) -ls 2>/dev/null
@@ -9,6 +11,8 @@ getcap -r /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin /opt 2>/dev/null
 ```
 
 If the scoped pass is insufficient, widen once without crossing filesystems:
+
+Widen once across the filesystem:
 
 ```bash
 timeout 30s find / -xdev -type f \( -perm -4000 -o -perm -2000 \) -ls 2>/dev/null
@@ -18,6 +22,8 @@ timeout 30s getcap -r / 2>/dev/null
 **Look for:** nonstandard binaries, owner-SUID executables, `cap_setuid`, `cap_setgid`, `cap_dac_override`, `cap_dac_read_search`, `cap_sys_admin`, relative commands, and PATH lookups.
 
 ## Validate one candidate
+
+Attributes and capability:
 
 ```bash
 stat -- '<ABSOLUTE_CANDIDATE>'
@@ -32,6 +38,8 @@ Mount options and `NoNewPrivs` can block a valid-looking attribute. Do not add S
 **If found:** PATH-resolved commands route to [LPRIV-09](./lpriv-09). Writable dependencies route to [LPRIV-06](./lpriv-06). A matching executable case continues below.
 
 ## Use an exact, reviewed behavior
+
+One reviewed behavior:
 
 ```bash
 # Examples only when the installed binary and prerequisites match exactly

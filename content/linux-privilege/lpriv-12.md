@@ -2,6 +2,8 @@
 
 **Run this when:** a process, service, SUID file, or writable path points to nonstandard or version-sensitive software.
 
+Custom binaries and writable paths:
+
 ```bash
 ls -la /opt /usr/local/bin /usr/local/sbin /srv 2>/dev/null
 find /opt /usr/local /srv -xdev -maxdepth 3 -type f -ls 2>/dev/null
@@ -13,6 +15,8 @@ find /opt /usr/local /srv -xdev -maxdepth 3 -type f -ls 2>/dev/null
 
 ## Map a real executable to its package
 
+Owning package:
+
 ```bash
 dpkg-query -S '<ABSOLUTE_EXECUTABLE>' 2>/dev/null
 rpm -qf '<ABSOLUTE_EXECUTABLE>' 2>/dev/null
@@ -23,6 +27,8 @@ pacman -Qo '<ABSOLUTE_EXECUTABLE>' 2>/dev/null
 No package owner is useful evidence that the file is custom. A package name alone does not establish that the running service uses that copy.
 
 ## Record only relevant versions
+
+Version and hash:
 
 ```bash
 '<ABSOLUTE_EXECUTABLE>' --version 2>&1 | head -n 5

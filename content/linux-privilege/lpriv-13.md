@@ -2,6 +2,8 @@
 
 **Run this when:** a specific, independently researched kernel or operating-system technique remains after application, delegation, file, service, and credential checks.
 
+Kernel, distribution and arch:
+
 ```bash
 uname -a
 uname -r
@@ -17,6 +19,8 @@ getconf LONG_BIT 2>/dev/null
 
 ## Check build and runtime tools
 
+Compiler and interpreter presence:
+
 ```bash
 command -v gcc cc make python python3 perl 2>/dev/null
 gcc --version 2>/dev/null | head -n 1
@@ -28,6 +32,8 @@ grep -E '^(NoNewPrivs|Seccomp|CapBnd):' /proc/$$/status 2>/dev/null
 **Look for:** an available compiler or interpreter, an executable staging location, blocked process features, and payload requirements that match the target rather than Kali.
 
 ## Apply an evidence-first gate
+
+Candidate against this kernel:
 
 ```bash
 printf 'candidate=%s\nkernel=%s\narch=%s\n' \

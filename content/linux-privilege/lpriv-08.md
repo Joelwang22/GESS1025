@@ -2,6 +2,8 @@
 
 **Run this when:** a user, application, process, or service points to readable configuration or account material.
 
+Current account's history:
+
 ```bash
 for f in ~/.bash_history ~/.zsh_history ~/.mysql_history ~/.psql_history; do
   test -r "$f" && printf '\n== %s ==\n' "$f" && sed -n '1,200p' "$f"
@@ -15,6 +17,8 @@ find /home -xdev -maxdepth 4 -type f -readable -name '.*history' -ls 2>/dev/null
 
 ## Find likely configuration and backups
 
+Readable config and backups:
+
 ```bash
 find /var/www /opt /srv /home -xdev -type f -readable \
   \( -name '*.conf' -o -name '*.config' -o -name '*.ini' -o -name '.env' \
@@ -26,6 +30,8 @@ find /var/www /opt /srv /home -xdev -type f -readable \
 
 Search inside one relevant directory, not the whole filesystem:
 
+Search inside one app directory:
+
 ```bash
 grep -RniE 'password|passwd|secret|token|credential|api[_-]?key' '<APPLICATION_DIRECTORY>' 2>/dev/null
 ```
@@ -35,6 +41,8 @@ Keep the source path with every value. A readable secret is a lead, not proof th
 **If found:** local database client access may expose a delegated shell case in [LPRIV-03](./lpriv-03). Writable configuration routes to [LPRIV-06](./lpriv-06).
 
 ## Inspect SSH material
+
+Keys and known hosts:
 
 ```bash
 find /home /root /opt /var/www -xdev -type f \

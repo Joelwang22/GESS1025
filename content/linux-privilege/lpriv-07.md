@@ -2,6 +2,8 @@
 
 **Run this when:** you need to connect a path, executable, or local service to the account that consumes it.
 
+Process tree, full command lines:
+
 ```bash
 ps -eo user,pid,ppid,lstart,cmd --forest
 ps auxww
@@ -12,6 +14,8 @@ ps auxww
 **If found:** writable paths route to [LPRIV-06](./lpriv-06). Nonstandard software routes to [LPRIV-12](./lpriv-12). Recurring commands route to [LPRIV-05](./lpriv-05).
 
 ## Attribute one service
+
+One service's unit and user:
 
 ```bash
 SYSTEMD_PAGER=cat systemctl --type=service --state=running --no-pager --full 2>/dev/null
@@ -28,11 +32,15 @@ The retired service-consumer case required `systemctl show`, the exact executabl
 
 ## Inspect local listeners
 
+Listeners and owning processes:
+
 ```bash
 ss -lntup 2>/dev/null || netstat -lntup 2>/dev/null
 ```
 
 **Look for:** listeners bound to `127.0.0.1` or `::1`, local databases, management ports, and a PID or program name tied to a privileged service.
+
+Listener's executable and arguments:
 
 ```bash
 readlink -f '/proc/<PID>/exe'

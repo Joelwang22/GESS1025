@@ -408,7 +408,8 @@ generation fails on a missing or duplicated module.
 
 Sections are binder tabs: each header is a band in the panel tone with a 1px
 rule edge, its name in full-ink uppercase and its module count flush right.
-The band reaches 0.625rem past the label on each side, so the label still
+Bands are 2.75rem tall with 0.4125rem between them, and 1.375rem after an open
+section's modules. The band reaches 0.6875rem past the label on each side, so the label still
 starts under the menu control's bars; the desktop scroller opens 0.75rem on
 its start side so the bleed is not clipped. The bands separate the sections,
 with no rule between groups. Section colour stays neutral: phases get no hue

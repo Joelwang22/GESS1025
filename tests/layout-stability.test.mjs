@@ -226,8 +226,10 @@ test("sections read as binder tabs, with their modules hung from a guide line", 
   assert.equal(declaration(band.body, "background"), "var(--rb-panel)");
   // The band bleeds past the label on both sides, so the label keeps its
   // place under the menu control's bars.
-  assert.equal(declaration(band.body, "margin-inline"), "-0.625rem");
-  assert.equal(declaration(band.body, "padding-inline"), "0.625rem 0.5rem");
+  // The bleed and the padding start are the same length.
+  assert.equal(declaration(band.body, "margin-inline"), "-0.6875rem");
+  assert.equal(declaration(band.body, "padding-inline"), "0.6875rem 0.55rem");
+  assert.equal(declaration(band.body, "min-height"), "2.75rem");
   assert.equal(declaration(band.body, "width"), "auto");
   // The scroller clips at its own edge, so it opens room for that bleed.
   const tree = rules.find((rule) => rule.media === DESKTOP && rule.selectors.includes(".Layout .VPSidebar .nav"));
@@ -308,4 +310,13 @@ test("port numbers have one colour of their own, used for ports everywhere", asy
   assert.deepEqual(users.sort(), [".directory-ports", ".sb-ports", ".vp-doc .port"]);
   const generator = await readFile(path.resolve(import.meta.dirname, "../scripts/checklist.mjs"), "utf8");
   assert.match(generator, /function portSpan\(hint\) \{\s*return `<span class="port">\$\{hint\}<\/span>`;/);
+});
+
+test("after a page change the sidebar scrolls only to a task the reader cannot see", async () => {
+  const script = await read("sidebar-scroll.js");
+  // A clicked row is already in view, so the list never moves under the
+  // pointer; a jump from a route link or search to a hidden task still
+  // brings it into view.
+  assert.match(script, /if \(row\.top >= view\.top && row\.bottom <= view\.bottom\) return;\s*\}\s*const reduced/);
+  assert.match(script, /scrollIntoView\(\{ block: "nearest"/);
 });

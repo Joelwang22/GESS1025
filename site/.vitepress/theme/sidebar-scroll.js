@@ -7,6 +7,14 @@ function scrollActiveItem() {
   if (!window.matchMedia("(min-width: 960px)").matches) return;
   const active = document.querySelector(".VPSidebar .VPSidebarItem.is-active > .item");
   if (!(active instanceof HTMLElement)) return;
+  // A row the reader can already see, such as the one just clicked, stays
+  // where it is: the list never scrolls under the pointer.
+  const tree = active.closest(".nav");
+  if (tree instanceof HTMLElement) {
+    const row = active.getBoundingClientRect();
+    const view = tree.getBoundingClientRect();
+    if (row.top >= view.top && row.bottom <= view.bottom) return;
+  }
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   active.scrollIntoView({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
 }

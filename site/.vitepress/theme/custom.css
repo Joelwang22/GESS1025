@@ -694,26 +694,48 @@ samp {
   min-width: 0;
 }
 
-/* A module's scan ports sit under its name in mono, clamped to three with the
-   remainder counted; the full list is the row's tooltip. */
-.sb-name {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
+/* A module row is two lines: its name with the task count flush right, then
+   its scan ports across the full width, under the count too. */
+.VPSidebarItem.level-1 > .item .text bdi {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 0.5rem;
+  align-items: baseline;
 }
 
-.sb-name .sb-module {
-  flex: none;
+/* The ports are mono. A closed module keeps them on one line that never
+   wraps: every port while they fit, otherwise as many as fit with the rest
+   counted. An open module shows every port and wraps between ports
+   (sidebar-ports.js). The full list is the row's tooltip. */
+.sb-port {
+  white-space: nowrap;
+}
+
+.VPSidebarItem.level-1:not(.collapsed) > .item .sb-ports {
+  white-space: normal;
 }
 
 .sb-ports {
+  grid-column: 1 / -1;
   font-family: var(--vp-font-family-mono);
   font-size: 12px;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
-  color: var(--rb-ink-3);
-  overflow-wrap: anywhere;
+  color: var(--rb-port);
+  white-space: nowrap;
+  /* The line takes the name column's width and never widens it, so the
+     script measures against the room the row actually has. */
+  contain: inline-size;
+}
+
+/* Port numbers in the home page's scan results and module summary share the
+   sidebar's mono and port colour, which means "port" and nothing else. */
+.vp-doc .port {
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.9em;
+  font-variant-numeric: tabular-nums;
+  color: var(--rb-port);
+  white-space: nowrap;
 }
 
 .sb-section {
@@ -937,8 +959,8 @@ samp {
     border-radius: 6px;
   }
 
-  /* The bar and Fill in rows carry their own 0.75rem inset (components.css),
-     so the head adds none: labels line up with the code column. */
+  /* The bar carries its own 0.75rem inset (components.css), so the head adds
+     none and the language label lines up with the code column. */
   .vp-doc .cmd-head {
     border-radius: 6px 6px 0 0;
   }
@@ -1010,8 +1032,7 @@ samp {
 
 @media (forced-colors: active) {
   .stop,
-  .vp-doc .blank,
-  .vp-doc .cmd-head code.blank {
+  .vp-doc .blank {
     border: 1px solid CanvasText;
   }
 }

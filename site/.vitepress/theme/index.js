@@ -6,6 +6,7 @@ import SidebarToggle from "./components/SidebarToggle.vue";
 import TaskDirectory from "./components/TaskDirectory.vue";
 import TaskHeader from "./components/TaskHeader.vue";
 import { installCopy } from "./copy.js";
+import { installSidebarPorts } from "./sidebar-ports.js";
 import { installSidebarScroll } from "./sidebar-scroll.js";
 
 import "./tokens.css";
@@ -25,6 +26,7 @@ export default {
     if (inBrowser) {
       installCopy();
       installSidebarScroll(router);
+      installSidebarPorts();
     }
   },
 };

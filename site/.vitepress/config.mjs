@@ -34,15 +34,16 @@ function renderGroup(group, isSection = false) {
     };
   }
   const ports = module.ports ?? [];
-  const shownPorts = ports.slice(0, 3);
-  const extraPorts = ports.length - shownPorts.length;
+  // Every port is rendered, each unbreakable, with the separator held to the
+  // port before it; the theme's sidebar-ports.js counts the ones that do not
+  // fit a closed module's line at the reader's width.
   const portMarkup = ports.length
-    ? `<span class="sb-ports" title="${escapeHtml(ports.join(" · "))}">${escapeHtml(
-        extraPorts > 0 ? `${shownPorts.join(" · ")} +${extraPorts}` : shownPorts.join(" · "),
-      )}</span>`
+    ? `<span class="sb-ports" title="${escapeHtml(ports.join(" · "))}" data-ports="${escapeHtml(ports.join(" "))}">${ports
+        .map((port) => `<span class="sb-port">${escapeHtml(port)}</span>`)
+        .join("&nbsp;· ")}</span>`
     : "";
   return {
-    text: `<span class="sb-name"><span class="sb-module">${escapeHtml(group.text)}</span>${portMarkup}</span><span class="sb-count">${group.items.length}</span>`,
+    text: `<span class="sb-module">${escapeHtml(group.text)}</span><span class="sb-count">${group.items.length}</span>${portMarkup}`,
     collapsed: group.collapsed,
     moduleTitle: group.text,
     moduleLink: module.link,

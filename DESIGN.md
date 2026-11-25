@@ -185,6 +185,7 @@ WCAG AA (4.5:1) in both themes; a test computes them from `tokens.css`.
 | **Cobalt**: navigation only (task routes, links, focus ring) | `#135198` | `#78b9fa` | Tinted chip with a drawn arrow |
 | **Blank yellow and amber**: a value to replace | Highlighter `#ffe45c` with `#1b1600` text | `#f0cf45` with `#171200` | Dashed underline |
 | Blank on a command plate | 20% amber wash with `#ffe37a` text | Same | Dashed underline |
+| **Teal**: a scan port number, nothing else (sidebar port lines, the home page's scan results and module summary, the task directory) | `#1f6b68` | `#6cc7bd` | Mono numerals |
 | **Stop slab**: a stop state, never a link | Ink slab, paper text | Inverted | Filled square glyph |
 | Command plate / header bar | `#161b22` / `#1f2630` | `#0c1016` / `#161c24` | — |
 
@@ -301,9 +302,8 @@ Module pages: Checklist / *Module* · *N* tasks, **Box route**, and
 
 ### Command plate
 
-- **Row one:** the fence's own language word, an always-visible **Copy**, and
-  **Wrap lines** only when the block has multiple or long lines.
-- **Row two:** **Fill in** with every distinct blank.
+- The header shows the fence's own language word, an always-visible **Copy**,
+  and **Wrap lines** only when the block has multiple or long lines.
 
 Copy uses a filled neutral control. Wrap stays outlined, with an underline
 when pressed and a dashed edge when off. Plate focus uses pale neutral ink
@@ -418,9 +418,17 @@ module's name, with no second indent or guide, so the section's line is the
 one trail.
 
 A module row keeps its name and its count, flush right in mono, on one line.
-A service module also prints its ports on a second line under the name, in
-12px mono, clamped to three with the remainder counted; the full list is the
-row's title. A module's caret sits on its name's line; a section's caret sits
+A service module also prints its ports on a second line in 12px mono, across
+the row's full width (under the count too). While the module is closed, the
+line never wraps. It shows every port while they fit; when they do not, it
+shows as many as fit, in source order, and counts the rest
+("25 · 110 · 143 +4"). A script fits it at the reader's width and refits when
+that width changes, so only its text changes, never the row's height. Open,
+the module shows every port, wrapping between ports and never inside one
+(53/udp stays whole). The line switches in the same frame the task list
+opens, so the extra line arrives with a movement the reader asked for. The
+ports never scroll or move on their own. The server renders the full list,
+and the row's title always holds it. A module's caret sits on its name's line; a section's caret sits
 on the band's centre line. Task rows use a 4.75rem call-number
 column, sized to the longest ID (JENKINS-01). The active task's highlight is
 painted behind its row and never changes the row's box, so selecting a task
@@ -475,7 +483,8 @@ Movement, so the directory and navigation never disagree.
 
 - Keep every source word, command and table in `<main>`, in source order.
 - Keep field sections in the operator's scan order: command, signal, next move.
-- Use cobalt only for navigation, and yellow or amber only for blanks.
+- Use cobalt only for navigation, yellow or amber only for blanks, and teal
+  only for port numbers.
 - Keep commands visible and copyable without hover.
 - Derive every title and quote from the parsed source, never by hand.
 - Keep derived navigation outside `<main>` and remove it when the source

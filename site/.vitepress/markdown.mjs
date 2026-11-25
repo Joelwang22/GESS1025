@@ -100,19 +100,11 @@ export function blankDecorations() {
 // copy control is always visible; the copied text is the exact rendered code.
 function commandHeader(lang, content) {
   const label = languageLabel(lang);
-  const blanks = BLANK_LANGUAGES.has(lang) ? blanksIn(content) : [];
   const lines = content.replace(/\n$/, "").split("\n");
   const wrap = lines.length > 1 || lines.some((line) => line.length > 80)
     ? '<button type="button" class="cmd-wrap" aria-pressed="true" title="Wrap long lines, or turn off to scroll them sideways">Wrap lines</button>'
     : "";
-  const fill = blanks.length
-    ? `<p class="cmd-fill"><span class="cmd-fill-label">Fill in</span> ${blanks
-        .map((blank) => `<code class="blank">${escapeHtml(blank)}</code>`)
-        .join(" ")}</p>`
-    : "";
-  // Row one never wraps its controls away from the language label; the blank
-  // list gets its own row so Copy stays at the top right at every width.
-  return `<div class="cmd-head"><div class="cmd-bar"><span class="cmd-lang">${escapeHtml(label)}</span> <span class="cmd-actions"><span class="cmd-status" role="status"></span>${wrap} <button type="button" class="cmd-copy" title="Copy this ${escapeHtml(label)} block exactly"><span class="cmd-copy-text" aria-live="polite">Copy</span></button></span></div> ${fill}</div>`;
+  return `<div class="cmd-head"><div class="cmd-bar"><span class="cmd-lang">${escapeHtml(label)}</span> <span class="cmd-actions"><span class="cmd-status" role="status"></span>${wrap} <button type="button" class="cmd-copy" title="Copy this ${escapeHtml(label)} block exactly"><span class="cmd-copy-text" aria-live="polite">Copy</span></button></span></div></div>`;
 }
 
 function patchFence(md) {

@@ -41,39 +41,6 @@
   padding: 0.2rem 0.4rem 0.2rem 1rem;
 }
 
-.vp-doc .cmd-fill {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.3rem 0.4rem;
-  max-width: none;
-  margin: 0;
-  padding: 0.4rem 0.75rem 0.45rem 1rem;
-  border-top: 1px solid var(--rb-plate-rule);
-  font-size: 12.5px;
-  line-height: 1.4;
-}
-
-.vp-doc .cmd-fill-label {
-  color: var(--rb-plate-ink-2);
-}
-
-.vp-doc .cmd-head code.blank {
-  display: inline-block;
-  width: auto;
-  min-width: 0;
-  line-height: 1.5;
-  padding: 0.05rem 0.35rem;
-  border-radius: 3px;
-  background: var(--rb-plate-blank-bg);
-  color: var(--rb-plate-blank-fg);
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: underline dashed 1px;
-  text-underline-offset: 3px;
-  overflow-wrap: anywhere;
-}
-
 .vp-doc .cmd-actions {
   display: flex;
   flex: none;
@@ -343,7 +310,7 @@
   font-size: 11px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
-  color: var(--rb-ink-3);
+  color: var(--rb-port);
   text-align: end;
   overflow-wrap: anywhere;
 }
@@ -627,9 +594,6 @@
     padding-left: 0.75rem;
   }
 
-  .vp-doc .cmd-fill {
-    padding-left: 0.75rem;
-  }
 }
 
 /* Home: Where to enter. Each ruled row quotes the box route's When and

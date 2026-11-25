@@ -253,3 +253,59 @@ test("sections read as binder tabs, with their modules hung from a guide line", 
   const config = await readFile(path.resolve(import.meta.dirname, "../site/.vitepress/config.mjs"), "utf8");
   assert.match(config, /<span class="sb-section">\$\{escapeHtml\(group\.text\)\}<\/span><span class="sb-count">\$\{group\.items\.length\}<\/span>/);
 });
+
+test("a closed module's ports show in full while they fit and count the rest; an open module shows them all", async () => {
+  const { fitPortLabel, portLabel } = await import("../site/.vitepress/theme/sidebar-ports.js");
+  const mail = ["25", "110", "143", "465", "587", "993", "995"];
+  // A mono line of N characters: the label fits when it is no longer than N.
+  const fitsIn = (characters) => (label) => label.length <= characters;
+  assert.equal(fitPortLabel(mail, fitsIn(80)), "25 · 110 · 143 · 465 · 587 · 993 · 995");
+  assert.equal(fitPortLabel(mail, fitsIn(28)), "25 · 110 · 143 · 465 +3");
+  assert.equal(fitPortLabel(mail, fitsIn(17)), "25 · 110 · 143 +4");
+  // Never fewer than one port, even on a line too narrow for it.
+  assert.equal(fitPortLabel(mail, fitsIn(2)), "25 +6");
+  assert.equal(fitPortLabel(["22"], fitsIn(1)), "22");
+  assert.equal(portLabel(["80", "443"], 2), "80 · 443");
+  // A closed module's line never wraps, so fitting changes its text and
+  // never its height.
+  const rules = await themeRules();
+  const line = rules.find((rule) => rule.selectors.includes(".sb-ports"));
+  assert.equal(declaration(line.body, "white-space"), "nowrap");
+  // An open module's line shows every port and wraps, but only between
+  // ports: each port is unbreakable, so 53/udp never splits.
+  const open = rules.find((rule) => rule.selectors.includes(".VPSidebarItem.level-1:not(.collapsed) > .item .sb-ports"));
+  assert.equal(declaration(open.body, "white-space"), "normal");
+  const port = rules.find((rule) => rule.selectors.includes(".sb-port"));
+  assert.equal(declaration(port.body, "white-space"), "nowrap");
+  const script = await read("sidebar-ports.js");
+  assert.match(script, /if \(open\) \{\s*render\(line, ports, ports\.length\);/);
+  // Opening or closing a module flips its class; the line refits with it.
+  assert.match(script, /attributeFilter: \["class"\]/);
+  // It takes the row's full width, under the count too, and its text never
+  // widens the row: the script measures against the room the row has.
+  assert.equal(declaration(line.body, "grid-column"), "1 / -1");
+  assert.equal(declaration(line.body, "contain"), "inline-size");
+  const row = rules.find((rule) => rule.selectors.includes(".VPSidebarItem.level-1 > .item .text bdi"));
+  assert.equal(declaration(row.body, "display"), "grid");
+  assert.equal(declaration(row.body, "gap"), "0 0.5rem");
+  // The server renders every port, so the full list is there before scripts
+  // run and in the row's title.
+  const config = await readFile(path.resolve(import.meta.dirname, "../site/.vitepress/config.mjs"), "utf8");
+  assert.match(config, /data-ports="\$\{escapeHtml\(ports\.join\(" "\)\)\}">\$\{ports\s*\.map\(\(port\) => `<span class="sb-port">\$\{escapeHtml\(port\)\}<\/span>`\)\s*\.join\("&nbsp;· "\)\}/);
+  assert.doesNotMatch(config, /ports\.slice\(0, 3\)/);
+  const theme = await read("index.js");
+  assert.match(theme, /installSidebarPorts\(\);/);
+});
+
+test("port numbers have one colour of their own, used for ports everywhere", async () => {
+  const tokens = await read("tokens.css");
+  assert.match(tokens, /:root \{[\s\S]*--rb-port: #1f6b68;/);
+  assert.match(tokens, /\.dark \{[\s\S]*--rb-port: #6cc7bd;/);
+  const rules = await themeRules();
+  const users = rules.filter((rule) => /var\(--rb-port\)/.test(rule.body)).flatMap((rule) => rule.selectors);
+  // The sidebar's port line, the home page's port cells and the task
+  // directory's ports, and nothing else.
+  assert.deepEqual(users.sort(), [".directory-ports", ".sb-ports", ".vp-doc .port"]);
+  const generator = await readFile(path.resolve(import.meta.dirname, "../scripts/checklist.mjs"), "utf8");
+  assert.match(generator, /function portSpan\(hint\) \{\s*return `<span class="port">\$\{hint\}<\/span>`;/);
+});

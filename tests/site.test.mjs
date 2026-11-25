@@ -12,7 +12,7 @@ import {
   isOutcomeList,
   parseChecklist,
 } from "../scripts/checklist.mjs";
-import { BLANK, blanksIn } from "../site/.vitepress/markdown.mjs";
+import { BLANK } from "../site/.vitepress/markdown.mjs";
 import { codeText } from "../site/.vitepress/theme/copy.js";
 import { matchTasks, normalizeTaskId } from "../site/.vitepress/theme/task-id.js";
 
@@ -884,6 +884,9 @@ test("every command plate renders and copies its source block text exactly", asy
       if (!built[index].head.includes(`<span class="cmd-lang">${block.lang || "text"}</span>`)) {
         failures.push(`${task.id}: block ${index + 1} has no visible language label`);
       }
+      if (/cmd-fill|>Fill in</.test(built[index].head)) {
+        failures.push(`${task.id}: block ${index + 1} still has a placeholder summary`);
+      }
     }
     if (/class="copy"/.test(html)) failures.push(`${task.id}: hover-only copy button remains`);
     if ((html.match(/class="cmd-copy"/g) ?? []).length !== expected.length) {
@@ -901,9 +904,8 @@ test("the copy handler joins rendered line text without trimming or prompt strip
   assert.equal(codeText(code), "$ echo '<IP_ADDRESS>'  \n\n  > tail");
 });
 
-test("command blanks are highlighted in place and listed above each plate", async () => {
+test("command blanks are highlighted in place without a header summary", async () => {
   await buildSite();
-  const escape = (value) => value.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   const failures = [];
   let marked = 0;
   for (const task of catalog.tasks) {
@@ -912,11 +914,7 @@ test("command blanks are highlighted in place and listed above each plate", asyn
       const count = [...block.body.matchAll(BLANK)].length;
       const found = (built[index].code.match(/class="blank"/g) ?? []).length;
       if (found !== count) failures.push(`${task.id} block ${index + 1}: ${found}/${count} blanks marked`);
-      for (const blank of blanksIn(block.body)) {
-        if (!built[index].head.includes(`<code class="blank">${escape(blank)}</code>`)) {
-          failures.push(`${task.id} block ${index + 1}: header omits ${blank}`);
-        }
-      }
+      if (/cmd-fill|>Fill in</.test(built[index].head)) failures.push(`${task.id} block ${index + 1}: summary remains`);
       marked += count;
     }
   }
@@ -1178,7 +1176,7 @@ test("every service lane names its scan ports in the sidebar and the port index"
   for (const group of groups) {
     for (const hint of group.modulePorts) {
       const [port, proto] = hint.split("/");
-      const row = `| ${port} | ${(proto ?? "tcp").toUpperCase()} |`;
+      const row = `| <span class="port">${port}</span> | ${(proto ?? "tcp").toUpperCase()} |`;
       assert.ok(index.includes(row), `${group.text} ${hint} row`);
       assert.ok(index.includes(`[${group.text}](../../generated/modules/`), hint);
       assert.match(directory, new RegExp(`\\| \\[${group.text.replace(/[/]/g, "\\/")}\\]\\([^)]+\\) \\| [^|]*${hint}`));
@@ -1189,7 +1187,7 @@ test("every service lane names its scan ports in the sidebar and the port index"
   const beforeTaskList = home.slice(0, home.indexOf('id="task-list"'));
   assert.match(beforeTaskList, /id="scan-results"/);
   assert.match(beforeTaskList, />445</);
-  assert.match(home, /class="sb-ports"[^>]*>22</);
+  assert.match(home, /class="sb-ports"[^>]*><span class="sb-port">22<\/span>/);
   assert.doesNotMatch(home, /Filter by ID, title, module or port|From a scan line/);
 });
 
@@ -1290,10 +1288,9 @@ test("placeholders are marked without altering text or matching literals", async
   assert.match(net01, /class="blank">&lt;TARGET_IP&gt;<\/span>/);
   assert.doesNotMatch(mail02, /class="blank">&lt;0\.4096&gt;/);
   assert.doesNotMatch(wupload02, /class="blank">&lt;\?php/);
-  // The Fill in strip is exposed to assistive technology, and Python source
-  // (the local helper reference) never gets blank marks.
-  assert.match(net01, /<p class="cmd-fill"><span class="cmd-fill-label">Fill in<\/span> <code class="blank">&lt;TARGET_IP&gt;<\/code><\/p>/);
-  assert.doesNotMatch(net01, /cmd-fill[^>]*aria-hidden/);
+  // The placeholder summary strip is gone. Python source in the local helper
+  // reference still never gets blank marks.
+  assert.doesNotMatch(net01, /cmd-fill|cmd-fill-label|>Fill in</);
   assert.doesNotMatch(uploadProof, /class="blank"/);
 });
 
@@ -1473,7 +1470,7 @@ test("every token text pair meets WCAG AA in both themes", async () => {
       const ratio = contrast(foreground, background);
       if (ratio < 4.5) failures.push(`${mode} ${label}: ${ratio.toFixed(2)}`);
     };
-    for (const ink of ["rb-ink", "rb-ink-2", "rb-ink-3"]) {
+    for (const ink of ["rb-ink", "rb-ink-2", "rb-ink-3", "rb-port"]) {
       for (const surface of ["rb-paper", "rb-desk", "rb-panel"]) check(`${ink} on ${surface}`, colour(ink), colour(surface));
     }
     const soft = rgbaParts(tokens.get("rb-route-soft"));
@@ -1593,7 +1590,7 @@ async function allThemeRules() {
   return rules;
 }
 
-test("narrow command plates inset each row once, so labels line up with the code column", async () => {
+test("narrow command plates inset the header once, so labels line up with the code column", async () => {
   const narrow = (await allThemeRules()).filter((rule) => /max-width:\s*640px/.test(rule.media ?? ""));
   const inset = (selector) => {
     const rule = narrow.find((candidate) => candidate.selectors.includes(selector) && /padding/.test(candidate.body));
@@ -1601,9 +1598,8 @@ test("narrow command plates inset each row once, so labels line up with the code
     return rule;
   };
   const code = declaration(inset(".vp-doc div.cmd-plate code").body, "padding").split(/\s+/)[1];
-  for (const row of [".vp-doc .cmd-bar", ".vp-doc .cmd-fill"]) {
-    assert.equal(declaration(inset(row).body, "padding-left"), code, `${row} starts on the code column`);
-  }
+  const row = ".vp-doc .cmd-bar";
+  assert.equal(declaration(inset(row).body, "padding-left"), code, `${row} starts on the code column`);
   for (const rule of narrow.filter((candidate) => candidate.selectors.includes(".vp-doc .cmd-head"))) {
     assert.doesNotMatch(rule.body, /padding/, `${rule.file}: the head would add a second inset to its rows`);
   }

@@ -33,6 +33,9 @@
   --rb-route-wash: rgba(19, 81, 152, 0.045);
   --rb-route-edge: rgba(19, 81, 152, 0.35);
 
+  /* Ports: teal, for scan port numbers only */
+  --rb-port: #1f6b68;
+
   /* Blanks: highlighter on paper */
   --rb-blank-bg: #ffe45c;
   --rb-blank-fg: #1b1600;
@@ -128,6 +131,8 @@
   --rb-route-soft: rgba(120, 185, 250, 0.14);
   --rb-route-wash: rgba(120, 185, 250, 0.06);
   --rb-route-edge: rgba(120, 185, 250, 0.38);
+
+  --rb-port: #6cc7bd;
 
   --rb-blank-bg: #f0cf45;
   --rb-blank-fg: #171200;

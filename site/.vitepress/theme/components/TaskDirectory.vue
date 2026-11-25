@@ -18,6 +18,7 @@ const modules = computed(() => {
       groups.push({
         title: group.moduleTitle,
         link: withBase(`${group.moduleLink}.html`),
+        ports: group.modulePorts ?? [],
         tasks: group.items
           .filter((item) => item.taskId)
           .map((item) => ({
@@ -37,7 +38,7 @@ const modules = computed(() => {
 const shown = computed(() => {
   if (!query.value.trim()) return modules.value;
   return modules.value
-    .map((module) => ({ ...module, tasks: matchTasks(module.tasks, query.value) }))
+    .map((module) => ({ ...module, tasks: matchTasks(module.tasks, query.value, module.ports) }))
     .filter((module) => module.tasks.length);
 });
 const flat = computed(() => shown.value.flatMap((module) => module.tasks));
@@ -47,13 +48,13 @@ const total = computed(() => modules.value.reduce((sum, { tasks }) => sum + task
 
 <template>
   <div class="directory-tools">
-    <label class="directory-label" for="directory-filter">Filter by ID, title or module</label>
+    <label class="directory-label" for="directory-filter">Filter by ID, title, module or port</label>
     <div class="directory-row">
       <input
         id="directory-filter"
         v-model="query"
         class="directory-input"
-        placeholder="e.g. smb, kerberos, LPRIV"
+        placeholder="e.g. smb, 445, LPRIV"
         autocomplete="off"
         spellcheck="false"
         @keydown.esc.prevent="query = ''"
@@ -77,6 +78,7 @@ const total = computed(() => modules.value.reduce((sum, { tasks }) => sum + task
     <section v-for="module in shown" :key="module.title" class="directory-module" :aria-label="`${module.title} tasks`">
       <p class="directory-module-head">
         <a :href="module.link">{{ module.title }}</a>
+        <span v-if="module.ports.length" class="directory-ports">{{ module.ports.join(" · ") }}</span>
         <span class="directory-count">{{ module.tasks.length }}</span>
       </p>
       <ol class="directory-tasks">

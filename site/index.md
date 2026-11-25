@@ -22,6 +22,14 @@ For a Linux shell, start at
 
 [Default box route](./generated/start.md){.action} [Module summary](#module-summary){.action}
 
+## From a scan line
+
+A reported port maps to the module that opens its lane. The same ports appear on
+each module row and match in the filter below. Confirm the service before
+following a label; a port guess is not a protocol proof.
+
+<!--@include: ./.vitepress/generated/port-index.md-->
+
 ## Every task
 
 Every published page in phase order, grouped by module or as one flat list.

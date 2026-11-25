@@ -25,10 +25,12 @@ path.
 
 ## Positioning
 
-Thirty-five modules are grouped by the box's phase order: Reach, Services, Web,
-Session, Host, Windows and domain, Linux privilege, and Movement. Linux
-privilege escalation is one visible module with LPRIV-01 through LPRIV-20.
-Retired LNX URLs redirect into it and existing LPRIV URLs stay stable.
+Forty-nine modules are grouped by the box's phase order: Enumeration, Services,
+Web, Session, Host, Windows and domain, Linux privilege, and Movement. Each
+service owns exactly one module and its scan ports, and a generated port index
+turns a reported port into its lane. Linux privilege escalation is one visible
+module with LPRIV-01 through LPRIV-20. Retired LNX URLs redirect into it and
+existing LPRIV URLs stay stable.
 
 ## Operating context
 

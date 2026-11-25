@@ -149,7 +149,7 @@ components:
 **Creative North Star: "The Field Binder, in Slate & Signal"**
 
 The checklist has two deliberate reading speeds in one navigation tree. The
-15 Linux privilege pages are the sheets kept beside the console: compact
+20 Linux privilege pages are the sheets kept beside the console: compact
 command groups, a short signal to recognize, and an exact next link. The
 retained task pages keep the original procedure sheets and their full decision
 record. A detailed retained task has:
@@ -222,7 +222,7 @@ Sans Mono (Kali's default) and Liberation Mono. Ligatures are off in all code.
 The VitePress shell is kept:
 
 - a 304px sidebar;
-- a 900px task reading column (prose 74ch; plates and tables full width);
+- a 1120px reading column (prose 74ch; plates and tables full width);
 - no right aside on task pages;
 - a 1440px layout maximum, because VitePress sizes the sidebar from it and a
   larger value clips sidebar titles.
@@ -230,12 +230,14 @@ The VitePress shell is kept:
 Task pages reduce VitePress's top padding to 1.5rem. That keeps the first
 command close to the title without adding a local outline.
 
-Task pages use a 900px maximum and shrink to fit beside the sidebar. Guidance uses a label column
+The column shrinks to fit beside the sidebar. On a wide screen it is centred
+on the screen, not in the space beside the sidebar, and moves right only as
+far as the open sidebar needs. Guidance uses a label column
 and a hanging body column. Linux privilege escalation is one sidebar group
 containing only LPRIV-01 through LPRIV-20. The desktop sidebar folds into a
-64px rail at the left edge without storing state. The reading column keeps the
-open sidebar's offset in both states, so folding uncovers empty paper on the
-left instead of re-centring the page. The sidebar is pinned to the viewport's
+64px rail at the left edge without storing state. The reading column sits in the
+same place in both states, so folding uncovers paper beside the rail instead
+of re-centring the page. The sidebar is pinned to the viewport's
 left edge at every desktop width, like an application shell, rather than
 following VitePress's centred 1440px layout.
 
@@ -362,23 +364,33 @@ Four rules place a module:
 1. A module sits in the phase where it is first entered, not where its output
    is later useful. Payloads stay in Session, so choosing an exploit never
    jumps back up the tree.
-2. A service keeps its whole lane in one section, including its write, TLS and
-   knock steps. File services owns FTP-01 through FTP-04 and SMB-01 through
-   SMB-03.
-3. A shared step lives in the phase that owns it. Session proof, shell transfer
-   and session setup are not repeated beside every service that reaches them.
+2. A service keeps its whole lane in one section, including its write and TLS
+   steps. `FTP` owns FTP-01 through FTP-04 and `SMB` owns SMB-01 through
+   SMB-03. Module names use the service an operator saw on the scan, not the
+   category that collects it; there is one module per service and no
+   "other services" bucket.
+3. A shared step lives in the phase that owns it. Session proof, shell access
+   and file transfer are separate modules, so a service branch never repeats
+   them and the pager never jumps back up the tree.
 4. Credential work sits where it is consumed: password attacks follow domain
    discovery and precede the privilege paths that use the credential.
 5. A new service module joins Services in impact order — the services that can
    yield a file, an execution or a shell first, the informational ones last —
    and keeps its whole lane there.
 
-Windows is the one module that spans three phases, so it opens its own section:
-`WIN-01` and `WIN-16` establish Windows host context, the `AD-*` tasks carry
-domain discovery and object abuse, and password attacks, Windows privilege,
-ADCS and AD abuse follow in consumption order. Splitting `windows_ad` across
-sections is the next structural gain and needs the sidebar to group by task
-range.
+A scan line is the join between Enumeration and a lane, so every service module
+carries its ports in one authored map. The ports render under the module name in
+the sidebar, in the directory, in the module summary and as a port index above
+the directory, and they match in the filter. Some ports legitimately belong to
+several modules (445 reaches SMB, AD, Windows and AD abuse); the index lists them
+in phase order rather than picking a winner. Generation fails on a service module
+without a hint or a malformed port.
+
+Windows and AD are two modules, not one: `AD` carries AD-01 through AD-21
+(discovery, object abuse, and the domain side of privilege) and `Windows` carries
+WIN-01 through WIN-16 (host context and local privilege). `AD` opens the section
+because it holds the domain discovery a Windows shell enters from; password
+attacks, Windows privilege, ADCS and AD abuse follow in consumption order.
 
 Linux is its own phase after the Windows section rather than a child of Host:
 the two host lanes have different lengths, and nesting them would put either
@@ -386,12 +398,14 @@ LPRIV or WIN at the wrong end of the other.
 
 ### Sidebar sections
 
-The sidebar groups its 35 modules under eight collapsible sections. Sections use
+The sidebar groups its 49 modules under eight collapsible sections. Sections use
 uppercase micro-type, modules keep their counts, and tasks sit one level beneath
 their module. Sidebar order and the home directory are generated from the same
 phase list, and generation fails on a missing or duplicated module.
 
 A module row keeps its name and its count, flush right in mono, on one line.
+A service module also prints its ports on a second line under the name, in mono,
+clamped to three with the remainder counted; the full list is the row's title.
 Carets sit on the label's centre line. Task rows use a 4.75rem call-number
 column, sized to the longest ID (JENKINS-01). The active task's highlight is
 painted behind its row and never changes the row's box, so selecting a task
@@ -436,12 +450,14 @@ After a route change, the active sidebar item scrolls into view on desktop.
 
 ### Directory
 
-`/checklist/` has a filter by ID, title or module; Escape and Clear reset it.
-The module summary below it is grouped by the same eight box phases as the
-sidebar, from Reach through Movement, so the directory and the navigation never
-disagree. Both directory views stay available: **By module (35)** in
-printed-index columns and **Flat list (215)** in one table. The server-rendered
-default lists all 215 tasks. Nothing is stored.
+`/checklist/` has a filter by ID, title, module or port; Escape and Clear reset
+it. A generated **From a scan line** table sits above it, port to the module that
+opens the lane, and the module summary repeats the ports in a column. The
+summary is grouped by the same eight box phases as the sidebar, from Enumeration
+through Movement, so the directory and the navigation never disagree. Both
+directory views stay available: **By module (49)** in printed-index columns and
+**Flat list (215)** in one table. The server-rendered default lists all 215
+tasks. Nothing is stored.
 
 ## Do's and don'ts
 

@@ -247,6 +247,21 @@ samp {
   max-width: 1120px;
 }
 
+/* VitePress centres the column in the space beside the sidebar, which on a
+   wide screen opens a gap after the sidebar, and folding the sidebar widens
+   it again. The column is centred on the screen instead, and only moved
+   right as far as the open sidebar needs. It sits in the same place in both
+   fold states. The percentage is the doc container's width, which is the
+   screen less the sidebar and the doc's 32px padding on each side, so 50% -
+   sidebar / 2 - 560px is the screen-centred start less the sidebar's
+   share. */
+@media (min-width: 960px) {
+  .Layout .VPDoc .content-container,
+  .Layout .VPDoc.has-aside .content-container {
+    margin-inline: max(0px, calc(50% - var(--vp-sidebar-width) / 2 - 560px)) auto;
+  }
+}
+
 @media (min-width: 960px) {
   .Layout:is(.field-page, .task-page) .VPDoc .content {
     min-width: 0;
@@ -613,6 +628,28 @@ samp {
 .sb-module {
   flex: 1;
   min-width: 0;
+}
+
+/* A module's scan ports sit under its name in mono, clamped to three with the
+   remainder counted; the full list is the row's tooltip. */
+.sb-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sb-name .sb-module {
+  flex: none;
+}
+
+.sb-ports {
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  color: var(--rb-ink-3);
+  overflow-wrap: anywhere;
 }
 
 .sb-section {

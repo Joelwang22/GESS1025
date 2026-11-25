@@ -33,11 +33,20 @@ function renderGroup(group, isSection = false) {
       items: group.items.map((item) => renderGroup(item)),
     };
   }
+  const ports = module.ports ?? [];
+  const shownPorts = ports.slice(0, 3);
+  const extraPorts = ports.length - shownPorts.length;
+  const portMarkup = ports.length
+    ? `<span class="sb-ports" title="${escapeHtml(ports.join(" · "))}">${escapeHtml(
+        extraPorts > 0 ? `${shownPorts.join(" · ")} +${extraPorts}` : shownPorts.join(" · "),
+      )}</span>`
+    : "";
   return {
-    text: `<span class="sb-module">${escapeHtml(group.text)}</span><span class="sb-count">${group.items.length}</span>`,
+    text: `<span class="sb-name"><span class="sb-module">${escapeHtml(group.text)}</span>${portMarkup}</span><span class="sb-count">${group.items.length}</span>`,
     collapsed: group.collapsed,
     moduleTitle: group.text,
     moduleLink: module.link,
+    modulePorts: ports,
     items: group.items.map((item) => {
       const [id, ...title] = item.text.split(" · ");
       return {

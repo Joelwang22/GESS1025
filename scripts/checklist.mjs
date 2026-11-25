@@ -42,15 +42,17 @@ const LNX_REDIRECTS = new Map([
 
 const MODULE_DISPLAY_NAMES = new Map([
   ["network", "Network"],
-  ["file_services", "File services"],
-  ["remote_access", "Remote access"],
+  ["ftp", "FTP"],
+  ["smb", "SMB"],
+  ["remote_access", "SSH"],
   ["http", "HTTP"],
-  ["windows_ad", "Windows and Active Directory"],
+  ["ad", "AD"],
+  ["windows", "Windows"],
   ["redis", "Redis"],
-  ["redis_exploitation", "Redis exploitation"],
   ["ssh_knock", "SSH knock"],
   ["windows_privilege", "Windows privilege"],
-  ["dns_nfs", "DNS and NFS"],
+  ["dns", "DNS"],
+  ["nfs", "NFS"],
   ["snmp", "SNMP"],
   ["adcs", "ADCS"],
   ["ad_abuse", "AD abuse"],
@@ -59,22 +61,34 @@ const MODULE_DISPLAY_NAMES = new Map([
   ["metasploit", "Metasploit"],
   ["payloads", "Payloads"],
   ["web_advanced", "Advanced web"],
-  ["other_services", "Other services"],
   ["database", "Database"],
+  ["oracle", "Oracle"],
+  ["postgresql", "PostgreSQL"],
+  ["mysql", "MySQL"],
   ["mssql", "MSSQL"],
-  ["mail_rdp", "Mail and RDP"],
+  ["mail", "Mail"],
+  ["rdp", "RDP"],
   ["web_input", "Web input"],
-  ["ftp_write", "FTP write"],
-  ["ftp_tls", "FTP TLS"],
-  ["smb_write", "SMB write"],
   ["command_continuation", "Command continuation"],
   ["command_shell", "Command shell"],
   ["sql_continuation", "SQL continuation"],
   ["web_upload", "Web upload"],
   ["web_editor", "Web editor"],
-  ["access", "Access"],
-  ["shell_transfer", "Shell transfer"],
+  ["access", "Exploit check"],
+  ["shell", "Shell"],
+  ["transfer", "Transfer"],
   ["local_artifact", "Local artifact"],
+  ["smtp", "SMTP"],
+  ["tftp", "TFTP"],
+  ["rsync", "Rsync"],
+  ["docker", "Docker"],
+  ["jenkins", "Jenkins"],
+  ["ipmi", "IPMI"],
+  ["vnc", "VNC"],
+  ["ntp", "NTP"],
+  ["x11", "X11"],
+  ["squid", "Squid"],
+  ["generic", "Generic service"],
   ["linux", "Linux"],
   ["linux_privilege", OPERATOR_MODULE_TITLE],
 ]);
@@ -88,11 +102,11 @@ const MODULE_DISPLAY_NAMES = new Map([
 // the phase that owns them rather than beside every caller.
 const SIDEBAR_SECTIONS = [
   { title: "Enumeration", ids: ["network"] },
-  { title: "Services", ids: ["file_services", "ftp_write", "ftp_tls", "smb_write", "ssh_knock", "remote_access", "database", "mssql", "mail_rdp", "redis", "redis_exploitation", "dns_nfs", "snmp", "other_services"] },
+  { title: "Services", ids: ["ftp", "smb", "ssh_knock", "remote_access", "mssql", "database", "oracle", "postgresql", "mysql", "mail", "rdp", "redis", "dns", "nfs", "snmp", "smtp", "tftp", "rsync", "docker", "jenkins", "ipmi", "vnc", "ntp", "x11", "squid", "generic"] },
   { title: "Web", ids: ["http", "web_input", "sql_continuation", "web_upload", "web_editor", "command_continuation", "command_shell", "web_advanced"] },
   { title: "Session", ids: ["payloads", "access", "metasploit"] },
-  { title: "Host", ids: ["shell_transfer", "local_artifact"] },
-  { title: "Windows and domain", ids: ["windows_ad", "password_attacks", "windows_privilege", "adcs", "ad_abuse"] },
+  { title: "Host", ids: ["shell", "transfer", "local_artifact"] },
+  { title: "Windows and domain", ids: ["ad", "windows", "password_attacks", "windows_privilege", "adcs", "ad_abuse"] },
   { title: "Linux privilege", ids: ["linux_privilege"] },
   { title: "Movement", ids: ["pivoting"] },
 ];
@@ -100,6 +114,74 @@ const SIDEBAR_SECTIONS = [
 const PHASE_ORDER = new Map(
   SIDEBAR_SECTIONS.flatMap((section) => section.ids).map((id, index) => [id, index]),
 );
+
+// A scan line is the join between enumeration and a lane, so every service
+// module carries the ports that open it. The source writes `<SERVICE_PORT>`
+// placeholders rather than literal numbers in many commands, so the map is
+// authored here instead of scraped from task bodies. It lists the ports that
+// change the next action, not every port a product may ever use.
+const SERVICE_PORTS = new Map([
+  ["ftp", ["21", "990"]],
+  ["smb", ["139", "445"]],
+  ["remote_access", ["22"]],
+  ["http", ["80", "443", "8000", "8080", "8443"]],
+  ["ad", ["88", "135", "389", "445"]],
+  ["windows", ["135", "139", "445", "5985", "5986"]],
+  ["adcs", ["80", "135", "443"]],
+  ["ad_abuse", ["88", "389", "445"]],
+  ["database", ["1521", "3306", "5432"]],
+  ["oracle", ["1521"]],
+  ["postgresql", ["5432"]],
+  ["mysql", ["3306"]],
+  ["mssql", ["1433"]],
+  ["transfer", ["445"]],
+  ["mail", ["25", "110", "143", "465", "587", "993", "995"]],
+  ["rdp", ["3389"]],
+  ["redis", ["6379"]],
+  ["dns", ["53/udp", "53/tcp"]],
+  ["nfs", ["111", "2049"]],
+  ["snmp", ["161/udp"]],
+  ["smtp", ["25"]],
+  ["tftp", ["69/udp"]],
+  ["rsync", ["873"]],
+  ["docker", ["2375", "2376"]],
+  ["jenkins", ["8080"]],
+  ["ipmi", ["623/udp"]],
+  ["vnc", ["5900"]],
+  ["ntp", ["123/udp"]],
+  ["x11", ["6000"]],
+  ["squid", ["3128"]],
+]);
+
+// Modules with no single scan port: the scan itself, knock, phases that run
+// after a session exists, and web tasks that inherit the HTTP port.
+const PORT_EXEMPT = new Set([
+  "network",
+  "ssh_knock",
+  "web_input",
+  "web_upload",
+  "web_editor",
+  "web_advanced",
+  "command_continuation",
+  "command_shell",
+  "sql_continuation",
+  "password_attacks",
+  "access",
+  "shell",
+  "transfer",
+  "metasploit",  "payloads",
+  "pivoting",
+  "local_artifact",
+  "linux_privilege",
+  "windows_privilege",
+  "generic",
+]);
+
+const PORT_SHAPE = /^(\d{1,5})(?:\/(udp|tcp))?$/;
+
+function portNumber(hint) {
+  return Number(PORT_SHAPE.exec(hint)[1]);
+}
 
 function normalizeLines(markdown) {
   return markdown.replaceAll("\r\n", "\n").replaceAll("\r", "\n").split("\n");
@@ -954,11 +1036,37 @@ function moduleDirectory(publicModules) {
   const blocks = SIDEBAR_SECTIONS.map((section) => {
     const rows = section.ids.map((id) => {
       const module = moduleById.get(id);
-      return `| [${displayName(module.id)}](../../generated/modules/${module.id}.md) | ${module.tasks.length} |`;
+      const ports = (SERVICE_PORTS.get(module.id) ?? []).join(" · ") || "—";
+      return `| [${displayName(module.id)}](../../generated/modules/${module.id}.md) | ${ports} | ${module.tasks.length} |`;
     });
-    return [`### ${section.title}`, "", "| Module | Tasks |", "| --- | ---: |", ...rows].join("\n");
+    return [`### ${section.title}`, "", "| Module | Ports | Tasks |", "| --- | --- | ---: |", ...rows].join("\n");
   });
   return `<!-- Generated by scripts/checklist.mjs from the sidebar's phase list. Do not edit. -->\n\n${blocks.join("\n\n")}\n`;
+}
+
+// The port index is the reverse lookup for a scan line: port to the module that
+// opens its lane. One port can own several modules, so a row lists them all in
+// phase order.
+function portIndex(publicModules) {
+  const moduleById = new Map(publicModules.map((module) => [module.id, module]));
+  const byPort = new Map();
+  for (const [id, hints] of SERVICE_PORTS) {
+    for (const hint of hints) {
+      if (!byPort.has(hint)) byPort.set(hint, []);
+      byPort.get(hint).push(id);
+    }
+  }
+  const rows = [...byPort.entries()]
+    .sort(([a], [b]) => portNumber(a) - portNumber(b) || a.localeCompare(b))
+    .map(([hint, ids]) => {
+      const [, port, proto] = PORT_SHAPE.exec(hint);
+      const links = ids
+        .sort((a, b) => PHASE_ORDER.get(a) - PHASE_ORDER.get(b))
+        .map((id) => `[${displayName(moduleById.get(id).id)}](../../generated/modules/${id}.md)`)
+        .join(", ");
+      return `| ${port} | ${(proto ?? "tcp").toUpperCase()} | ${links} |`;
+    });
+  return `<!-- Generated by scripts/checklist.mjs from the service port map. Do not edit. -->\n\n| Port | Proto | Topic |\n| ---: | --- | --- |\n${rows.join("\n")}\n`;
 }
 
 function buildRoutes(tasks, moduleById, referencesByTask) {
@@ -1016,6 +1124,7 @@ function buildCatalog(checklist, snapshotSha256, sourceChecklist = checklist) {
       id: module.id,
       title: displayName(module.id),
       link: moduleLink(module.id),
+      ports: SERVICE_PORTS.get(module.id) ?? [],
       hasContext: module.context.length > 0,
       tasks: module.tasks.map(({ id, title }) => ({ id, title, link: taskLink(id) })),
     })),
@@ -1076,6 +1185,22 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
     modules: publicModules,
     tasks: publicTasks,
   };
+  for (const module of publicModules) {
+    if (!PORT_EXEMPT.has(module.id) && !SERVICE_PORTS.has(module.id)) {
+      throw new Error(`Service module ${module.id} has no port hint`);
+    }
+  }
+  for (const [id, hints] of SERVICE_PORTS) {
+    if (!publicModules.some((module) => module.id === id)) {
+      throw new Error(`Port hint names unknown module ${id}`);
+    }
+    for (const hint of hints) {
+      const match = PORT_SHAPE.exec(hint);
+      if (!match || Number(match[1]) < 1 || Number(match[1]) > 65535) {
+        throw new Error(`Bad port hint ${hint} for ${id}`);
+      }
+    }
+  }
   const referencePages = [];
   for (const reference of references) {
     const bytes = await readFile(reference.snapshot);
@@ -1165,6 +1290,7 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
   const moduleGroup = (module) => ({
     text: displayName(module.id),
     collapsed: true,
+    modulePorts: SERVICE_PORTS.get(module.id) ?? [],
     items: module.tasks.map(({ id, title }) => ({
       text: `${id} · ${title}`,
       link: `/generated/tasks/${id.toLowerCase()}`,
@@ -1229,6 +1355,10 @@ export async function generateSite({ sourcePath, manifestPath, outputRoot }) {
     writeText(
       path.join(configGeneratedRoot, "module-directory.md"),
       moduleDirectory(publicModules),
+    ),
+    writeText(
+      path.join(configGeneratedRoot, "port-index.md"),
+      portIndex(publicModules),
     ),
     writeText(
       path.join(configGeneratedRoot, "routes.json"),

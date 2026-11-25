@@ -143,7 +143,7 @@ test("the home page is the module directory; the old directory URL forwards to i
   assert.match(moved, /\[home page\]\(\.\.\/\)/);
   assert.match(moved, /search: false/);
   assert.doesNotMatch(moved, /<TaskDirectory/);
-  assert.match(source, /7f8d39b823ca61a9de2cf42be0d299c8640db3f42af388def7d6479754a776c6/);
+  assert.match(source, /fd2e53cc4d3c23a824d11a733649492b92ea449f06f5e98bb64d98433383795b/);
   assert.match(source, /Published pages \| 215/);
 });
 
@@ -278,7 +278,7 @@ test("generates every public page, module, and LNX compatibility URL", async () 
   ]);
 
   assert.equal(taskFiles.length, 225);
-  assert.equal(moduleFiles.length, 35);
+  assert.equal(moduleFiles.length, 49);
   assert.match(net01, /^# NET-01\. Check connectivity/m);
   assert.match(net01, /## Explanations and troubleshooting/);
   assert.match(net05, /Next: \[WEB-01\]\(\.\/web-01\)/);
@@ -348,18 +348,18 @@ test("orders sections by box phase, with every service lane ahead of the session
   const order = sidebar.flatMap((section) => section.items.map(({ text: label }) => label));
   const position = (label) => order.indexOf(label);
   // A shared step sits in its own phase, never beside a service that reaches it.
-  assert.ok(position("Network") < position("File services"));
-  assert.ok(position("Payloads") < position("Access"));
-  assert.ok(position("Access") < position("Shell transfer"));
+  assert.ok(position("Network") < position("FTP"));
+  assert.ok(position("Payloads") < position("Exploit check"));
+  assert.ok(position("Exploit check") < position("Shell"));
   assert.ok(position("Local artifact") < position("Pivoting"));
   // A service keeps its read and write tasks in the same section.
   assert.equal(
-    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "File services")),
-    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "FTP write")),
+    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "FTP")),
+    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "SMB")),
   );
   assert.equal(
     sidebar.findIndex(({ items }) => items.some(({ text }) => text === "SSH knock")),
-    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "Remote access")),
+    sidebar.findIndex(({ items }) => items.some(({ text }) => text === "SSH")),
   );
 });
 
@@ -391,10 +391,10 @@ test("names modules with an explicit acronym-correct display map", async () => {
     (match) => match[1],
   );
 
-  assert.equal(indexNames.length, 35);
+  assert.equal(indexNames.length, 49);
   const sidebarNames = sidebar.flatMap((section) => section.items.map(({ text: label }) => label));
   assert.deepEqual(sidebarNames.sort(), [...indexNames].sort());
-  for (const name of ["HTTP", "Windows and Active Directory", "DNS and NFS", "SNMP", "MSSQL", "FTP TLS", "SSH knock", "SQL continuation", "Mail and RDP"]) {
+  for (const name of ["HTTP", "AD", "Windows", "DNS", "NFS", "SNMP", "MSSQL", "Oracle", "PostgreSQL", "MySQL", "FTP", "SMB", "SSH", "SSH knock", "Shell", "Transfer", "SQL continuation", "Mail", "RDP", "Docker", "Jenkins", "Generic service"]) {
     assert.ok(indexNames.includes(name), name);
   }
   const httpModule = await text("site/generated/modules/http.md");
@@ -411,9 +411,9 @@ test("emits a complete public catalog with source provenance", async () => {
   assert.equal(generatedCatalog.edition, manifest.edition);
   assert.equal(generatedCatalog.sourceDigest, manifest.sourceDigest);
   assert.equal(generatedCatalog.snapshotSha256, manifest.snapshotSha256);
-  assert.equal(generatedCatalog.moduleCount, 35);
+  assert.equal(generatedCatalog.moduleCount, 49);
   assert.equal(generatedCatalog.taskCount, 215);
-  assert.equal(generatedCatalog.sourceModuleCount, 36);
+  assert.equal(generatedCatalog.sourceModuleCount, 50);
   assert.equal(generatedCatalog.sourceTaskCount, 220);
   assert.equal(sidebar.flatMap((section) => section.items).length, generatedCatalog.modules.length);
   assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 215);
@@ -696,12 +696,12 @@ test("built pages render inline-code placeholders literally once", async () => {
   }
   assert.deepEqual(failures, []);
 
-  const [dnsNfs, nfs01] = await Promise.all([
-    text("site/.vitepress/dist/generated/modules/dns_nfs.html"),
-    text(`site/.vitepress/dist/generated/tasks/${checklist.modules.find(({ id }) => id === "dns_nfs").tasks[0].id.toLowerCase()}.html`),
+  const [dns, dns01] = await Promise.all([
+    text("site/.vitepress/dist/generated/modules/dns.html"),
+    text("site/.vitepress/dist/generated/tasks/dns-01.html"),
   ]);
-  assert.match(dnsNfs, /<code>&lt;\.\.\.&gt;<\/code>/);
-  assert.match(nfs01, /<code>&lt;\.\.\.&gt;<\/code>/);
+  assert.match(dns, /<code>&lt;\.\.\.&gt;<\/code>/);
+  assert.match(dns01, /<code>&lt;\.\.\.&gt;<\/code>/);
 });
 
 test("uses a Vite release patched for the Windows launch-editor advisory", async () => {
@@ -1129,17 +1129,57 @@ test("command plates keep Copy visible and add Wrap only when a block needs it",
   assert.doesNotMatch(net01, /class="cmd-wrap"/);
 });
 
-test("the find box matches task IDs, title words, and modules", () => {
+test("the find box matches task IDs, title words, modules and scan ports", () => {
   const tasks = [
-    { id: "SMB-01", title: "List shares for the current identity", module: "File services" },
+    { id: "SMB-01", title: "List shares for the current identity", module: "SMB" },
     { id: "LPRIV-02", title: "Does this reviewed SUID binary change identity?", module: "Linux privilege escalation" },
-    { id: "AD-06", title: "Request one roastable Kerberos ticket", module: "Windows and Active Directory" },
+    { id: "AD-06", title: "Request one roastable Kerberos ticket", module: "AD" },
   ];
   assert.deepEqual(matchTasks(tasks, "smb").map(({ id }) => id), ["SMB-01"]);
   assert.deepEqual(matchTasks(tasks, "suid").map(({ id }) => id), ["LPRIV-02"]);
   assert.deepEqual(matchTasks(tasks, "kerberos ticket").map(({ id }) => id), ["AD-06"]);
   assert.deepEqual(matchTasks(tasks, "linux").map(({ id }) => id), ["LPRIV-02"]);
   assert.deepEqual(matchTasks(tasks, "   "), []);
+  // A scan port reaches the module that owns it, and only that module.
+  assert.deepEqual(matchTasks(tasks.slice(0, 1), "445", ["21", "139", "445"]).map(({ id }) => id), ["SMB-01"]);
+  assert.deepEqual(matchTasks(tasks.slice(1), "445", []).map(({ id }) => id), []);
+});
+
+test("every service lane names its scan ports in the sidebar and the port index", async () => {
+  await buildSite();
+  const [sidebar, index, directory, home] = await Promise.all([
+    text("site/.vitepress/generated/sidebar.json").then(JSON.parse),
+    text("site/.vitepress/generated/port-index.md"),
+    text("site/.vitepress/generated/module-directory.md"),
+    text("site/.vitepress/dist/index.html"),
+  ]);
+  const groups = sidebar.flatMap((section) => section.items);
+  const portsOf = (label) => groups.find(({ text }) => text === label)?.modulePorts ?? [];
+
+  assert.deepEqual(portsOf("SSH"), ["22"]);
+  assert.ok(portsOf("SMB").includes("445"));
+  assert.ok(portsOf("MSSQL").includes("1433"));
+  assert.ok(portsOf("DNS").includes("53/udp"));
+  for (const label of ["Network", "SSH knock", "Pivoting", "Linux privilege escalation"]) {
+    assert.deepEqual(portsOf(label), [], label);
+  }
+
+  for (const group of groups) {
+    for (const hint of group.modulePorts) {
+      const [port, proto] = hint.split("/");
+      const row = `| ${port} | ${(proto ?? "tcp").toUpperCase()} |`;
+      assert.ok(index.includes(row), `${group.text} ${hint} row`);
+      assert.ok(index.includes(`[${group.text}](../../generated/modules/`), hint);
+      assert.match(directory, new RegExp(`\\| \\[${group.text.replace(/[/]/g, "\\/")}\\]\\([^)]+\\) \\| [^|]*${hint}`));
+    }
+  }
+
+  // The home page shows the ports above the filter and the index, server-rendered.
+  const beforeFilter = home.slice(0, home.indexOf('class="directory-tools"'));
+  assert.match(beforeFilter, /id="from-a-scan-line"/);
+  assert.match(beforeFilter, />445</);
+  assert.match(home, /class="sb-ports"[^>]*>22</);
+  assert.match(home, /Filter by ID, title, module or port/);
 });
 
 test("module pages list exact task titles in an aligned column without an outline", async () => {
@@ -1212,6 +1252,17 @@ test("pages without an outline reserve no empty aside, and the column reaches 11
   // No page type narrows the column again.
   for (const rule of rules.filter((candidate) => candidate.selectors.some((selector) => /\.content-container$/.test(selector)))) {
     assert.ok(["1120px", undefined].includes(declaration(rule.body, "max-width")), rule.selectors.join(", "));
+  }
+});
+
+test("the column is centred on the screen and kept clear of the open sidebar in both fold states", async () => {
+  const rules = await allThemeRules();
+  const centred = rules.find((rule) => rule.media?.includes("min-width: 960px") && rule.selectors.includes(".Layout .VPDoc .content-container") && declaration(rule.body, "margin-inline"));
+  assert.ok(centred, "desktop column margin rule");
+  assert.equal(declaration(centred.body, "margin-inline"), "max(0px, calc(50% - var(--vp-sidebar-width) / 2 - 560px)) auto");
+  // Nothing keyed to the fold state offsets the column.
+  for (const rule of rules.filter((candidate) => candidate.selectors.some((selector) => selector.includes("sidebar-collapsed")))) {
+    assert.ok(!rule.selectors.some((selector) => /VPDoc|VPContent|content-container/.test(selector)), rule.selectors.join(", "));
   }
 });
 
@@ -1489,7 +1540,7 @@ test("the directory flat list keeps every task", async () => {
   const html = await text("site/.vitepress/dist/index.html");
   const directoryHtml = html.slice(html.indexOf('class="directory-tools"'), html.indexOf('id="module-summary"'));
   assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 215);
-  assert.match(directoryHtml, /aria-pressed="true">\s*By module \(35\)/);
+  assert.match(directoryHtml, /aria-pressed="true">\s*By module \(49\)/);
   assert.match(directoryHtml, /aria-pressed="false">\s*Flat list \(215\)/);
   assert.doesNotMatch(directory, /localStorage|sessionStorage/);
 });

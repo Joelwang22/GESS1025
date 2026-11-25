@@ -336,6 +336,18 @@
   color: var(--rb-ink-3);
 }
 
+.directory-ports {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--vp-font-family-mono);
+  font-size: 11px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--rb-ink-3);
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
 .vp-doc .directory-tasks {
   margin: 0;
   padding: 0;

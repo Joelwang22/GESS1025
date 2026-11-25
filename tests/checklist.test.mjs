@@ -141,7 +141,7 @@ test("parses the retained checklist edition with working and explanation parity"
   assert.equal(new Set(checklist.tasks.map(({ id }) => id)).size, 220);
   assert.deepEqual(
     checklist.modules.slice(0, 5).map(({ id }) => id),
-    ["network", "file_services", "remote_access", "http", "windows_ad"],
+    ["network", "ftp", "smb", "remote_access", "http"],
   );
   assert.ok(checklist.tasks.every(({ explanation }) => explanation.length > 0));
 });
@@ -453,9 +453,9 @@ test("generation is deterministic for identical input", async () => {
     const secondDigest = await digestTree(outputRoot);
 
     assert.equal(first.taskCount, 215);
-    assert.equal(first.moduleCount, 35);
+    assert.equal(first.moduleCount, 49);
     assert.equal(first.sourceTaskCount, 220);
-    assert.equal(first.sourceModuleCount, 36);
+    assert.equal(first.sourceModuleCount, 50);
     assert.deepEqual(second, first);
     assert.equal(secondDigest, firstDigest);
   } finally {
@@ -483,7 +483,7 @@ test("normalizes loose task IDs and matches by ID or keyword", () => {
   const tasks = [
     { id: "NET-01", title: "Check connectivity", module: "Network" },
     { id: "WEB-09", title: "Inspect source and cookies", module: "HTTP" },
-    { id: "AD-14", title: "Kerberoast service accounts", module: "Windows and Active Directory" },
+    { id: "AD-14", title: "Kerberoast service accounts", module: "AD" },
   ];
   assert.deepEqual(matchTasks(tasks, "web9").map((task) => task.id), ["WEB-09"]);
   assert.deepEqual(matchTasks(tasks, "kerberoast").map((task) => task.id), ["AD-14"]);

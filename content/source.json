@@ -1,7 +1,7 @@
 {
   "edition": "2026-11-21.working.132",
   "sourceDigest": "ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731",
-  "snapshotSha256": "3c54c17a16280c06a2331acd6dff2e960471f91473233cd977169bd5dad7e764",
+  "snapshotSha256": "0fd9ce17444d0969eddcea24fa3257bbc471e0bcda425c319b62979454ee9d01",
   "expectedTaskCount": 230,
   "sourceRepository": "C:/Users/joelw/Documents/workbench",
   "sourcePath": "docs/checklists/oscp/master-working-2026-11-21.working.132.md",

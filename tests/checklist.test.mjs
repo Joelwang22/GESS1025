@@ -166,6 +166,26 @@ test("the provenance manifest pins every imported supporting reference", async (
   }
 });
 
+test("the PostgreSQL lane keeps psql enumeration and prompt recovery commands", async () => {
+  const checklist = parseChecklist(await readFile(sourcePath, "utf8"));
+  const postgres = checklist.tasks.find(({ id }) => id === "DB-19");
+
+  assert.ok(postgres);
+  for (const command of [
+    String.raw`\r`,
+    String.raw`\conninfo`,
+    String.raw`\l+`,
+    String.raw`\du+`,
+    String.raw`\dn+`,
+    String.raw`\c <DATABASE>`,
+    String.raw`\dt *.*`,
+    String.raw`\d <SCHEMA>.<TABLE>`,
+  ]) {
+    assert.match(postgres.working, new RegExp(command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.match(postgres.working, /postgres-#.*query buffer is\s+unfinished/s);
+});
+
 test("the Git index preserves the exact supporting reference bytes", async () => {
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 

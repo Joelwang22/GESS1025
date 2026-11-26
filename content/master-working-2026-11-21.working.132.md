@@ -2613,12 +2613,46 @@ PGHOSTADDR='127.0.0.1' PGSSLMODE=disable PGCONNECT_TIMEOUT=5 psql -X -W --host '
 
 ## DB-19. What does this PostgreSQL role expose?
 
-Send each statement separately.
+At a `psql` prompt, clear any unfinished input first:
+
+```text
+\r
+```
+
+`postgres=#` is ready for a new command. `postgres-#` means the query buffer is
+unfinished; `\r` clears it. `SHOW DATABASES` is MySQL or MariaDB syntax.
+PostgreSQL uses `\l` to list databases, while SQL `SHOW` reads server settings.
+
+Inspect the session, databases, roles and schemas:
+
+```text
+\conninfo
+\l+
+\du+
+\dn+
+```
+
+Connect to each non-template database, then list and inspect its relations:
+
+```text
+\c <DATABASE>
+\dn+
+\dt *.*
+\dv *.*
+\d <SCHEMA>.<TABLE>
+SELECT * FROM <SCHEMA>.<TABLE> LIMIT 20;
+```
+
+`\dt` without a pattern only searches the current database and visible schemas.
+`template0` rejects normal connections by design, and `template1` is a creation
+template rather than an application database.
+
+Send each SQL statement separately:
 
 ```sql
 SELECT current_user, session_user, version(), current_database(), inet_server_addr(), inet_server_port();
 SELECT rolsuper, pg_has_role(current_user,'pg_read_server_files','USAGE'), pg_has_role(current_user,'pg_execute_server_program','USAGE') FROM pg_roles WHERE rolname=current_user;
-SELECT datname FROM pg_database;
+SELECT datname FROM pg_database WHERE datallowconn ORDER BY datname;
 SELECT schemaname, tablename FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') LIMIT 40;
 SHOW data_directory;
 ```

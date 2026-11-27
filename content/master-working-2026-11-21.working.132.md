@@ -76,14 +76,23 @@ ping -c 3 '<TARGET_IP>'
 Enter when: the box responds, or you have decided to scan anyway.
 
 ```bash
-sudo nmap -sS -sVC -p- -v -T4 --open -oN results.txt '<TARGET_IP>'
+sudo nmap -sS -sVC -p- -v -T4 --open -oA results '<TARGET_IP>'
 ```
 
-If sudo is unavailable, use `nmap -sT -sVC -p- -v -T4 --open -oN results.txt '<TARGET_IP>'`. If discovery wrongly reports the host down, retry once with `-Pn`.
+If sudo is unavailable, use `nmap -sT -sVC -p- -v -T4 --open -oA results '<TARGET_IP>'`. If discovery wrongly reports the host down, retry once with `-Pn`. `-oA results` keeps normal, grepable and XML output.
+
+Optionally search the completed XML version scan for local Exploit-DB candidates:
+
+```bash
+searchsploit --nmap results.xml
+```
+
+A match is a lead, not proof. Check the exact product, version, target OS, architecture, access requirements and side effects in **EXP-01** before selecting one candidate. No match does not close the service-specific branch.
 
 | Result | Next |
 | --- | --- |
 | Completed scan with open ports and versions | **NET-05**. |
+| SearchSploit returns a plausible candidate | Keep one product-bearing service; **EXP-01**. |
 | Completed scan, no open ports | **NET-04** for a justified UDP question, otherwise **PAUSE-COVERAGE**. |
 | Stopped at host discovery | Fix the route, then the one `-Pn` retry above. |
 | Interrupted or incomplete | **PAUSE-COVERAGE**. Keep the partial output. |
@@ -6322,7 +6331,7 @@ ICMP replies prove reachability, not open services.
 
 ## NET-02. What decides this step?
 
-A full TCP scan is the coverage baseline; `-Pn` skips discovery, not filtering.
+A full TCP scan is the coverage baseline; `-oA` preserves reusable XML, and a SearchSploit match remains an unverified candidate. `-Pn` skips discovery, not filtering.
 
 ## NET-03. What decides this step?
 

@@ -18,7 +18,7 @@ checkout. `pnpm stamp` re-pins the hash and counts after an intentional edit.
 | Published pages | 225 |
 | Published modules | 47 |
 | Imported | 2026-11-23 |
-| Snapshot SHA-256 | `7bc48e6ee69ad3d65d6ccb44205d8785dddfdaef6699a6ca9ed159e4ab3813ac` |
+| Snapshot SHA-256 | `e048fc9d93482c85915a211c49dbe5f6678d30bcf5c3e53954302c59b44fc0d7` |
 | Printed source digest | `ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731` |
 
 The snapshot's edition heading carries this note, reproduced exactly:

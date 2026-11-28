@@ -146,7 +146,7 @@ test("the home page is the module directory; the old directory URL forwards to i
   assert.match(moved, /\[home page\]\(\.\.\/\)/);
   assert.match(moved, /search: false/);
   assert.doesNotMatch(moved, /<TaskDirectory/);
-  assert.match(source, /6620a61a79421b2ff2f4152a607d95de61a6896d07035a660c3751b246c9c8b7/);
+  assert.match(source, /c90ba3c9e5a8939a209e8383db5f218a3b99436e8ee1b4b6da38fb9a14c25d9f/);
   assert.match(source, /Published pages \| 226/);
 });
 

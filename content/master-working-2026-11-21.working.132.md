@@ -561,14 +561,14 @@ Use the same scheme, hostname and port in both the URL and `--resolve`.
 Enter when: a page implies an input whose name is not in the HTML or scripts.
 
 ```bash
-ffuf -u '<TARGET_URL>?FUZZ=test' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -mc all -t 10 -rate 20
+ffuf -u '<TARGET_URL>?FUZZ=test' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -mc all -t 10
 ```
 
 Or measure the response to an unknown parameter and filter that exact byte size:
 
 ```bash
 curl -sS '<TARGET_URL>?unlikely_parameter_name=test' | wc -c
-ffuf -u '<TARGET_URL>?FUZZ=test' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -mc all -fs '<BASELINE_BYTES>' -t 10 -rate 20
+ffuf -u '<TARGET_URL>?FUZZ=test' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -mc all -fs '<BASELINE_BYTES>' -t 10
 ```
 
 Compare against an unknown parameter; confirm a hit through **WEB-06**.

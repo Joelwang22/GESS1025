@@ -561,14 +561,16 @@ Use the same scheme, hostname and port in both the URL and `--resolve`.
 Enter when: a page implies an input whose name is not in the HTML or scripts.
 
 ```bash
-ffuf -u '<TARGET_URL>?FUZZ=test' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -mc all -t 10
+ffuf -u '<TARGET_URL>?FUZZ=id' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -mc all -t 50
 ```
+
+`-mc all` keeps every HTTP status code so filters can decide which responses are noise.
 
 Or measure the response to an unknown parameter and filter that exact byte size:
 
 ```bash
-curl -sS '<TARGET_URL>?unlikely_parameter_name=test' | wc -c
-ffuf -u '<TARGET_URL>?FUZZ=test' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -mc all -fs '<BASELINE_BYTES>' -t 10
+curl -sS '<TARGET_URL>?unlikely_parameter_name=id' | wc -c
+ffuf -u '<TARGET_URL>?FUZZ=id' -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt -mc all -fs '<BASELINE_BYTES>' -t 50
 ```
 
 Compare against an unknown parameter; confirm a hit through **WEB-06**.

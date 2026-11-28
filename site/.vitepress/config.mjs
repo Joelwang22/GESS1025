@@ -5,6 +5,8 @@ import { defineConfig } from "vitepress";
 
 import { checklistMarkdown } from "./markdown.mjs";
 
+const base = "/GESS1025/";
+
 function readJson(relative) {
   return JSON.parse(readFileSync(fileURLToPath(new URL(relative, import.meta.url)), "utf8"));
 }
@@ -72,7 +74,7 @@ export default defineConfig({
   description:
     "A command-first OSCP checklist with finding-driven operator pages and task detail.",
   lang: "en-US",
-  base: "/GESS1025/",
+  base,
   cleanUrls: false,
   ignoreDeadLinks: false,
   lastUpdated: false,
@@ -82,7 +84,10 @@ export default defineConfig({
     codeTransformers: markdown.codeTransformers,
     config: markdown.config,
   },
-  head: [["meta", { name: "color-scheme", content: "light dark" }]],
+  head: [
+    ["meta", { name: "color-scheme", content: "light dark" }],
+    ["link", { rel: "icon", href: `${base}favicon.svg`, type: "image/svg+xml" }],
+  ],
   transformHead({ pageData }) {
     const target = pageData.frontmatter.redirectTarget;
     return target

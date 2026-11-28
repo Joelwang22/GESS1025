@@ -146,8 +146,8 @@ test("the home page is the module directory; the old directory URL forwards to i
   assert.match(moved, /\[home page\]\(\.\.\/\)/);
   assert.match(moved, /search: false/);
   assert.doesNotMatch(moved, /<TaskDirectory/);
-  assert.match(source, /e048fc9d93482c85915a211c49dbe5f6678d30bcf5c3e53954302c59b44fc0d7/);
-  assert.match(source, /Published pages \| 225/);
+  assert.match(source, /9ec725d623b7d5678dd4cb85a22e611e27d6f467e1fbaf3eab35e638b8fa956c/);
+  assert.match(source, /Published pages \| 226/);
 });
 
 test("publishes one 20-page Linux privilege operator module", async () => {
@@ -293,7 +293,7 @@ test("generates every public page, module, and LNX compatibility URL", async () 
     text("site/generated/tasks/lnx-01.md"),
   ]);
 
-  assert.equal(taskFiles.length, 235);
+  assert.equal(taskFiles.length, 236);
   assert.equal(moduleFiles.length, 47);
   assert.match(net01, /^# NET-01\. Check connectivity/m);
   assert.match(net01, /## Explanations and troubleshooting/);
@@ -438,11 +438,11 @@ test("emits a complete public catalog with source provenance", async () => {
   assert.equal(generatedCatalog.sourceDigest, manifest.sourceDigest);
   assert.equal(generatedCatalog.snapshotSha256, manifest.snapshotSha256);
   assert.equal(generatedCatalog.moduleCount, 47);
-  assert.equal(generatedCatalog.taskCount, 225);
+  assert.equal(generatedCatalog.taskCount, 226);
   assert.equal(generatedCatalog.sourceModuleCount, 48);
-  assert.equal(generatedCatalog.sourceTaskCount, 230);
+  assert.equal(generatedCatalog.sourceTaskCount, 231);
   assert.equal(sidebar.flatMap((section) => section.items).length, generatedCatalog.modules.length);
-  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 225);
+  assert.equal(new Set(generatedCatalog.tasks.map(({ id }) => id)).size, 226);
   assert.ok(!generatedCatalog.tasks.some(({ id }) => id.startsWith("LNX-")));
   assert.deepEqual(
     generatedCatalog.tasks.filter(({ id }) => id.startsWith("LPRIV-")).map(({ id }) => id),
@@ -643,7 +643,8 @@ test("ports supporting local references and rewrites their task links", async ()
 test("configures VitePress for GitHub Pages and local search", async () => {
   const config = await text("site/.vitepress/config.mjs");
 
-  assert.match(config, /base:\s*["']\/GESS1025\/["']/);
+  assert.match(config, /const base = ["']\/GESS1025\/["']/);
+  assert.match(config, /^  base,\r?$/m);
   assert.match(config, /https:\/\/github\.com\/Joelwang22\/GESS1025/);
   assert.match(config, /provider:\s*["']local["']/);
   assert.match(config, /sidebar/);
@@ -1246,6 +1247,14 @@ test("both light and dark browser chrome colours ship, and the layout keeps the 
   assert.match(css, /--vp-layout-max-width: 1440px;/);
 });
 
+test("every page declares a base-aware SVG favicon and the file ships", async () => {
+  await buildSite();
+  const home = await text("site/.vitepress/dist/index.html");
+  assert.match(home, /<link rel="icon" href="\/GESS1025\/favicon\.svg" type="image\/svg\+xml">/);
+  const icon = await text("site/.vitepress/dist/favicon.svg");
+  assert.match(icon, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 32 32">/);
+});
+
 test("the generated box route remains available without a home-page prompt", async () => {
   await buildSite();
   const [home, route] = await Promise.all([
@@ -1565,7 +1574,7 @@ test("the task list keeps every task without directory controls", async () => {
   // The server-rendered task list keeps every published task in module order.
   const html = await text("site/.vitepress/dist/index.html");
   const directoryHtml = html.slice(html.indexOf('class="directory"'), html.indexOf('id="module-summary"'));
-  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 225);
+  assert.equal(new Set([...directoryHtml.matchAll(/generated\/tasks\/([a-z0-9-]+)\.html/g)].map(([, id]) => id)).size, 226);
   assert.doesNotMatch(directoryHtml, /All 215 tasks|Directory layout|aria-pressed/);
 });
 
